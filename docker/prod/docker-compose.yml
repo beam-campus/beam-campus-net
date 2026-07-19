@@ -15,7 +15,7 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile.prod
-    image: beamcampus/beam-campus-net:latest
+    image: ghcr.io/beam-campus/beam-campus-net:latest
     container_name: beam-campus-site
     hostname: site
     restart: unless-stopped
