@@ -1,10 +1,10 @@
 defmodule BeamCampusWeb.HomeLive do
   @moduledoc """
-  The BEAM Campus landing page — the public face of the research commons.
+  The BEAM Campus landing page — outward-facing.
 
-  Content is grounded in the position paper: a commons, not a company; the
-  defensible value is a network, a mark and a reputation; sustained by grants,
-  patrons, contributed compute and modest participatory income.
+  Describes what BEAM Campus is, the open stack, and how to take part. It sells
+  the invitation, not internal strategy: no funding model, no governance or IP
+  reasoning, no motivations beyond the public identity.
   """
   use BeamCampusWeb, :live_view
 
@@ -18,11 +18,10 @@ defmodule BeamCampusWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <.hero />
-      <.thesis />
-      <.substrate />
-      <.commons />
-      <.sustain />
-      <.join />
+      <.what_it_is />
+      <.stack />
+      <.why_mesh />
+      <.take_part />
       <.site_footer />
     </Layouts.app>
     """
@@ -54,79 +53,72 @@ defmodule BeamCampusWeb.HomeLive do
         >
         </div>
         <p class="mt-6 max-w-2xl text-lg sm:text-xl text-base-content/80">
-          A European substrate for research into <strong>sovereign, distributed and
-            evolutionary AI</strong> — a mesh of small, cheap, low-power nodes, owned by
-          no one and by everyone, running meaningful workloads outside the reach of
-          Big Tech and Big Politics.
+          Open infrastructure for <strong>sovereign, distributed and evolutionary AI</strong> —
+          built on the BEAM, running across a federation of small machines owned by no one
+          and open to everyone.
         </p>
         <div class="mt-9 flex flex-wrap gap-3">
-          <a href="#join" class="btn btn-primary">
-            Take part <span aria-hidden="true">&rarr;</span>
+          <a href="#stack" class="btn btn-primary">
+            Explore the stack <span aria-hidden="true">&rarr;</span>
           </a>
-          <a href="#thesis" class="btn btn-outline">Read the thesis</a>
+          <a href="#take-part" class="btn btn-outline">Get involved</a>
         </div>
         <p class="mt-8 font-mono text-xs text-base-content/50">
-          BEAM = the Erlang virtual machine · the beam of light is a wink
+          Open source · European · built on the BEAM (Erlang/OTP)
         </p>
       </div>
     </section>
     """
   end
 
-  # ── Thesis ────────────────────────────────────────────────────────────
-  defp thesis(assigns) do
+  # ── What it is ────────────────────────────────────────────────────────
+  defp what_it_is(assigns) do
     ~H"""
-    <section id="thesis" class="mx-auto max-w-3xl px-6 py-20 sm:py-24">
-      <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">The frame</p>
+    <section class="mx-auto max-w-3xl px-6 py-20 sm:py-24">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">What it is</p>
       <p class="mt-6 text-2xl sm:text-3xl leading-snug text-balance">
-        Macula was never a product. It is research infrastructure — closer to an
-        independent lab than a software vendor. So the correct frame is a <strong class="text-primary">research commons</strong>, not a company.
+        AI that runs on many small machines — not one big cloud.
       </p>
       <p class="mt-6 text-base-content/70 leading-relaxed">
-        A product optimises for capture: lock-in, proprietary advantage, an addressable
-        market. A commons optimises for reach, correctness, participation and durability.
-        Beyond a point, the two are opposed — and we chose the commons. The research
-        stays open (AGPL, published); what is protected is the network, the mark and the
-        reputation, held in stewardship.
+        BEAM Campus is an open, European effort to build the infrastructure for distributed
+        and evolutionary AI: a federated mesh of small, low-power nodes that anyone can join,
+        with no central owner. The tools are open source and run on the BEAM — the Erlang
+        virtual machine behind decades of resilient, highly concurrent, distributed systems.
       </p>
     </section>
     """
   end
 
-  # ── The substrate ─────────────────────────────────────────────────────
-  defp substrate(assigns) do
+  # ── The stack ─────────────────────────────────────────────────────────
+  defp stack(assigns) do
     ~H"""
-    <section id="substrate" class="border-y border-base-300/60 bg-base-200/40">
+    <section id="stack" class="border-y border-base-300/60 bg-base-200/40">
       <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-        <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">The substrate</p>
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">The stack</p>
         <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
-          One stack, built on the BEAM
+          Four open pieces, one substrate
         </h2>
         <p class="mt-4 max-w-2xl text-base-content/70">
-          Population-based, evolutionary AI is embarrassingly parallel and hungry for
-          cheap, distributed compute — the workload a federated mesh is best suited to,
-          and a hyperscale cloud is worst. The architecture of the science and the
-          architecture of the substrate agree.
+          Each layer stands on its own and is open source. Together they let populations of
+          agents live, migrate and evolve across the mesh.
         </p>
 
         <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <.pillar name="Macula" role="The network" accent="primary">
-            A federated relay mesh over QUIC — DHT routing, membership and identity.
-            Populations of agents live, migrate and are evaluated here, with no central
-            owner and no single-provider dependency.
+            A federated relay mesh over QUIC — DHT routing, membership and identity. Nodes
+            connect across Europe with no single provider and automatic failover.
           </.pillar>
           <.pillar name="ReckonDB" role="The data" accent="secondary">
-            A BEAM-native event store with zero external dependencies — no PostgreSQL,
-            no Kafka, no Redis. Raft consensus, a full CQRS / event-sourcing framework.
+            A BEAM-native event store with zero external dependencies — distributed event
+            sourcing on Raft, with a full CQRS framework. Published on hex.pm.
           </.pillar>
           <.pillar name="Hecate" role="The platform" accent="secondary">
-            A sovereign application platform: a mesh-connected, event-sourced daemon plus
-            a desktop app and an app store for extension capabilities.
+            A sovereign application platform: a mesh-connected daemon plus a desktop app and
+            an app store for extensions.
           </.pillar>
           <.pillar name="Faber" role="The evolution" accent="accent">
-            The evolutionary layer — neuroevolution (TWEANN) on the BEAM. Populations
-            evolve across many small, unreliable, scattered machines. Gene Sher's Spartan
-            agents are among the first inhabitants.
+            The evolutionary layer — neuroevolution (topology-and-weight-evolving neural
+            networks) on the BEAM, built to evolve populations across the mesh.
           </.pillar>
         </div>
       </div>
@@ -153,119 +145,66 @@ defmodule BeamCampusWeb.HomeLive do
     """
   end
 
-  # ── The commons: value theory ─────────────────────────────────────────
-  defp commons(assigns) do
+  # ── Why a mesh (light technical rationale) ────────────────────────────
+  defp why_mesh(assigns) do
     ~H"""
-    <section id="commons" class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-      <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">The commons</p>
+    <section class="mx-auto max-w-3xl px-6 py-20 sm:py-24">
+      <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Why a mesh</p>
       <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
-        The value is real — it just isn't proprietary code
+        The science and the substrate agree
       </h2>
-      <p class="mt-4 max-w-2xl text-base-content/70">
-        In a commons the defensible assets are genuine, but none of them is a patent
-        portfolio. The right instrument is <strong>AGPL plus trademark</strong>, held by
-        a steward — protection without enclosure.
+      <p class="mt-6 text-base-content/70 leading-relaxed">
+        Evolutionary methods evaluate many candidate solutions independently, generation
+        after generation. There is no single enormous model to shard and no gradient to
+        synchronise — just a population and its fitness. That work spreads naturally across
+        many small, unreliable, geographically scattered machines: exactly what a federated
+        mesh is good at, and exactly what a hyperscale cloud is not.
       </p>
+    </section>
+    """
+  end
 
-      <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <.asset title="The network">
-          A federation of contributed nodes, worth more as it grows and near-impossible
-          to replicate. You cannot fork a community or copy the trust that holds a mesh
-          together.
-        </.asset>
-        <.asset title="The trademark">
-          "Macula" and "BEAM Campus" as marks. Anyone may run the software; only the
-          commons may call itself the commons.
-        </.asset>
-        <.asset title="The reputation">
-          Published results, working infrastructure, and the standing of the group that
-          built Europe's sovereign substrate for evolutionary AI.
-        </.asset>
-        <.asset title="The know-how">
-          The tacit expertise of the people who built and understand the substrate —
-          monetisable as research capacity, never as closed research.
-        </.asset>
+  # ── Take part ─────────────────────────────────────────────────────────
+  defp take_part(assigns) do
+    ~H"""
+    <section id="take-part" class="border-t border-base-300/60 bg-base-200/40">
+      <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Get involved</p>
+        <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
+          Three ways to take part
+        </h2>
+
+        <div class="mt-10 grid gap-4 lg:grid-cols-3">
+          <.way title="Run a node" cta="Get in touch" href="mailto:raf.lefever@erlef.org">
+            Contribute compute to the mesh and help the federation grow. Every node that
+            joins makes the network stronger and more resilient.
+          </.way>
+          <.way title="Build on it" cta="Browse the code" href="https://codeberg.org/beam-campus">
+            The core libraries are open source and on hex.pm. Integrate Macula or ReckonDB in
+            your own Erlang/Elixir project, or dig into how it works.
+          </.way>
+          <.way title="Collaborate" cta="Say hello" href="mailto:raf.lefever@erlef.org">
+            Working on distributed or evolutionary AI, or curious where this is going? We'd
+            like to hear from you.
+          </.way>
+        </div>
       </div>
     </section>
     """
   end
 
-  attr :title, :string, required: true
-  slot :inner_block, required: true
-
-  defp asset(assigns) do
-    ~H"""
-    <div class="border-l-2 border-primary/60 pl-4">
-      <h3 class="font-semibold">{@title}</h3>
-      <p class="mt-2 text-sm text-base-content/70 leading-relaxed">{render_slot(@inner_block)}</p>
-    </div>
-    """
-  end
-
-  # ── Sustainability ────────────────────────────────────────────────────
-  defp sustain(assigns) do
-    ~H"""
-    <section class="border-y border-base-300/60 bg-base-200/40">
-      <div class="mx-auto max-w-3xl px-6 py-16 text-center">
-        <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Sustainability</p>
-        <p class="mt-5 text-2xl sm:text-3xl font-semibold text-balance">
-          Monetise participation and convenience.<br />
-          <span class="text-primary">Never monetise the research.</span>
-        </p>
-        <p class="mt-5 text-base-content/70">
-          Grants, patrons, contributed compute and modest participatory income can pay a
-          researcher a fair wage and keep the lights on — none of it turning the science
-          into a product. A museum charges for the shop and the café while the collection
-          stays free to view.
-        </p>
-      </div>
-    </section>
-    """
-  end
-
-  # ── The three asks ────────────────────────────────────────────────────
-  defp join(assigns) do
-    ~H"""
-    <section id="join" class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-      <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Take part</p>
-      <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
-        Three ways in, in ascending commitment
-      </h2>
-
-      <div class="mt-10 grid gap-4 lg:grid-cols-3">
-        <.ask n="01" title="Run a node" cta="How to run a node">
-          Contribute compute to the substrate and grow the federation. The lowest-friction
-          contribution there is — and it makes you a literal participant, not a customer.
-        </.ask>
-        <.ask n="02" title="Become a patron" cta="Become a patron">
-          Fund the commons and take a seat as a co-researcher. You pay for alignment,
-          participation and talent — never for private privilege.
-        </.ask>
-        <.ask n="03" title="Open a door" cta="Open a door">
-          Help secure institutional affiliation, introduce a funder, or lend a name to a
-          grant consortium. Institution first; then the doors closed to a person open to
-          the commons.
-        </.ask>
-      </div>
-    </section>
-    """
-  end
-
-  attr :n, :string, required: true
   attr :title, :string, required: true
   attr :cta, :string, required: true
+  attr :href, :string, required: true
   slot :inner_block, required: true
 
-  defp ask(assigns) do
+  defp way(assigns) do
     ~H"""
     <article class="card bg-base-100 border border-base-300 h-full">
       <div class="card-body gap-3">
-        <span class="font-mono text-sm text-primary tracking-widest">{@n}</span>
         <h3 class="text-xl font-semibold">{@title}</h3>
         <p class="text-sm text-base-content/70 leading-relaxed flex-1">{render_slot(@inner_block)}</p>
-        <a href="mailto:raf.lefever@erlef.org" class="btn btn-outline btn-sm w-fit mt-2">
-          {@cta}
-        </a>
+        <a href={@href} class="btn btn-outline btn-sm w-fit mt-2">{@cta}</a>
       </div>
     </article>
     """
@@ -283,7 +222,7 @@ defmodule BeamCampusWeb.HomeLive do
             class="h-8 w-auto opacity-90"
           />
           <p class="font-mono text-xs text-base-content/50 tracking-wide">
-            AGPL + trademark · held in stewardship for the commons
+            Open source · European · built on the BEAM
           </p>
         </div>
         <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs text-base-content/50">
@@ -292,6 +231,9 @@ defmodule BeamCampusWeb.HomeLive do
           <span>HECATE</span>
           <span>FABER</span>
           <span class="grow"></span>
+          <a href="https://codeberg.org/beam-campus" class="link link-hover">
+            codeberg.org/beam-campus
+          </a>
           <a href="mailto:raf.lefever@erlef.org" class="link link-hover">raf.lefever@erlef.org</a>
         </div>
       </div>
