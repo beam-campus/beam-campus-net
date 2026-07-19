@@ -1,0 +1,127 @@
+# BEAM Campus — development environment
+#
+# Full stack: site (SQLite) + self-hosted Hanko (+ its own Postgres) + Caddy.
+# The site uses SQLite (a file on the site-data volume); only Hanko needs
+# Postgres. Hanko is scaffolded for later — the site is public for now.
+#
+#   docker compose up -d --build
+#   docker compose logs -f site
+#   docker compose down
+#
+# Ports:
+#   Caddy:     8443 (https, self-signed in dev) → site
+#   Site:      4000 (http, direct)
+#   Hanko:     8000 (public API), 8001 (admin)
+
+services:
+  site:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.prod
+    image: beam-campus-net:dev
+    container_name: beam-campus-site
+    hostname: site
+    restart: unless-stopped
+    environment:
+      PORT: "4000"
+      PHX_HOST: "localhost"
+      # dev-only secret; generate a real one for prod (mix phx.gen.secret)
+      SECRET_KEY_BASE: "DEV_BEAM_CAMPUS_SECRET_KEY_BASE_DEV_BEAM_CAMPUS_SECRET_KEY_BASE_0123"
+      BEAM_CAMPUS_DB_PATH: "/data/beam_campus.db"
+      # Mailgun (loaded from host env / .env if present)
+      BEAM_CAMPUS_MAILGUN_API_KEY: ${BEAM_CAMPUS_MAILGUN_API_KEY:-}
+      BEAM_CAMPUS_MAILGUN_DOMAIN: ${BEAM_CAMPUS_MAILGUN_DOMAIN:-}
+      BEAM_CAMPUS_MAILGUN_BASE_URL: ${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.eu.mailgun.net}
+      BEAM_CAMPUS_CONTACT_EMAIL: ${BEAM_CAMPUS_CONTACT_EMAIL:-raf.lefever@erlef.org}
+      # Hanko (self-hosted auth) — public URLs
+      HANKO_API_URL: "http://localhost:8000"
+      HANKO_JWKS_URL: "http://hanko:8000/.well-known/jwks.json"
+      HANKO_ISSUER: "http://localhost:8000"
+    ports:
+      - "4000:4000"
+    volumes:
+      - site-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  hanko-postgres:
+    image: postgres:16-alpine
+    container_name: beam-campus-hanko-db
+    hostname: hanko-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hanko
+      POSTGRES_PASSWORD: ${HANKO_DB_PASSWORD:-hanko}
+      POSTGRES_DB: hanko
+    volumes:
+      - hanko-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hanko -d hanko"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  hanko-migrate:
+    image: ghcr.io/teamhanko/hanko:latest
+    container_name: beam-campus-hanko-migrate
+    command: migrate up --config /etc/config/config.yaml
+    environment:
+      DATABASE__PASSWORD: ${HANKO_DB_PASSWORD:-hanko}
+    volumes:
+      - ../hanko/config.yaml:/etc/config/config.yaml:ro
+    depends_on:
+      hanko-postgres:
+        condition: service_healthy
+
+  hanko:
+    image: ghcr.io/teamhanko/hanko:latest
+    container_name: beam-campus-hanko
+    hostname: hanko
+    restart: unless-stopped
+    command: serve all --config /etc/config/config.yaml
+    environment:
+      DATABASE__PASSWORD: ${HANKO_DB_PASSWORD:-hanko}
+    volumes:
+      - ../hanko/config.yaml:/etc/config/config.yaml:ro
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      hanko-postgres:
+        condition: service_healthy
+      hanko-migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: beam-campus-caddy
+    hostname: caddy
+    restart: unless-stopped
+    environment:
+      # Dev: localhost with Caddy's internal CA. In prod set SITE_ADDRESS to the
+      # real domain(s) and ACME_EMAIL, and map ports 80:80 + 443:443 so Caddy can
+      # complete the Let's Encrypt ACME challenge and auto-renew.
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      SITE_UPSTREAM: ${SITE_UPSTREAM:-site:4000}
+      ACME_EMAIL: ${ACME_EMAIL:-raf.lefever@erlef.org}
+    ports:
+      - "8443:443"
+      - "8081:80"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      site:
+        condition: service_started
+
+volumes:
+  site-data:
+  hanko-postgres-data:
+  caddy-data:
+  caddy-config:

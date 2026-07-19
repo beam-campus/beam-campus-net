@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Compile, format, test
+    runs-on: ubuntu-latest
+
+    # The site uses SQLite — no database service needed in CI.
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "27.2"
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            system/deps
+            system/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('system/**/mix.exs') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        working-directory: system
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        working-directory: system
+        run: mix compile --warnings-as-errors
+
+      - name: Check formatting
+        working-directory: system
+        run: mix format --check-formatted
+
+      - name: Run tests
+        working-directory: system
+        run: mix test

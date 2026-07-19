@@ -1,0 +1,114 @@
+# Dockerfile.prod — BEAM Campus website (beam-campus-net)
+# Multi-stage build, hex.pm deps, minimal runtime image.
+# Pure Elixir/Phoenix — no Rust NIFs, no mesh (this is the public site).
+#
+# Build: docker build -f Dockerfile.prod -t beamcampus/beam-campus-net:latest .
+
+ARG ELIXIR_VERSION=1.18.4
+ARG OTP_VERSION=27.2
+ARG DEBIAN_VERSION=bookworm-20260610-slim
+ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+# Runner: stable bookworm-slim (same glibc as the dated builder base).
+ARG RUNNER_IMAGE="docker.io/library/debian:bookworm-slim"
+
+# =============================================================================
+# BUILD STAGE
+# =============================================================================
+FROM ${BUILDER_IMAGE} AS builder
+
+RUN apt-get update -y && apt-get install -y build-essential git curl \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+WORKDIR /app
+
+# Install hex + rebar3 WITHOUT touching builds.hex.pm: its TLS cert trips OTP's
+# strict certificate verification (key_usage_mismatch), so `mix local.hex` /
+# `mix local.rebar` fail. Instead build hex from its GitHub source (git is
+# installed above) and take rebar3 from its GitHub release. Package fetching
+# (`mix deps.get` against repo.hex.pm) is unaffected and works normally.
+RUN mix archive.install --force github hexpm/hex branch latest \
+    && curl -fsSL -o /usr/local/bin/rebar3 \
+       https://github.com/erlang/rebar3/releases/latest/download/rebar3 \
+    && chmod +x /usr/local/bin/rebar3 \
+    && mix local.rebar rebar3 /usr/local/bin/rebar3 --force
+
+ENV MIX_ENV=prod
+
+# Dependency caching: copy mix files first (lock may not exist — deps.get creates it)
+COPY system/mix.exs ./
+RUN mkdir -p apps/beam_campus apps/beam_campus_web
+COPY system/apps/beam_campus/mix.exs ./apps/beam_campus/
+COPY system/apps/beam_campus_web/mix.exs ./apps/beam_campus_web/
+
+COPY system/config ./config
+COPY system/rel ./rel
+
+RUN mix deps.get --only $MIX_ENV
+RUN mix deps.compile
+
+# Cache-bust so source layers rebuild each commit
+ARG CACHE_BUST=unknown
+
+COPY system/apps ./apps
+
+# Node is needed only if assets have a package.json (none by default here)
+WORKDIR /app/apps/beam_campus_web/assets
+RUN if [ -f package.json ]; then \
+      apt-get update && apt-get install -y nodejs npm && \
+      npm install && apt-get clean && rm -f /var/lib/apt/lists/*_*; \
+    fi
+
+WORKDIR /app
+RUN mix compile
+
+# Pre-fetch the tailwind + esbuild binaries with curl (OpenSSL trusts the
+# GitHub-release / npm certs that OTP's httpc rejects from some CDN POPs), and
+# point the mix tasks at them via TAILWIND_PATH / ESBUILD_PATH (see config.exs).
+ENV TAILWIND_PATH=/usr/local/bin/tailwindcss
+ENV ESBUILD_PATH=/usr/local/bin/esbuild
+RUN curl -fsSL -o "$TAILWIND_PATH" \
+      https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.12/tailwindcss-linux-x64 \
+    && chmod +x "$TAILWIND_PATH" \
+    && curl -fsSL https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.4.tgz \
+       | tar -xzO package/bin/esbuild > "$ESBUILD_PATH" \
+    && chmod +x "$ESBUILD_PATH"
+
+# tailwind (minify) + esbuild (minify) + phx.digest
+RUN mix assets.deploy
+
+# +S 1: serial ERTS assembly is deterministic on overlayfs (avoids a chmod
+# racing the file copy during `mix release`).
+RUN ELIXIR_ERL_OPTIONS="+S 1" mix release beam_campus
+
+# =============================================================================
+# RUNTIME STAGE
+# =============================================================================
+FROM ${RUNNER_IMAGE}
+
+RUN apt-get update -y && apt-get install -y \
+    libstdc++6 openssl libncurses6 locales ca-certificates curl \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+WORKDIR /app
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+
+# SQLite data directory (mounted as a volume in prod)
+RUN mkdir -p /data && chown -R app:app /data
+
+COPY --from=builder --chown=app:app /app/_build/prod/rel/beam_campus ./
+
+USER app
+
+ENV MIX_ENV=prod
+ENV PORT=4000
+ENV PHX_HOST=beam-campus.net
+ENV BEAM_CAMPUS_DB_PATH=/data/beam_campus.db
+
+VOLUME ["/data"]
+EXPOSE 4000
+
+# Migrate, then start (release overlay script)
+CMD ["./bin/start"]

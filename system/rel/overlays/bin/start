@@ -1,0 +1,6 @@
+#!/bin/sh
+# Production entrypoint: migrate, then start the server. Ensures the database
+# is ready before the Endpoint boots.
+set -eu
+cd -P -- "$(dirname -- "$0")"
+./migrate && ./server

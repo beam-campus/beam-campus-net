@@ -1,0 +1,64 @@
+# BEAM Campus — production stack for the dedicated box (beam-campus.net)
+#
+# Minimal, SQLite-backed: the site + Caddy (automatic Let's Encrypt). No
+# Postgres — the site uses a SQLite file on the `site-data` volume. Hanko is
+# deferred (see ROADMAP.md) and not part of this stack.
+#
+#   cd docker/prod
+#   cp .env.example .env      # SECRET_KEY_BASE + Mailgun (optional for v1)
+#   docker compose up -d --build
+#
+# Caddy provisions and renews Let's Encrypt certs for SITE_ADDRESS on 80/443.
+
+services:
+  site:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.prod
+    image: beamcampus/beam-campus-net:latest
+    container_name: beam-campus-site
+    hostname: site
+    restart: unless-stopped
+    environment:
+      PORT: "4000"
+      PHX_HOST: "${PHX_HOST:-beam-campus.net}"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env}"
+      BEAM_CAMPUS_DB_PATH: "/data/beam_campus.db"
+      # Mailgun (optional until the contact slice ships)
+      BEAM_CAMPUS_MAILGUN_API_KEY: "${BEAM_CAMPUS_MAILGUN_API_KEY:-}"
+      BEAM_CAMPUS_MAILGUN_DOMAIN: "${BEAM_CAMPUS_MAILGUN_DOMAIN:-mg.beam-campus.net}"
+      BEAM_CAMPUS_MAILGUN_BASE_URL: "${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.eu.mailgun.net}"
+      BEAM_CAMPUS_CONTACT_EMAIL: "${BEAM_CAMPUS_CONTACT_EMAIL:-raf.lefever@erlef.org}"
+    volumes:
+      - site-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: beam-campus-caddy
+    hostname: caddy
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: "${SITE_ADDRESS:-beam-campus.net, www.beam-campus.net}"
+      SITE_UPSTREAM: "site:4000"
+      ACME_EMAIL: "${ACME_EMAIL:-raf.lefever@erlef.org}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      site:
+        condition: service_started
+
+volumes:
+  site-data:
+  caddy-data:
+  caddy-config:

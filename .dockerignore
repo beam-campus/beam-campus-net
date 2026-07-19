@@ -1,0 +1,8 @@
+system/_build/
+system/deps/
+system/**/node_modules/
+system/apps/beam_campus_web/priv/static/assets/
+**/erl_crash.dump
+.git/
+docker/
+*.md

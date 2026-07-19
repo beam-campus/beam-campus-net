@@ -1,0 +1,107 @@
+## Hanko self-hosted config for beam-campus-net — tuned for v2.5.x.
+## Mirrors macula-realm/docker/hanko/config.yaml. Reference:
+## https://github.com/teamhanko/hanko/blob/main/backend/docs/Config.md
+##
+## Secrets are NEVER in this file. Env overrides (koanf-style, double
+## underscore for nesting) carry them at runtime:
+##   DATABASE__PASSWORD  → database.password
+##
+## Auth is scaffolded here (the service runs and issues JWTs); it is not yet
+## wired into a members area on the site. See ROADMAP.md.
+
+server:
+  public:
+    address: ":8000"
+    cors:
+      enabled: true
+      allow_origins:
+        - "https://beam-campus.net"
+        - "http://localhost:4000"
+        - "https://localhost:8443"
+      allow_credentials: true
+  admin:
+    address: ":8001"
+
+database:
+  dialect: postgres
+  host: hanko-postgres
+  port: 5432
+  user: hanko
+  database: hanko
+  # password ← DATABASE__PASSWORD env
+
+webauthn:
+  relying_party:
+    id: localhost
+    display_name: BEAM Campus
+    origins:
+      - http://localhost:4000
+      - https://localhost:8443
+      - https://beam-campus.net
+  timeout: 60000
+  user_verification: preferred
+  attestation_preference: none
+
+passkey:
+  enabled: true
+  optional: true
+  acquire_on_registration: never
+  acquire_on_login: never
+
+password:
+  enabled: false
+
+# Built-in SMTP is disabled — outbound SMTP ports are blocked on our hosts.
+# Passcodes are delivered via Mailgun's HTTPS API from the site's Swoosh
+# adapter through the email.send webhook below.
+email_delivery:
+  enabled: false
+  from_address: no-reply@beam-campus.net
+  from_name: BEAM Campus
+
+webhooks:
+  enabled: true
+  hooks:
+    - callback: "http://site:4000/api/v1/internal/hanko/webhook"
+      events:
+        - email.send
+
+email:
+  enabled: true
+  optional: false
+  limit: 5
+  passcode_ttl: 300
+  require_verification: true
+  use_as_login_identifier: true
+  use_for_authentication: true
+  acquire_on_registration: true
+
+session:
+  enable_auth_token_header: true
+  jwt_template:
+    claims:
+      role: user
+  lifespan: 1h
+  cookie:
+    http_only: true
+    same_site: strict
+    secure: true
+  issuer: http://localhost:8000
+  audience:
+    - beam-campus-net
+
+rate_limiter:
+  enabled: true
+  store: in_memory
+
+log:
+  log_health_and_metrics: false
+
+account:
+  allow_deletion: true
+  allow_signup: true
+
+third_party:
+  providers: {}
+
+debug: false

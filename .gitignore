@@ -1,0 +1,9 @@
+# Local secrets (docker/dev/.env etc.)
+.env
+**/.env
+
+# OS / editor cruft
+.DS_Store
+*~
+
+# The umbrella has its own .gitignore under system/

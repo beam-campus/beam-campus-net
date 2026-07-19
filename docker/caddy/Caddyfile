@@ -1,0 +1,37 @@
+# BEAM Campus — Caddy reverse proxy
+#
+# Caddy terminates TLS in front of the Phoenix release and does automatic
+# HTTPS: for a real domain it provisions and renews Let's Encrypt certificates
+# on its own (needs ports 80 + 443 reachable and an ACME email); for
+# `localhost` in dev it falls back to Caddy's internal self-signed CA.
+#
+# Prod (set on the caddy service):
+#   SITE_ADDRESS=beam-campus.net, www.beam-campus.net
+#   ACME_EMAIL=raf.lefever@erlef.org
+#   SITE_UPSTREAM=site:4000
+# Dev defaults below need no env — Caddy serves https://localhost with an
+# internal cert (mapped to :8443 by docker-compose).
+
+{
+	# ACME account email for Let's Encrypt. Caddy uses the production CA by
+	# default; certs are issued and renewed automatically for public domains.
+	email {$ACME_EMAIL:raf.lefever@erlef.org}
+	# To rehearse against staging (avoids Let's Encrypt rate limits), uncomment:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+
+	# Phoenix sets its own security headers; add a couple of transport ones.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+	}
+
+	# Long-cache the digested, content-addressed assets.
+	@static path /assets/* /fonts/* /images/* /favicon.svg /favicon.ico /robots.txt
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy {$SITE_UPSTREAM:site:4000}
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- BEAM Campus · favicon (lead: Concept A "The Beam", simplified for 16-32px)
+     A beam of light striking three lit peer-nodes, one green bud. Reduced to
+     read at favicon scale: thick ray, three amber dots, one green dot, on a
+     rounded slate tile. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="f-ray" x1="10" y1="54" x2="52" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD989"/>
+      <stop offset="1" stop-color="#F2B142"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0F1C2B"/>
+  <!-- beam ray -->
+  <line x1="12" y1="52" x2="50" y2="16" stroke="url(#f-ray)" stroke-width="4.5" stroke-linecap="round" opacity="0.9"/>
+  <!-- lit peers -->
+  <g fill="#F2B142" stroke="#FFD989" stroke-width="2">
+    <circle cx="20" cy="42" r="6"/>
+    <circle cx="34" cy="30" r="7.5"/>
+    <circle cx="47" cy="19" r="5.5"/>
+  </g>
+  <!-- green bud -->
+  <circle cx="46" cy="46" r="5" fill="#0F1C2B" stroke="#5FD08A" stroke-width="2.4"/>
+  <circle cx="46" cy="46" r="2" fill="#5FD08A"/>
+</svg>
