@@ -18,6 +18,7 @@ defmodule BeamCampusWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive, :index
+    live "/research", ResearchLive, :index
   end
 
   scope "/", BeamCampusWeb do

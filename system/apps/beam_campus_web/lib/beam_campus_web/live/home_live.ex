@@ -121,6 +121,12 @@ defmodule BeamCampusWeb.HomeLive do
             networks) on the BEAM, built to evolve populations across the mesh.
           </.pillar>
         </div>
+
+        <div class="mt-8">
+          <a href={~p"/research"} class="link link-primary link-hover text-sm font-medium">
+            Faber's research agenda — nine open programmes <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
       </div>
     </section>
     """
@@ -231,6 +237,7 @@ defmodule BeamCampusWeb.HomeLive do
           <span>HECATE</span>
           <span>FABER</span>
           <span class="grow"></span>
+          <a href={~p"/research"} class="link link-hover">research</a>
           <a href="https://codeberg.org/beam-campus" class="link link-hover">
             codeberg.org/beam-campus
           </a>
