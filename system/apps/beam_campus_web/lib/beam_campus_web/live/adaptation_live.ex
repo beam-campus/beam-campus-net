@@ -22,6 +22,14 @@ defmodule BeamCampusWeb.AdaptationLive do
        arms: Adaptation.arms(),
        limit: Adaptation.angle_limit(),
        track: Adaptation.track(),
+       # showcase: the three pre-evolved controllers, same default fault, side by side
+       sc_agents: showcase_agents(),
+       sc_frames: showcase_frames(),
+       sc_playing: false,
+       sc_step: 0,
+       sc_goal: Adaptation.default_scenario().goal,
+       sc_shift_at: Adaptation.default_scenario().shift_at,
+       # workbench: evolve your own
        controller: :plastic,
        fault: :reversal,
        wind: 5.0,
@@ -76,6 +84,18 @@ defmodule BeamCampusWeb.AdaptationLive do
 
   def handle_event("stop", _params, socket), do: {:noreply, assign(socket, phase: :ready)}
 
+  def handle_event("sc_toggle", _params, socket) do
+    cond do
+      socket.assigns.sc_playing -> {:noreply, assign(socket, sc_playing: false)}
+      sc_all_done?(socket) -> {:noreply, socket |> reset_showcase() |> sc_start()}
+      true -> {:noreply, sc_start(socket)}
+    end
+  end
+
+  def handle_event("sc_restart", _params, socket) do
+    {:noreply, socket |> assign(sc_playing: false) |> reset_showcase() |> push_event("reset", %{})}
+  end
+
   # --- evolution progress + result ----------------------------------------------
 
   @impl true
@@ -106,7 +126,35 @@ defmodule BeamCampusWeb.AdaptationLive do
 
   def handle_info(:tick, socket), do: {:noreply, socket}
 
+  def handle_info(:sc_tick, %{assigns: %{sc_playing: false}} = socket), do: {:noreply, socket}
+
+  def handle_info(:sc_tick, socket) do
+    stepped = Map.new(socket.assigns.sc_agents, fn {arm, a} -> {arm, Adaptation.step(a)} end)
+    frames = Map.new(stepped, fn {arm, {f, _}} -> {arm, f} end)
+    agents = Map.new(stepped, fn {arm, {_, a}} -> {arm, a} end)
+    step = socket.assigns.sc_step + 1
+    done = Enum.all?(agents, fn {_, a} -> a.done end) or step >= socket.assigns.sc_goal
+
+    socket =
+      socket
+      |> assign(sc_agents: agents, sc_frames: frames, sc_step: step, sc_playing: not done)
+      |> push_event("frame", %{agents: frames})
+
+    unless done, do: Process.send_after(self(), :sc_tick, @tick_ms)
+    {:noreply, socket}
+  end
+
   # --- helpers ------------------------------------------------------------------
+
+  defp showcase_agents, do: Map.new(Adaptation.arms(), fn %{key: k} -> {k, Adaptation.init(k)} end)
+  defp showcase_frames, do: Map.new(Adaptation.arms(), fn %{key: k} -> {k, initial_frame()} end)
+  defp reset_showcase(socket), do: assign(socket, sc_agents: showcase_agents(), sc_frames: showcase_frames(), sc_step: 0)
+  defp sc_all_done?(socket), do: Enum.all?(socket.assigns.sc_agents, fn {_, a} -> a.done end)
+
+  defp sc_start(socket) do
+    Process.send_after(self(), :sc_tick, @tick_ms)
+    assign(socket, sc_playing: true)
+  end
 
   defp scenario(a), do: %{wind: a.wind, shift_gain: fault_gain(a.fault), shift_at: a.shift_at, goal: a.goal}
 
@@ -141,6 +189,29 @@ defmodule BeamCampusWeb.AdaptationLive do
           Pick a controller and a fault, evolve it live with separable CMA-ES, then run it on a windy pole whose
           motor <b>reverses</b> partway — a hidden fault it must survive by adapting, not by design. Evolution and
           physics both run the real faber-tweann engine on the server.
+        </p>
+
+        <section class="mb-12">
+          <h2 class="text-lg font-semibold mb-1">Three controllers, one fault</h2>
+          <p class="text-sm text-base-content/60 mb-4">
+            The pre-evolved controllers on the default scenario — motor reverses at step {@sc_shift_at}. Press play
+            and watch fixed topple, adaptive recover, and recurrent struggle in between.
+          </p>
+          <div class="flex items-center gap-3 mb-4">
+            <button class="btn btn-sm btn-primary" phx-click="sc_toggle">
+              {if @sc_playing, do: "❚❚ Pause", else: "▶ Play"}
+            </button>
+            <button class="btn btn-sm btn-outline" phx-click="sc_restart">↺ Restart</button>
+            <span class="font-mono text-xs text-base-content/50">step {@sc_step} / {@sc_goal}</span>
+          </div>
+          <div id="pole-field" phx-hook=".PoleField" data-limit={@limit} data-track={@track} class="grid gap-4 sm:grid-cols-3">
+            <.sc_panel :for={arm <- @arms} arm={arm} frame={@sc_frames[arm.key]} />
+          </div>
+        </section>
+
+        <h2 class="text-lg font-semibold mb-1">Now evolve your own</h2>
+        <p class="text-sm text-base-content/60 mb-4">
+          Pick a controller and a fault, evolve it live with separable CMA-ES, then run the evolved controller.
         </p>
 
         <div class="card bg-base-100 border border-base-300 mb-6">
@@ -267,9 +338,60 @@ defmodule BeamCampusWeb.AdaptationLive do
           }
         }
       </script>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".PoleField">
+        export default {
+          mounted() {
+            this.limit = parseFloat(this.el.dataset.limit)
+            this.track = parseFloat(this.el.dataset.track)
+            this.ctxs = {}
+            this.el.querySelectorAll("canvas[data-arm]").forEach(c => { c.width = 300; c.height = 176; this.ctxs[c.dataset.arm] = c.getContext("2d") })
+            this.handleEvent("frame", ({agents}) => { for (const a in agents) this.draw(a, agents[a]) })
+            this.handleEvent("reset", () => this.resetAll())
+            this.resetAll()
+          },
+          ink() { return getComputedStyle(this.el).color },
+          resetAll() { for (const a in this.ctxs) this.draw(a, {cpos:0, angle:0.0628, status:"balancing"}) },
+          color(f) { if (f.status === "crashed") return "#C7583F"; const r = Math.abs(f.angle)/this.limit; if (r >= 0.85) return "#C7583F"; if (r >= 0.5) return "#F2B142"; return "#4E9F6B" },
+          draw(arm, f) {
+            const ctx = this.ctxs[arm]; if (!ctx) return
+            const trackY = 130, poleLen = 72, cartW = 40, cartH = 16, ink = this.ink()
+            const px = x => 24 + ((x + this.track) / (2 * this.track)) * 252
+            const hx = px(f.cpos), hy = trackY - cartH/2, col = this.color(f)
+            ctx.clearRect(0, 0, 300, 176)
+            ctx.strokeStyle = ink; ctx.globalAlpha = 0.18; ctx.lineWidth = 2.5
+            ctx.beginPath(); ctx.moveTo(18, trackY); ctx.lineTo(282, trackY); ctx.stroke()
+            ctx.globalAlpha = 0.55; ctx.fillStyle = ink; ctx.fillRect(hx - cartW/2, trackY - cartH, cartW, cartH); ctx.globalAlpha = 1
+            const tx = hx + poleLen*Math.sin(f.angle), ty = hy - poleLen*Math.cos(f.angle)
+            ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineCap = "round"
+            ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke()
+            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(tx, ty, 6, 0, 2*Math.PI); ctx.fill()
+          }
+        }
+      </script>
     </Layouts.app>
     """
   end
+
+  attr :arm, :map, required: true
+  attr :frame, :map, required: true
+
+  defp sc_panel(assigns) do
+    ~H"""
+    <div class="card bg-base-100 border border-base-300">
+      <div class="card-body p-3 gap-1">
+        <h3 class="font-semibold text-sm">{@arm.label}</h3>
+        <canvas data-arm={@arm.key} class="w-full h-auto"></canvas>
+        <div class={["font-mono text-[11px]", run_color(@frame.status)]}>{sc_text(@frame)}</div>
+      </div>
+    </div>
+    """
+  end
+
+  defp sc_text(%{status: :crashed, step: n}), do: "crashed at step #{n}"
+  defp sc_text(%{status: :stable}), do: "survived ✓"
+  defp sc_text(%{status: :recovering, step: n}), do: "recovering… #{n}"
+  defp sc_text(%{step: n}), do: "balancing… #{n}"
 
   attr :phase, :atom, required: true
   attr :best, :any, required: true
