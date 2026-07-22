@@ -59,7 +59,9 @@ defmodule BeamCampusWeb.MixProject do
       {:gettext, "~> 1.0"},
       {:beam_campus, in_umbrella: true},
       {:jason, "~> 1.2"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).
+      {:nimble_publisher, "~> 1.1"}
     ]
   end
 

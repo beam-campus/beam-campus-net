@@ -132,3 +132,35 @@
 @media (prefers-reduced-motion: reduce) {
   .beam-sweep { animation: none; opacity: .5; }
 }
+
+/* ── Notebook (open lab notebook) post prose ───────────────────────────────── */
+.nb-body { line-height: 1.75; color: var(--color-base-content); }
+.nb-body > * + * { margin-top: 1.15rem; }
+.nb-body h2 {
+  margin-top: 2.4rem; font-size: 1.4rem; font-weight: 650; letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.nb-body p { color: color-mix(in oklch, var(--color-base-content) 85%, transparent); }
+.nb-body strong { font-weight: 650; color: var(--color-base-content); }
+.nb-body a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+.nb-body a:hover { text-decoration: none; }
+.nb-body ul { padding-left: 1.3rem; list-style: disc; }
+.nb-body li { margin-top: .4rem; }
+.nb-body em { font-style: italic; }
+.nb-fig {
+  margin: 2rem 0; padding: 1.1rem 1.1rem .6rem; border-radius: 14px;
+  background: var(--color-base-100); border: 1px solid var(--color-base-300);
+}
+.nb-fig svg { width: 100%; height: auto; display: block; }
+.nb-fig figcaption {
+  margin-top: .7rem; font-size: .82rem;
+  color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+  font-family: ui-monospace, monospace;
+}
+.nb-cta { margin: 2rem 0; }
+.nb-cta a {
+  display: inline-block; font-weight: 600; text-decoration: none;
+  padding: .65rem 1.1rem; border-radius: 10px;
+  background: var(--color-primary); color: var(--color-primary-content);
+}
+.nb-cta a:hover { filter: brightness(1.05); }

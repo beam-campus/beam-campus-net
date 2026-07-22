@@ -44,16 +44,28 @@ defmodule BeamCampusWeb.Layouts do
       <div class="flex-none">
         <ul class="flex items-center gap-1 sm:gap-2">
           <li class="hidden sm:block">
-            <a href="#substrate" class="btn btn-ghost btn-sm">The substrate</a>
+            <a href="/#substrate" class="btn btn-ghost btn-sm">The substrate</a>
           </li>
           <li class="hidden sm:block">
-            <a href="#commons" class="btn btn-ghost btn-sm">The commons</a>
+            <a href="/#commons" class="btn btn-ghost btn-sm">The commons</a>
+          </li>
+          <li class="hidden sm:block">
+            <div class="dropdown dropdown-end">
+              <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                Research <span aria-hidden="true">▾</span>
+              </div>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-48 p-2 shadow-lg border border-base-300">
+                <li><.link navigate={~p"/research"}>Programmes</.link></li>
+                <li><.link navigate={~p"/research/notes"}>Notebook</.link></li>
+                <li><.link navigate={~p"/research/workbench"}>Workbench</.link></li>
+              </ul>
+            </div>
           </li>
           <li>
             <.theme_toggle />
           </li>
           <li>
-            <a href="#join" class="btn btn-primary btn-sm">
+            <a href="/#join" class="btn btn-primary btn-sm">
               Take part <span aria-hidden="true">&rarr;</span>
             </a>
           </li>
