@@ -42,7 +42,11 @@ defmodule BeamCampus.MixProject do
       {:ecto_sqlite3, "~> 0.17"},
       {:jason, "~> 1.2"},
       {:swoosh, "~> 1.16"},
-      {:req, "~> 0.5"}
+      {:req, "~> 0.5"},
+      # faber-tweann neuroevolution engine (Erlang). Used by BeamCampus.Adaptation
+      # to run evolved controllers live. NIF is skipped (FABER_TWEANN_SKIP_NIF=1) and
+      # the pure-Erlang fallback selected via config, so no Rust toolchain is needed.
+      {:faber_tweann, git: "https://codeberg.org/rgfaber/faber-tweann.git", manager: :rebar3}
     ]
   end
 

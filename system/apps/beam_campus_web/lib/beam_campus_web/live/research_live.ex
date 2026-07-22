@@ -150,10 +150,13 @@ defmodule BeamCampusWeb.ResearchLive do
           signed corpus — every finding, positive or negative, written down and grounded
           in the literature. These are the programmes that corpus is built around.
         </p>
-        <div class="mt-9">
+        <div class="mt-9 flex flex-wrap gap-3">
           <a href={@root_url} class="btn btn-primary" target="_blank" rel="noreferrer">
             The master charter <span aria-hidden="true">&rarr;</span>
           </a>
+          <.link navigate={~p"/research/adaptation"} class="btn btn-outline">
+            ▶ Live demo: post-deployment adaptation
+          </.link>
         </div>
       </div>
     </section>

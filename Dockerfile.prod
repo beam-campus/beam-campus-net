@@ -34,6 +34,11 @@ RUN mix archive.install --force github hexpm/hex branch latest \
 
 ENV MIX_ENV=prod
 
+# faber-tweann (an Erlang dep) ships a Rust NIF built by a rebar3 pre-hook. The
+# adaptation demo only does pure-Erlang inference, so skip the NIF build — no Rust
+# toolchain needed in the image. Pairs with `config :faber_tweann, nif_impl: :fallback`.
+ENV FABER_TWEANN_SKIP_NIF=1
+
 # Dependency caching: copy mix files first (lock may not exist — deps.get creates it)
 COPY system/mix.exs ./
 RUN mkdir -p apps/beam_campus apps/beam_campus_web

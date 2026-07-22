@@ -19,6 +19,7 @@ defmodule BeamCampusWeb.Router do
 
     live "/", HomeLive, :index
     live "/research", ResearchLive, :index
+    live "/research/adaptation", AdaptationLive, :index
   end
 
   scope "/", BeamCampusWeb do

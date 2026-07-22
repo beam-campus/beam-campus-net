@@ -88,6 +88,10 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# faber-tweann: use the pure-Erlang forward pass, never load the Rust NIF (the
+# adaptation demo only does inference). Pairs with FABER_TWEANN_SKIP_NIF=1 at build.
+config :faber_tweann, nif_impl: :fallback
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
