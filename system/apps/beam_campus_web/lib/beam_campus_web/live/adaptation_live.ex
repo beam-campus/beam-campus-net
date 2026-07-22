@@ -274,7 +274,7 @@ defmodule BeamCampusWeb.AdaptationLive do
             <div class="card-body p-4">
               <h2 class="font-mono text-xs uppercase tracking-wide text-base-content/50">The run</h2>
               <div id="pole-wb" phx-hook=".PoleWb" data-limit={@limit} data-track={@track}>
-                <canvas id="wb-canvas" class="w-full h-auto"></canvas>
+                <canvas id="wb-canvas" class="w-full block"></canvas>
               </div>
               <div class="font-mono text-xs mt-1">
                 <.run_status frame={@frame} phase={@phase} shift_at={@shift_at} />
@@ -302,13 +302,27 @@ defmodule BeamCampusWeb.AdaptationLive do
           mounted() {
             this.limit = parseFloat(this.el.dataset.limit)
             this.track = parseFloat(this.el.dataset.track)
-            const c = this.el.querySelector("#wb-canvas")
-            c.width = 560; c.height = 240
-            this.ctx = c.getContext("2d")
-            this.handleEvent("wb_frame", (f) => this.draw(f))
-            this.handleEvent("wb_reset", () => this.draw({cpos:0, angle:0.0628, done:false, status:"balancing"}))
-            this.draw({cpos:0, angle:0.0628, done:false, status:"balancing"})
+            this.c = this.el.querySelector("#wb-canvas")
+            this.ctx = this.c.getContext("2d")
+            this.last = {cpos:0, angle:0.0628, status:"balancing"}
+            this.fit = () => {
+              const cssW = this.c.clientWidth || this.el.clientWidth || 560
+              const cssH = Math.round(cssW / 2.5)
+              const dpr = window.devicePixelRatio || 1
+              this.c.width = Math.round(cssW * dpr)
+              this.c.height = Math.round(cssH * dpr)
+              this.c.style.height = cssH + "px"
+              this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+              this.W = cssW; this.H = cssH
+              this.draw(this.last)
+            }
+            this._onresize = () => this.fit()
+            window.addEventListener("resize", this._onresize)
+            this.handleEvent("wb_frame", (f) => { this.last = f; this.draw(f) })
+            this.handleEvent("wb_reset", () => { this.last = {cpos:0, angle:0.0628, status:"balancing"}; this.draw(this.last) })
+            requestAnimationFrame(() => this.fit())
           },
+          destroyed() { if (this._onresize) window.removeEventListener("resize", this._onresize) },
           ink() { return getComputedStyle(this.el).color },
           color(f) {
             if (f.status === "crashed") return "#C7583F"
@@ -318,23 +332,24 @@ defmodule BeamCampusWeb.AdaptationLive do
             return "#4E9F6B"
           },
           draw(f) {
-            const ctx = this.ctx, W = 560, H = 240, trackY = 180, poleLen = 120, cartW = 60, cartH = 24
-            const ink = this.ink()
-            const px = x => 40 + ((x + this.track) / (2 * this.track)) * 480
-            const hx = px(f.cpos), hy = trackY - cartH / 2, col = this.color(f)
+            const ctx = this.ctx, W = this.W || 560, H = this.H || 224
+            const ink = this.ink(), col = this.color(f)
+            const m = W * 0.07, trackY = H * 0.72, poleLen = H * 0.5, cartW = W * 0.1, cartH = H * 0.1
+            const px = x => m + ((x + this.track) / (2 * this.track)) * (W - 2 * m)
+            const hx = px(f.cpos), hy = trackY - cartH / 2
             ctx.clearRect(0, 0, W, H)
-            ctx.strokeStyle = ink; ctx.globalAlpha = 0.18; ctx.lineWidth = 3
-            ctx.beginPath(); ctx.moveTo(30, trackY); ctx.lineTo(530, trackY); ctx.stroke()
+            ctx.strokeStyle = ink; ctx.globalAlpha = 0.18; ctx.lineWidth = Math.max(2, H * 0.012)
+            ctx.beginPath(); ctx.moveTo(m * 0.7, trackY); ctx.lineTo(W - m * 0.7, trackY); ctx.stroke()
             ctx.globalAlpha = 0.14; ctx.lineWidth = 1; ctx.setLineDash([3,3])
             for (const s of [-1,1]) { ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx+poleLen*Math.sin(s*this.limit), hy-poleLen*Math.cos(s*this.limit)); ctx.stroke() }
             ctx.setLineDash([]); ctx.globalAlpha = 0.55; ctx.fillStyle = ink
             ctx.fillRect(hx - cartW/2, trackY - cartH, cartW, cartH)
             ctx.globalAlpha = 1
             const tx = hx + poleLen*Math.sin(f.angle), ty = hy - poleLen*Math.cos(f.angle)
-            ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.lineCap = "round"
+            ctx.strokeStyle = col; ctx.lineWidth = Math.max(3, H * 0.025); ctx.lineCap = "round"
             ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke()
-            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(tx, ty, 8, 0, 2*Math.PI); ctx.fill()
-            ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(hx, hy, 4, 0, 2*Math.PI); ctx.fill()
+            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(tx, ty, Math.max(4, H * 0.033), 0, 2*Math.PI); ctx.fill()
+            ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(hx, hy, Math.max(2, H * 0.017), 0, 2*Math.PI); ctx.fill()
           }
         }
       </script>
