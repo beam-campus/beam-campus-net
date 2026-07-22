@@ -1,82 +1,128 @@
 defmodule BeamCampusWeb.AdaptationLive do
   @moduledoc """
-  Live cart-pole adaptation demo. Three evolved faber-tweann controllers are
-  deployed into a hidden motor fault; a server-side timer steps the real
-  `BeamCampus.Adaptation` backend and streams each frame to a canvas hook.
+  Live neuroevolution workbench. Pick a controller and a fault scenario, evolve it
+  with separable CMA-ES (the fitness curve streams in live), then run the evolved
+  controller on the cart-pole and watch it meet the hidden motor fault. Real backend:
+  both evolution and inference are faber-tweann on the BEAM.
   """
   use BeamCampusWeb, :live_view
 
   alias BeamCampus.Adaptation
 
   @tick_ms 33
+  @max_gen 120
+  @lambda 70
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(
-       page_title: "Post-deployment adaptation",
+       page_title: "Adaptation workbench",
        arms: Adaptation.arms(),
-       shift_at: Adaptation.shift_at(),
-       goal: Adaptation.goal(),
        limit: Adaptation.angle_limit(),
        track: Adaptation.track(),
-       playing: false
-     )
-     |> reset_agents()}
+       controller: :plastic,
+       fault: :reversal,
+       wind: 5.0,
+       shift_at: 90,
+       goal: 250,
+       phase: :idle,
+       curve: [],
+       best_fit: nil,
+       genome: nil,
+       agent: nil,
+       frame: initial_frame(),
+       task: nil
+     )}
   end
 
+  # --- controls -----------------------------------------------------------------
+
   @impl true
-  def handle_event("toggle", _params, socket) do
-    cond do
-      socket.assigns.playing ->
-        {:noreply, assign(socket, playing: false)}
+  def handle_event("controller", %{"arm" => arm}, socket) do
+    {:noreply, socket |> assign(controller: String.to_existing_atom(arm)) |> to_idle()}
+  end
 
-      all_done?(socket) ->
-        {:noreply, socket |> reset_agents() |> start()}
+  def handle_event("fault", %{"type" => type}, socket) do
+    {:noreply, socket |> assign(fault: String.to_existing_atom(type)) |> to_idle()}
+  end
 
-      true ->
-        {:noreply, start(socket)}
+  def handle_event("params", %{"wind" => w, "shift_at" => s}, socket) do
+    {:noreply, socket |> assign(wind: to_num(w, 5.0), shift_at: trunc(to_num(s, 90))) |> to_idle()}
+  end
+
+  def handle_event("evolve", _params, socket) do
+    lv = self()
+    sc = scenario(socket.assigns)
+    arm = socket.assigns.controller
+
+    task =
+      Task.async(fn ->
+        Adaptation.evolve(arm, sc, fn g, f -> send(lv, {:gen, g, f}) end,
+          max_generations: @max_gen,
+          lambda: @lambda
+        )
+      end)
+
+    {:noreply, assign(socket, phase: :evolving, curve: [], best_fit: nil, genome: nil, agent: nil, task: task)}
+  end
+
+  def handle_event("run", _params, socket) when not is_nil(socket.assigns.genome) do
+    agent = Adaptation.init_with(socket.assigns.controller, socket.assigns.genome, scenario(socket.assigns))
+    Process.send_after(self(), :tick, @tick_ms)
+    {:noreply, socket |> assign(phase: :running, agent: agent, frame: initial_frame()) |> push_event("wb_reset", %{})}
+  end
+
+  def handle_event("stop", _params, socket), do: {:noreply, assign(socket, phase: :ready)}
+
+  # --- evolution progress + result ----------------------------------------------
+
+  @impl true
+  def handle_info({:gen, gen, fit}, socket) do
+    {:noreply, assign(socket, curve: [{gen, fit} | socket.assigns.curve], best_fit: round(fit))}
+  end
+
+  def handle_info({ref, {genome, fit}}, %{assigns: %{task: %Task{ref: ref}}} = socket) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, assign(socket, phase: :ready, genome: genome, best_fit: fit, task: nil)}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket), do: {:noreply, socket}
+
+  # --- animation ----------------------------------------------------------------
+
+  def handle_info(:tick, %{assigns: %{phase: :running, agent: agent}} = socket) do
+    {frame, agent2} = Adaptation.step(agent)
+    socket = socket |> assign(frame: frame, agent: agent2) |> push_event("wb_frame", frame)
+
+    if frame.done do
+      {:noreply, assign(socket, phase: :done)}
+    else
+      Process.send_after(self(), :tick, @tick_ms)
+      {:noreply, socket}
     end
   end
 
-  def handle_event("restart", _params, socket) do
-    {:noreply, socket |> assign(playing: false) |> reset_agents() |> push_event("reset", %{})}
-  end
+  def handle_info(:tick, socket), do: {:noreply, socket}
 
-  @impl true
-  def handle_info(:tick, %{assigns: %{playing: false}} = socket), do: {:noreply, socket}
+  # --- helpers ------------------------------------------------------------------
 
-  def handle_info(:tick, socket) do
-    stepped = Map.new(socket.assigns.agents, fn {arm, a} -> {arm, Adaptation.step(a)} end)
-    frames = Map.new(stepped, fn {arm, {f, _}} -> {arm, f} end)
-    agents = Map.new(stepped, fn {arm, {_, a}} -> {arm, a} end)
-    step = socket.assigns.step + 1
-    done = Enum.all?(agents, fn {_, a} -> a.done end) or step >= socket.assigns.goal
+  defp scenario(a), do: %{wind: a.wind, shift_gain: fault_gain(a.fault), shift_at: a.shift_at, goal: a.goal}
 
-    socket =
-      socket
-      |> assign(agents: agents, frames: frames, step: step, playing: not done)
-      |> push_event("frame", %{step: step, agents: frames})
+  defp fault_gain(:reversal), do: -1.0
+  defp fault_gain(:weaken), do: 0.35
 
-    unless done, do: Process.send_after(self(), :tick, @tick_ms)
-    {:noreply, socket}
-  end
-
-  defp start(socket) do
-    Process.send_after(self(), :tick, @tick_ms)
-    assign(socket, playing: true)
-  end
-
-  defp reset_agents(socket) do
-    agents = Map.new(socket.assigns.arms, fn %{key: k} -> {k, Adaptation.init(k)} end)
-    frames = Map.new(agents, fn {k, _} -> {k, initial_frame()} end)
-    assign(socket, agents: agents, frames: frames, step: 0)
-  end
+  defp to_idle(socket), do: assign(socket, phase: :idle, curve: [], best_fit: nil, genome: nil, agent: nil, frame: initial_frame())
 
   defp initial_frame, do: %{cpos: 0.0, angle: 0.0628, step: 0, done: false, status: :balancing, shifted: false}
 
-  defp all_done?(socket), do: Enum.all?(socket.assigns.agents, fn {_, a} -> a.done end)
+  defp to_num(s, default) do
+    case Float.parse(to_string(s)) do
+      {v, _} -> v
+      :error -> default
+    end
+  end
 
   # --- render -------------------------------------------------------------------
 
@@ -84,123 +130,140 @@ defmodule BeamCampusWeb.AdaptationLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="mx-auto max-w-5xl px-6 py-16">
+      <div class="mx-auto max-w-4xl px-6 py-16">
         <p class="font-mono text-xs uppercase tracking-[0.22em] text-primary mb-4">
-          Faber Neuroevolution · live demo · EXP-046
+          Faber Neuroevolution · live workbench · EXP-046
         </p>
         <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight text-balance mb-4">
-          An evolved controller that re-wires itself when the motor fails
+          Evolve a controller, then break its world
         </h1>
         <p class="text-base-content/70 max-w-2xl mb-8">
-          Three controllers, all <em>evolved</em> not programmed, balance a windy pole. At step
-          <b>{@shift_at}</b> the motor <b>reverses</b> — a hidden fault, unsensed, felt only through the pole's
-          response. This runs the real faber-tweann engine live on the server: every frame is a network
-          forward pass plus a physics step.
+          Pick a controller and a fault, evolve it live with separable CMA-ES, then run it on a windy pole whose
+          motor <b>reverses</b> partway — a hidden fault it must survive by adapting, not by design. Evolution and
+          physics both run the real faber-tweann engine on the server.
         </p>
 
-        <div class="flex flex-wrap items-center gap-3 mb-8">
-          <button class="btn btn-primary" phx-click="toggle">
-            {if @playing, do: "❚❚ Pause", else: "▶ Play"}
-          </button>
-          <button class="btn btn-outline" phx-click="restart">↺ Restart</button>
-          <span class="font-mono text-sm text-base-content/60">
-            step <b class="text-base-content">{@step}</b> / {@goal}
-          </span>
-          <span class={[
-            "font-mono text-xs px-3 py-1 rounded-full border transition-opacity",
-            (@step >= @shift_at && "border-error text-error opacity-100") || "border-base-300 text-base-content/50 opacity-60"
-          ]}>
-            motor reverses at {@shift_at}
-          </span>
+        <div class="card bg-base-100 border border-base-300 mb-6">
+          <div class="card-body gap-5">
+            <div>
+              <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">Controller</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  :for={arm <- @arms}
+                  phx-click="controller"
+                  phx-value-arm={arm.key}
+                  class={["btn btn-sm", (@controller == arm.key && "btn-primary") || "btn-outline"]}
+                >
+                  {arm.label}
+                </button>
+              </div>
+              <p class="font-mono text-[11px] text-base-content/50 mt-2">
+                {Enum.find(@arms, &(&1.key == @controller)).sub}
+              </p>
+            </div>
+
+            <form phx-change="params" class="grid gap-5 sm:grid-cols-3 sm:items-end">
+              <div class="sm:col-span-1">
+                <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">Fault</p>
+                <div class="flex gap-2">
+                  <button type="button" phx-click="fault" phx-value-type="reversal" class={["btn btn-sm", (@fault == :reversal && "btn-primary") || "btn-outline"]}>reverse</button>
+                  <button type="button" phx-click="fault" phx-value-type="weaken" class={["btn btn-sm", (@fault == :weaken && "btn-primary") || "btn-outline"]}>weaken</button>
+                </div>
+              </div>
+              <label class="block">
+                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">Wind · {:erlang.float_to_binary(@wind, decimals: 1)} N</span>
+                <input type="range" name="wind" min="0" max="8" step="0.5" value={@wind} class="range range-primary range-sm mt-2" />
+              </label>
+              <label class="block">
+                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">Fault at step · {@shift_at}</span>
+                <input type="range" name="shift_at" min="40" max="180" step="10" value={@shift_at} class="range range-primary range-sm mt-2" />
+              </label>
+            </form>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <button phx-click="evolve" disabled={@phase == :evolving} class="btn btn-primary">
+                {if @phase == :evolving, do: "Evolving…", else: "⚙ Evolve"}
+              </button>
+              <button phx-click="run" disabled={@phase not in [:ready, :done]} class="btn btn-secondary">
+                ▶ Run the fault
+              </button>
+              <.phase_label phase={@phase} best={@best_fit} goal={@goal} />
+            </div>
+          </div>
         </div>
 
-        <div
-          id="pole-field"
-          phx-hook=".PoleField"
-          data-limit={@limit}
-          data-track={@track}
-          class="grid gap-5 sm:grid-cols-3"
-        >
-          <.pole_panel :for={arm <- @arms} arm={arm} frame={@frames[arm.key]} />
+        <div class="grid gap-6 sm:grid-cols-2">
+          <div class="card bg-base-100 border border-base-300">
+            <div class="card-body p-4">
+              <h2 class="font-mono text-xs uppercase tracking-wide text-base-content/50">Evolution (best fitness / generation)</h2>
+              <.fitness_curve curve={@curve} goal={@goal} />
+            </div>
+          </div>
+          <div class="card bg-base-100 border border-base-300">
+            <div class="card-body p-4">
+              <h2 class="font-mono text-xs uppercase tracking-wide text-base-content/50">The run</h2>
+              <div id="pole-wb" phx-hook=".PoleWb" data-limit={@limit} data-track={@track}>
+                <canvas id="wb-canvas" class="w-full h-auto"></canvas>
+              </div>
+              <div class="font-mono text-xs mt-1">
+                <.run_status frame={@frame} phase={@phase} shift_at={@shift_at} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="card bg-base-100 border border-base-300 mt-8">
+        <div class="card bg-base-100 border border-base-300 mt-6">
           <div class="card-body">
-            <h2 class="font-mono text-xs uppercase tracking-[0.1em] text-base-content/60">What you are watching</h2>
-            <p class="text-sm">
-              All three agents were evolved with separable CMA-ES. A constant wind pushes the cart, so the
-              controller must apply continuous force — which is what makes a motor reversal <em>matter</em> (a
-              settled regulator that applies no force would not even notice). The <b>fixed</b> policy's
-              corrections invert at the fault and it topples. The <b>adaptive</b> policy derives an error signal
-              from the pole's tilt and lets it gate changes to its own weights (the three-factor rule
-              <span class="text-base-content/60">dw = M·η·(A·pre·post + …)</span>), re-wiring to recover.
-            </p>
-            <p class="text-sm text-base-content/60">
-              Honest framing: adaptation recovers reliably (5 of 5 evolved runs); a fixed controller is
-              unreliable rather than doomed, and recurrence alone (CfC) is not enough. The fixed run shown was
-              trained only on the normal regime and deployed into the fault — the real post-deployment case.
+            <p class="text-sm text-base-content/70">
+              A constant wind means the controller must always apply force, so a motor reversal actually bites (a
+              settled regulator applying no force would not notice). <b>Fixed</b> was never built to adapt and
+              topples; <b>adaptive</b> (reward-modulated plasticity) derives an error from the pole's tilt and
+              re-wires its own weights to recover; <b>recurrent</b> adapts through its internal state, less
+              reliably. Try evolving each — and note that with a short budget none may fully solve, exactly as in
+              the research (adaptation is reliable, not free).
             </p>
           </div>
         </div>
       </div>
 
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".PoleField">
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".PoleWb">
         export default {
           mounted() {
             this.limit = parseFloat(this.el.dataset.limit)
             this.track = parseFloat(this.el.dataset.track)
-            this.ctxs = {}
-            this.el.querySelectorAll("canvas[data-arm]").forEach(c => {
-              c.width = 300; c.height = 200
-              this.ctxs[c.dataset.arm] = c.getContext("2d")
-            })
-            this.handleEvent("frame", ({agents}) => { for (const a in agents) this.draw(a, agents[a]) })
-            this.handleEvent("reset", () => this.resetAll())
-            this.resetAll()
+            const c = this.el.querySelector("#wb-canvas")
+            c.width = 560; c.height = 240
+            this.ctx = c.getContext("2d")
+            this.handleEvent("wb_frame", (f) => this.draw(f))
+            this.handleEvent("wb_reset", () => this.draw({cpos:0, angle:0.0628, done:false, status:"balancing"}))
+            this.draw({cpos:0, angle:0.0628, done:false, status:"balancing"})
           },
           ink() { return getComputedStyle(this.el).color },
-          resetAll() { for (const a in this.ctxs) this.draw(a, {cpos:0, angle:0.0628, done:false, status:"balancing"}) },
-          poleColor(f) {
+          color(f) {
             if (f.status === "crashed") return "#C7583F"
             const r = Math.abs(f.angle) / this.limit
             if (r >= 0.85) return "#C7583F"
             if (r >= 0.5) return "#F2B142"
             return "#4E9F6B"
           },
-          draw(arm, f) {
-            const ctx = this.ctxs[arm]; if (!ctx) return
-            const W = 300, H = 200, trackY = 150, poleLen = 80, cartW = 42, cartH = 18
+          draw(f) {
+            const ctx = this.ctx, W = 560, H = 240, trackY = 180, poleLen = 120, cartW = 60, cartH = 24
             const ink = this.ink()
-            const px = x => 24 + ((x + this.track) / (2 * this.track)) * 252
-            const hx = px(f.cpos), hy = trackY - cartH / 2
-            const col = this.poleColor(f)
+            const px = x => 40 + ((x + this.track) / (2 * this.track)) * 480
+            const hx = px(f.cpos), hy = trackY - cartH / 2, col = this.color(f)
             ctx.clearRect(0, 0, W, H)
-            // track
             ctx.strokeStyle = ink; ctx.globalAlpha = 0.18; ctx.lineWidth = 3
-            ctx.beginPath(); ctx.moveTo(18, trackY); ctx.lineTo(282, trackY); ctx.stroke()
+            ctx.beginPath(); ctx.moveTo(30, trackY); ctx.lineTo(530, trackY); ctx.stroke()
+            ctx.globalAlpha = 0.14; ctx.lineWidth = 1; ctx.setLineDash([3,3])
+            for (const s of [-1,1]) { ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx+poleLen*Math.sin(s*this.limit), hy-poleLen*Math.cos(s*this.limit)); ctx.stroke() }
+            ctx.setLineDash([]); ctx.globalAlpha = 0.55; ctx.fillStyle = ink
+            ctx.fillRect(hx - cartW/2, trackY - cartH, cartW, cartH)
             ctx.globalAlpha = 1
-            // angle-limit guides
-            ctx.strokeStyle = ink; ctx.globalAlpha = 0.14; ctx.lineWidth = 1; ctx.setLineDash([3,3])
-            for (const s of [-1,1]) {
-              ctx.beginPath(); ctx.moveTo(hx, hy)
-              ctx.lineTo(hx + poleLen*Math.sin(s*this.limit), hy - poleLen*Math.cos(s*this.limit)); ctx.stroke()
-            }
-            ctx.setLineDash([]); ctx.globalAlpha = 1
-            // cart
-            ctx.fillStyle = ink; ctx.globalAlpha = 0.55
-            this.roundRect(ctx, hx - cartW/2, trackY - cartH, cartW, cartH, 4); ctx.fill()
-            ctx.globalAlpha = 1
-            // pole
             const tx = hx + poleLen*Math.sin(f.angle), ty = hy - poleLen*Math.cos(f.angle)
-            ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineCap = "round"
+            ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.lineCap = "round"
             ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke()
-            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(tx, ty, 6, 0, 2*Math.PI); ctx.fill()
-            ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, 2*Math.PI); ctx.fill()
-          },
-          roundRect(ctx, x, y, w, h, r) {
-            ctx.beginPath(); ctx.moveTo(x+r, y)
-            ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r)
-            ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath()
+            ctx.fillStyle = col; ctx.beginPath(); ctx.arc(tx, ty, 8, 0, 2*Math.PI); ctx.fill()
+            ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(hx, hy, 4, 0, 2*Math.PI); ctx.fill()
           }
         }
       </script>
@@ -208,48 +271,78 @@ defmodule BeamCampusWeb.AdaptationLive do
     """
   end
 
-  attr :arm, :map, required: true
-  attr :frame, :map, required: true
+  attr :phase, :atom, required: true
+  attr :best, :any, required: true
+  attr :goal, :integer, required: true
 
-  defp pole_panel(assigns) do
+  defp phase_label(assigns) do
     ~H"""
-    <div class="card bg-base-100 border border-base-300">
-      <div class="card-body p-4">
-        <h3 class="font-semibold text-sm">{@arm.label}</h3>
-        <p class="font-mono text-[11px] text-base-content/50 -mt-1">{@arm.sub}</p>
-        <canvas data-arm={@arm.key} class="w-full h-auto my-1"></canvas>
-        <div class="font-mono text-xs">
-          <.status_badge frame={@frame} />
-        </div>
-      </div>
-    </div>
+    <span class={["font-mono text-xs", phase_tone(@phase)]}>{phase_msg(@phase, @best, @goal)}</span>
     """
   end
 
-  attr :frame, :map, required: true
+  defp phase_tone(:ready), do: "text-success"
+  defp phase_tone(_), do: "text-base-content/60"
 
-  defp status_badge(assigns) do
+  defp phase_msg(:idle, _b, _g), do: "choose a scenario, then evolve"
+  defp phase_msg(:evolving, b, g), do: "evolving… best #{b || 0}/#{g}"
+  defp phase_msg(:ready, b, g), do: "evolved · best #{b}/#{g} — now run it"
+  defp phase_msg(:running, _b, _g), do: "running…"
+  defp phase_msg(:done, _b, _g), do: "run finished — evolve or run again"
+
+  attr :frame, :map, required: true
+  attr :phase, :atom, required: true
+  attr :shift_at, :integer, required: true
+
+  defp run_status(assigns) do
     ~H"""
-    <span class={[
-      "inline-flex items-center gap-2",
-      status_color(@frame.status)
-    ]}>
-      <span class={["w-2 h-2 rounded-full", status_dot(@frame.status)]}></span>
-      {status_text(@frame)}
+    <span class={run_color(@frame.status)}>
+      {run_text(@frame, @phase)}
     </span>
     """
   end
 
-  defp status_color(:crashed), do: "text-error"
-  defp status_color(:stable), do: "text-success"
-  defp status_color(_), do: "text-base-content/60"
+  defp run_color(:crashed), do: "text-error"
+  defp run_color(:stable), do: "text-success"
+  defp run_color(_), do: "text-base-content/60"
 
-  defp status_dot(:crashed), do: "bg-error"
-  defp status_dot(:stable), do: "bg-success"
-  defp status_dot(_), do: "bg-base-content/40"
+  defp run_text(_f, :idle), do: "evolve a controller, then run it"
+  defp run_text(_f, :ready), do: "ready — press Run the fault"
+  defp run_text(%{status: :crashed, step: n}, _), do: "CRASHED — toppled at step #{n}"
+  defp run_text(%{status: :stable}, _), do: "STABLE — survived the fault"
+  defp run_text(%{status: :recovering, step: n}, _), do: "recovering after the fault… step #{n}"
+  defp run_text(%{step: n}, _), do: "balancing… step #{n}"
 
-  defp status_text(%{status: :crashed, step: n}), do: "CRASHED — toppled at step #{n}"
-  defp status_text(%{status: :stable}), do: "STABLE — survived all steps"
-  defp status_text(%{status: :recovering, step: n}), do: "recovering… step #{n}"
-  defp status_text(%{status: :balancing, step: n}), do: "balancing… step #{n}"
+  attr :curve, :list, required: true
+  attr :goal, :integer, required: true
+
+  defp fitness_curve(%{curve: []} = assigns) do
+    ~H|<div class="h-[200px] grid place-items-center text-base-content/40 font-mono text-xs">no data yet — press Evolve</div>|
   end
+
+  defp fitness_curve(assigns) do
+    pts = Enum.reverse(assigns.curve)
+    maxg = pts |> List.last() |> elem(0) |> max(1)
+    goal = assigns.goal
+
+    poly =
+      Enum.map_join(pts, " ", fn {g, f} ->
+        x = 34 + g / maxg * 278
+        y = 170 - min(f, goal) / goal * 150
+        "#{Float.round(x, 1)},#{Float.round(y, 1)}"
+      end)
+
+    assigns = assign(assigns, poly: poly, maxg: maxg)
+
+    ~H"""
+    <svg viewBox="0 0 320 200" class="w-full h-auto" role="img" aria-label="Best fitness per generation">
+      <line x1="34" y1="170" x2="312" y2="170" stroke="currentColor" stroke-opacity="0.2" />
+      <line x1="34" y1="20" x2="34" y2="170" stroke="currentColor" stroke-opacity="0.2" />
+      <text x="30" y="24" text-anchor="end" font-family="monospace" font-size="9" fill="currentColor" opacity="0.5">{@goal}</text>
+      <text x="30" y="172" text-anchor="end" font-family="monospace" font-size="9" fill="currentColor" opacity="0.5">0</text>
+      <polyline fill="none" stroke="#F2B142" stroke-width="2" points={@poly} />
+      <text x="312" y="14" text-anchor="end" font-family="monospace" font-size="10" fill="#F2B142">gen {@maxg}</text>
+    </svg>
+    """
+  end
+end

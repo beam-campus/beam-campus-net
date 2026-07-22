@@ -1,37 +1,34 @@
 defmodule BeamCampus.Adaptation do
   @moduledoc """
-  Runs evolved faber-tweann controllers live on a cart-pole with a hidden
+  Runs (and evolves) faber-tweann controllers live on a cart-pole with a hidden
   mid-episode motor fault.
 
-  This is real inference, not replay: every `step/1` is an `:network_evaluator`
-  forward pass plus a `:pb_sim` physics step on the BEAM. The genomes were evolved
-  offline with separable CMA-ES (faber research EXP-046) and are embedded here; this
-  module only runs them.
+  Real inference, not replay: every `step/1` is an `:network_evaluator` forward pass
+  plus a `:pb_sim` physics step on the BEAM. `evolve/3` runs separable CMA-ES on a
+  chosen scenario, streaming per-generation fitness through a callback — so the site
+  can evolve a controller live for parameters the user picks.
 
-  Three controllers, all deployed into the same fault (the motor reverses at step
-  120, under a constant wind so control effort never settles to zero):
+  Controllers:
 
-    * `:fixed`   feedforward, trained on the normal regime -> topples when deployed.
-    * `:cfc`     recurrent (continuous-time), trained on the fault -> unreliable.
-    * `:plastic` reward-modulated plasticity, trained on the fault -> re-wires online.
+    * `:fixed`   feedforward, no adaptation.
+    * `:cfc`     recurrent (continuous-time), adapts via its internal state.
+    * `:plastic` reward-modulated plasticity, adapts by re-wiring its own weights.
 
-  Usage: `agent = init(:plastic); {frame, agent} = step(agent)` each animation tick.
-  A `frame` is `%{cpos, angle, step, done, status, shifted}` (cpos in metres, angle
-  in radians).
+  A scenario is `%{wind, shift_gain, shift_at, goal}` (the motor multiplies by
+  `shift_gain` from step `shift_at`; `wind` is a constant disturbance). A `frame` is
+  `%{cpos, angle, step, done, status, shifted}` (cpos in metres, angle in radians).
   """
 
   @n_in 4
   @hidden [8]
   @out 1
   @nw hd(@hidden) * @n_in + hd(@hidden) + @out * hd(@hidden) + @out
-  @shift_at 120
-  @goal 400
-  @wind 5.0
-  @shift_gain -1.0
+  @ntau hd(@hidden)
   @mk 5.0
   @limit 2 * :math.pi() * 36 / 360
   @track 2.4
-  @act [:without_damping, 0, @goal]
+
+  @default_scenario %{wind: 5.0, shift_gain: -1.0, shift_at: 120, goal: 400}
 
   @genomes %{
     fixed:
@@ -48,29 +45,31 @@ defmodule BeamCampus.Adaptation do
     %{key: :plastic, label: "Adaptive", sub: "reward-modulated plasticity"}
   ]
 
-  @doc "The controllers available in the demo, with display metadata."
+  @doc "The controllers, with display metadata."
   def arms, do: @arms
 
-  @doc "The step at which the hidden motor reversal occurs."
-  def shift_at, do: @shift_at
+  @doc "The default showcase scenario (motor reversal, wind 5, fault at 120)."
+  def default_scenario, do: @default_scenario
 
-  @doc "The episode length (steps to survive)."
-  def goal, do: @goal
+  @doc "The genome dimensionality for a controller (for evolution)."
+  def dim(:fixed), do: @nw
+  def dim(:cfc), do: @nw + @ntau
+  def dim(:plastic), do: @nw + 5
 
-  @doc "The pole-fall angle limit, in radians (for rendering the danger zone)."
   def angle_limit, do: @limit
-
-  @doc "The track half-length, in metres."
   def track, do: @track
 
-  @doc "Initialise an agent for one controller, deployed into the fault scenario."
-  def init(arm) when is_map_key(@genomes, arm) do
-    genome = @genomes[arm]
+  @doc "Initialise a controller from its pre-evolved genome, in the default scenario."
+  def init(arm) when is_map_key(@genomes, arm), do: init_with(arm, @genomes[arm], @default_scenario)
+
+  @doc "Initialise a controller from a genome and scenario."
+  def init_with(arm, genome, scenario) do
     %{
       arm: arm,
       net: build_net(arm, genome),
       rule: rule(arm, genome),
-      scape: scape(),
+      scape: scape(scenario),
+      scenario: scenario,
       step: 0,
       prev_tilt: 0.0,
       done: false,
@@ -80,44 +79,70 @@ defmodule BeamCampus.Adaptation do
   end
 
   @doc """
-  Run one control step. Returns `{frame, agent}`. A finished agent is frozen: it
-  returns its last frame unchanged.
+  Evolve a controller for a scenario with separable CMA-ES. `on_gen` is a
+  `fun(gen, best_fitness)` for live progress. Returns `{genome, fitness}`.
   """
-  def step(%{done: true, arm: arm, step: n, survived: survived, last: {cpos, angle}} = agent) do
-    {frame(cpos, angle, n, true, status(arm, n, true, survived), n >= @shift_at), agent}
+  def evolve(arm, scenario, on_gen, opts \\ []) do
+    lambda = Keyword.get(opts, :lambda, 60)
+    max_gen = Keyword.get(opts, :max_generations, 60)
+    fit = fn vec -> survival(init_with(arm, vec, scenario), scenario.goal) end
+
+    es = %{
+      lambda: lambda,
+      max_generations: max_gen,
+      fitness_goal: (scenario.goal - 15) * 1.0,
+      init_sigma: 1.0,
+      on_generation: on_gen
+    }
+
+    r = :sep_cma_es.evolve(fit, dim(arm), es)
+    {r.best, round(r.fitness)}
+  end
+
+  @doc """
+  Run one control step. Returns `{frame, agent}`. A finished agent is frozen.
+  """
+  def step(%{done: true, step: n, survived: sv, scenario: sc, last: {cpos, angle}} = agent) do
+    {frame(cpos, angle, n, true, status(n, true, sv, sc), n >= sc.shift_at), agent}
   end
 
   def step(agent) do
+    sc = agent.scenario
     {in_vec, s1} = :pb_sim.sense(:x, [@n_in], agent.scape)
     tilt = abs(Enum.at(in_vec, 2))
     out = :network_evaluator.evaluate(agent.net, in_vec)
-    net1 = learn(agent.arm, agent, in_vec, tilt, out)
-    {_f, halt, s2} = :pb_sim.act(:x, @act, out, s1)
+    net1 = learn(agent.arm, agent, in_vec, tilt)
+    {_f, halt, s2} = :pb_sim.act(:x, [:without_damping, 0, sc.goal], out, s1)
     done = halt != 0
     {cpos, angle} = read(s2)
     n = agent.step
     survived = if done, do: n, else: agent.survived
-    frame = frame(cpos, angle, n, done, status(agent.arm, n, done, survived), n >= @shift_at)
+    frame = frame(cpos, angle, n, done, status(n, done, survived, sc), n >= sc.shift_at)
     {frame,
      %{agent | net: net1, scape: s2, step: n + 1, prev_tilt: tilt, done: done, survived: survived, last: {cpos, angle}}}
   end
 
+  # --- fitness (survival steps) for evolution -----------------------------------
+
+  defp survival(agent, goal) do
+    result =
+      Enum.reduce_while(1..(goal + 1), agent, fn _, a ->
+        {f, a2} = step(a)
+        if f.done, do: {:halt, f.step}, else: {:cont, a2}
+      end)
+
+    if is_integer(result), do: result * 1.0, else: goal * 1.0
+  end
+
   # --- per-controller inference -------------------------------------------------
 
-  # fixed and plastic use a plain feedforward net; cfc uses a recurrent one.
   defp build_net(:cfc, genome) do
     {wv, tv} = Enum.split(genome, @nw)
     net = set_taus(:network_evaluator.set_weights(create_cfc(), wv), tv)
     :network_evaluator.reset_internal_state(net)
   end
 
-  defp build_net(:plastic, genome) do
-    :network_evaluator.set_weights(create_ff(), Enum.take(genome, @nw))
-  end
-
-  defp build_net(:fixed, genome) do
-    :network_evaluator.set_weights(create_ff(), genome)
-  end
+  defp build_net(_arm, genome), do: :network_evaluator.set_weights(create_ff(), Enum.take(genome, @nw))
 
   defp rule(:plastic, genome) do
     [a, b, c, d, eta_raw] = Enum.drop(genome, @nw)
@@ -126,29 +151,26 @@ defmodule BeamCampus.Adaptation do
 
   defp rule(_arm, _genome), do: nil
 
-  # cfc integrates the reversal in its recurrent state; plastic re-wires its weights
-  # under a reward derived from the pole recovering; fixed does neither.
-  defp learn(:cfc, agent, in_vec, _tilt, _out) do
+  defp learn(:cfc, agent, in_vec, _tilt) do
     {_out, net1} = :network_evaluator.evaluate_with_state(agent.net, in_vec)
     net1
   end
 
-  defp learn(:plastic, agent, in_vec, tilt, _out) do
+  defp learn(:plastic, agent, in_vec, tilt) do
     m = :math.tanh(@mk * (agent.prev_tilt - tilt))
     {_out, net1} = :network_evaluator.evaluate_with_neuromod(agent.net, in_vec, agent.rule, m)
     net1
   end
 
-  defp learn(:fixed, agent, _in, _tilt, _out), do: agent.net
+  defp learn(:fixed, agent, _in, _tilt), do: agent.net
 
   # --- helpers ------------------------------------------------------------------
 
   defp create_ff, do: :network_evaluator.create_feedforward(@n_in, @hidden, @out, :tanh, :tanh)
   defp create_cfc, do: :network_evaluator.create_cfc_feedforward(@n_in, @hidden, @out, :tanh, :tanh)
 
-  defp scape, do: :pb_sim.init(shift_at: @shift_at, shift_gain: @shift_gain, wind: @wind)
+  defp scape(%{shift_at: sa, shift_gain: sg, wind: w}), do: :pb_sim.init(shift_at: sa, shift_gain: sg, wind: w)
 
-  # Sensor [4] = [cpos/track, cvel/10, angle/limit, pvel]; recover real cpos & angle.
   defp read(scape_state) do
     {[cpos_s, _cvel, angle_s | _], _} = :pb_sim.sense(:x, [@n_in], scape_state)
     {cpos_s * @track, angle_s * @limit}
@@ -160,10 +182,10 @@ defmodule BeamCampus.Adaptation do
     %{cpos: r3(cpos), angle: r4(angle), step: step, done: done, status: status, shifted: shifted}
   end
 
-  defp status(_arm, step, false, _survived) when step < @shift_at, do: :balancing
-  defp status(_arm, _step, false, _survived), do: :recovering
-  defp status(_arm, _step, true, survived) when survived >= @goal, do: :stable
-  defp status(_arm, _step, true, _survived), do: :crashed
+  defp status(step, false, _sv, %{shift_at: sa}) when step < sa, do: :balancing
+  defp status(_step, false, _sv, _sc), do: :recovering
+  defp status(_step, true, sv, %{goal: g}) when sv >= g, do: :stable
+  defp status(_step, true, _sv, _sc), do: :crashed
 
   defp set_taus(net, tau_params) do
     meta = :network_evaluator.get_neuron_meta(net)
