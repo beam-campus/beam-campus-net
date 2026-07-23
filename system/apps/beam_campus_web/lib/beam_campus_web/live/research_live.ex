@@ -19,7 +19,7 @@ defmodule BeamCampusWeb.ResearchLive do
       n: "P1",
       name: "Capabilities",
       axis: "Representation — what the network can express",
-      status: "Closed",
+      status: "Characterised",
       group: :engine,
       file: "CHARTER_P1_CAPABILITIES.md",
       blurb:
@@ -29,7 +29,7 @@ defmodule BeamCampusWeb.ResearchLive do
       n: "P2",
       name: "Search Strategies",
       axis: "Operators — variation and selection",
-      status: "Active",
+      status: "Characterised",
       group: :engine,
       file: "CHARTER_P2_SEARCH_STRATEGIES.md",
       blurb:
@@ -39,21 +39,21 @@ defmodule BeamCampusWeb.ResearchLive do
       n: "P3",
       name: "Meta-learning",
       axis: "Meta-adaptation — learning to learn",
-      status: "Closed",
+      status: "Characterised",
       group: :engine,
       file: "CHARTER_P3_META_LEARNING.md",
       blurb:
-        "Evolved plasticity and lifetime learning. Closed arc: memory can come from learning rather than storage, and that lifetime learning is a shallow interaction window, not deep integration."
+        "Evolved plasticity and lifetime learning. Signed arc: memory can come from learning rather than storage, and lifetime learning is a shallow interaction window, not deep integration."
     },
     %{
       n: "P4",
       name: "Objectives",
       axis: "Selection pressure — what fitness rewards",
-      status: "Active",
+      status: "Characterised",
       group: :engine,
       file: "CHARTER_P4_OBJECTIVES.md",
       blurb:
-        "Quality-Diversity and novelty search: reward diversity and stepping-stones, not a single objective. On a constructed deceptive maze, novelty search solves where objective search and a strong optimizer are both trapped."
+        "Quality-Diversity and novelty search. Signed arc: novelty illuminates a diverse archive, solves a deceptive maze where objective search and a strong optimizer are trapped, and buys that coverage at no measurable speed cost where the objective already wins."
     },
     %{
       n: "P5",
@@ -79,11 +79,11 @@ defmodule BeamCampusWeb.ResearchLive do
       n: "P7",
       name: "Coevolution / Self-play",
       axis: "Interaction — fitness from contest",
-      status: "Open",
+      status: "Active",
       group: :engine,
       file: "CHARTER_P7_COEVOLUTION.md",
       blurb:
-        "Competitive and cooperative coevolution, arms races, and open-endedness, where the problem itself moves as agents interact."
+        "Coevolution, arms races, open-endedness: the problem moves as agents interact. The active front, climbing a gradual ladder from numbers games (where progress has a known answer) toward embodied predator-prey. First finding: co-fitness is blind to progress, so a fixed benchmark is needed."
     },
     %{
       n: "P8",
@@ -237,8 +237,11 @@ defmodule BeamCampusWeb.ResearchLive do
       </h2>
       <p class="mt-4 max-w-2xl text-base-content/70">
         Each programme has a charter: its axis, its open questions, a first experiment, and
-        where the literature already stands. Two engine programmes have closed on signed findings;
-        objectives is the active front; the rest are chartered and open to take up.
+        where the literature already stands. Four engine programmes are <em>characterised</em> (an
+        arc of signed findings reached a synthesis); coevolution is the active front; the rest are
+        chartered and open to take up. No programme is ever <em>closed</em>: "characterised" is a
+        statement about where attention is, not a verdict that the questions are finished. Any
+        programme reopens the moment new evidence, a better instrument, or a sharper question arrives.
       </p>
 
       <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -421,9 +424,9 @@ defmodule BeamCampusWeb.ResearchLive do
   defp accent_class(_), do: "text-primary"
 
   defp status_class("Active"), do: "badge-primary"
+  defp status_class("Characterised"), do: "badge-outline badge-success"
   defp status_class("Next"), do: "badge-secondary"
   defp status_class("Open"), do: "badge-outline badge-accent"
-  defp status_class("Closed"), do: "badge-ghost"
   defp status_class("Horizon"), do: "badge-ghost"
   defp status_class(_), do: "badge-ghost"
 end

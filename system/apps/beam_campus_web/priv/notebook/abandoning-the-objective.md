@@ -3,8 +3,8 @@
   date: ~D[2026-07-23],
   description: "Some problems are traps: aiming straight at the goal walks you into a dead end, and a stronger optimiser just gets there faster. We built one such trap on purpose and watched a search that ignores the goal entirely walk out of it — after a bug nearly convinced us otherwise.",
   tags: ["programme-4", "quality-diversity", "open-science"],
-  sources: [50, 51],
-  corpus_ref: "faber insights 050-051 + CHARTER_P4_OBJECTIVES"
+  sources: [50, 51, 52],
+  corpus_ref: "faber insights 050-052 + CHARTER_P4_OBJECTIVES"
 }
 ---
 
@@ -88,6 +88,45 @@ That is the same story as the [mind-reader post](/research/notes/same-score-same
 ## Where it lands
 
 Programme 4 asks what happens when you change *what fitness rewards*. The answer, demonstrated on our own engine: when a landscape is deceptive, changing the **selection pressure** — reward novelty, not proximity — solves what no amount of optimiser strength can. Which *kind* of novelty you reward matters too (end-spots beat paths here), a knob for the next experiments. And the open question left standing: when the goal-chaser *can* solve a task, does novelty cost more tries to get there? That efficiency question is next.
+
+## The sequel: does wanting-something-different cost you when chasing the goal already works?
+
+That was the open question, and we answered it. We built the *non-deceptive* twin maze, where chasing the goal wins outright, and asked the obvious "no free lunch" question: surely rewarding novelty instead of proximity costs something here? A tax in wasted tries?
+
+It didn't show up. Novelty reached the goal about as fast as the goal-chaser (neither meaningfully slower), both far quicker than random tinkering, and along the way novelty explored almost the entire maze while the goal-chaser walked a narrow line to the exit.
+
+<figure class="nb-fig">
+  <svg viewBox="0 0 560 250" role="img" aria-label="On the non-deceptive maze: how much of the maze each search explored (novelty 112 of about 112 cells, goal-chasing 79, random 68) and how fast each reached the goal (novelty 268 evaluations, goal-chasing 305, random 690).">
+    <text x="16" y="30" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.55">how much of the maze it explored (of ~112 cells)</text>
+    <g font-family="ui-monospace, monospace" font-size="11.5">
+      <text x="150" y="58" text-anchor="end" fill="currentColor" opacity="0.75">novelty</text>
+      <rect x="160" y="46" width="336" height="16" rx="3" fill="#4E9F6B"/>
+      <text x="504" y="59" fill="#4E9F6B" font-weight="bold">112</text>
+      <text x="150" y="82" text-anchor="end" fill="currentColor" opacity="0.75">goal-chasing</text>
+      <rect x="160" y="70" width="237" height="16" rx="3" fill="currentColor" opacity="0.35"/>
+      <text x="405" y="83" fill="currentColor" opacity="0.6">79</text>
+      <text x="150" y="106" text-anchor="end" fill="currentColor" opacity="0.75">random</text>
+      <rect x="160" y="94" width="204" height="16" rx="3" fill="currentColor" opacity="0.25"/>
+      <text x="372" y="107" fill="currentColor" opacity="0.5">68</text>
+    </g>
+    <line x1="160" y1="130" x2="500" y2="130" stroke="currentColor" stroke-opacity="0.12"/>
+    <text x="16" y="158" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.55">tries to reach the goal (fewer = faster; median)</text>
+    <g font-family="ui-monospace, monospace" font-size="11.5">
+      <text x="150" y="186" text-anchor="end" fill="currentColor" opacity="0.75">novelty</text>
+      <rect x="160" y="174" width="86" height="16" rx="3" fill="#4E9F6B" opacity="0.8"/>
+      <text x="254" y="187" fill="#4E9F6B" opacity="0.9">268</text>
+      <text x="150" y="210" text-anchor="end" fill="currentColor" opacity="0.75">goal-chasing</text>
+      <rect x="160" y="198" width="98" height="16" rx="3" fill="currentColor" opacity="0.35"/>
+      <text x="266" y="211" fill="currentColor" opacity="0.6">305</text>
+      <text x="150" y="234" text-anchor="end" fill="currentColor" opacity="0.75">random</text>
+      <rect x="160" y="222" width="221" height="16" rx="3" fill="currentColor" opacity="0.25"/>
+      <text x="389" y="235" fill="currentColor" opacity="0.5">690</text>
+    </g>
+  </svg>
+  <figcaption>The efficiency question (insight 052, 120 runs). Top: novelty explores almost the whole maze (112 of ~112 cells) while goal-chasing walks a narrow route (79) and random barely moves (68). Bottom: yet novelty reaches the goal about as fast as goal-chasing (268 vs 305 tries, a difference lost in the noise), both far faster than random (690). The predicted speed tax did not appear.</figcaption>
+</figure>
+
+Two honest cautions. We could not prove the two are *exactly* equal in speed (our measurement stayed a little too fuzzy for that even after tripling the runs), so we sign the *absence* of a penalty, not perfect parity. And the coverage win is flattered by a small maze that novelty can fill completely. But the headline holds: here, wanting-something-different cost nothing and bought a lot. Which is the perfect setup for the next programme, where the world stops having a single goal — and coverage stops being a bonus and becomes the whole point.
 
 ## Read the rigorous version
 
