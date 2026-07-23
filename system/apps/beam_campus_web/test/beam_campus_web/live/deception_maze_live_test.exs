@@ -21,6 +21,10 @@ defmodule BeamCampusWeb.DeceptionMazeLiveTest do
     html = view |> element("button[phx-value-mode=objective]") |> render_click()
     assert html =~ "Chasing the goal"
 
+    # The generations budget is adjustable within limits.
+    html = render_change(view, "gens", %{"generations" => "70"})
+    assert html =~ "70 generations"
+
     html = view |> element("button[phx-click=mevolve]") |> render_click()
     assert html =~ "Evolving…"
   end

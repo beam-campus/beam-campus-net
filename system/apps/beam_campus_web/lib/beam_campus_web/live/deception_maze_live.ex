@@ -14,7 +14,11 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
   @cell 22
   @pad 10
   @tick_ms 140
-  @generations 45
+  @gen_default 45
+  @gen_min 10
+  @gen_max 90
+  @gen_step 5
+  @replay_ms 6000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -41,10 +45,15 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
        sc_playing: false,
        # live evolve
        mode: :novelty,
+       generations: @gen_default,
+       gen_min: @gen_min,
+       gen_max: @gen_max,
+       gen_step: @gen_step,
        phase: :idle,
        frame: nil,
        frames: [],
        play_idx: 0,
+       play_tick: @tick_ms,
        task: nil
      )}
   end
@@ -68,16 +77,21 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
     {:noreply, assign(socket, mode: String.to_existing_atom(m), phase: :idle, frame: nil)}
   end
 
+  def handle_event("gens", %{"generations" => g}, socket) do
+    {:noreply, assign(socket, generations: clamp_gens(g))}
+  end
+
   def handle_event("mevolve", _p, socket) do
     mode = socket.assigns.mode
+    gens = socket.assigns.generations
 
     # Collect one champion frame per generation, then replay them on a tick so the
     # evolution is watchable rather than a burst of diffs.
     task =
       Task.async(fn ->
         me = self()
-        Maze.evolve(mode, Maze.maze(:deceptive), @generations, fn gen, champ -> send(me, {:f, frame(gen, champ)}) end)
-        collect(@generations + 1, [])
+        Maze.evolve(mode, Maze.maze(:deceptive), gens, fn gen, champ -> send(me, {:f, frame(gen, champ)}) end)
+        collect(gens + 1, [])
       end)
 
     {:noreply, assign(socket, phase: :evolving, frame: nil, frames: [], play_idx: 0, task: task)}
@@ -97,8 +111,9 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
 
   def handle_info({ref, frames}, %{assigns: %{task: %Task{ref: ref}}} = socket) do
     Process.demonitor(ref, [:flush])
-    Process.send_after(self(), :mtick, @tick_ms)
-    {:noreply, assign(socket, phase: :playing, frames: frames, play_idx: 0, frame: List.first(frames), task: nil)}
+    tick = replay_tick(length(frames))
+    Process.send_after(self(), :mtick, tick)
+    {:noreply, assign(socket, phase: :playing, frames: frames, play_idx: 0, frame: List.first(frames), play_tick: tick, task: nil)}
   end
 
   def handle_info(:mtick, %{assigns: %{phase: :playing}} = socket) do
@@ -107,7 +122,7 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
 
     cond do
       idx < length(frames) ->
-        Process.send_after(self(), :mtick, @tick_ms)
+        Process.send_after(self(), :mtick, socket.assigns.play_tick)
         {:noreply, assign(socket, play_idx: idx, frame: Enum.at(frames, idx))}
 
       true ->
@@ -127,6 +142,15 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
   end
 
   defp frame(gen, champ), do: %{gen: gen, path: champ.path, solved: champ.solved, close: champ.close}
+
+  # Snap a slider value into range and onto the step grid.
+  defp clamp_gens(g), do: g |> to_string() |> Integer.parse() |> snap_gens()
+  defp snap_gens(:error), do: @gen_default
+  defp snap_gens({v, _}), do: v |> max(@gen_min) |> min(@gen_max) |> div(@gen_step) |> Kernel.*(@gen_step)
+
+  # Pace the whole replay to ~@replay_ms regardless of generation count (clamped so a
+  # short run is not a strobe and a long one is not a slideshow).
+  defp replay_tick(frames), do: (@replay_ms / max(1, frames)) |> round() |> max(45) |> min(200)
 
   defp collect(0, acc), do: Enum.reverse(acc)
   defp collect(n, acc) do
@@ -235,6 +259,23 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
                 </button>
                 <.evolve_status phase={@phase} frame={@frame} goal={@goal} />
               </div>
+
+              <form phx-change="gens" class="max-w-sm">
+                <label class="block">
+                  <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">
+                    Budget · {@generations} generations
+                  </span>
+                  <input
+                    type="range" name="generations"
+                    min={@gen_min} max={@gen_max} step={@gen_step} value={@generations}
+                    disabled={@phase in [:evolving, :playing]}
+                    class="range range-secondary range-sm mt-2"
+                  />
+                </label>
+                <p class="font-mono text-[11px] text-base-content/40 mt-1">
+                  more budget gives novelty more room to work around the trap
+                </p>
+              </form>
 
               <div class="max-w-xs">
                 <.panel title={mode_title(@mode)} sub="deceptive maze · live" accent={to_string(@mode)} solved={@frame && @frame.solved}>
