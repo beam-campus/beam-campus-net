@@ -154,8 +154,8 @@ defmodule BeamCampusWeb.ResearchLive do
           <a href={@root_url} class="btn btn-primary" target="_blank" rel="noreferrer">
             The master charter <span aria-hidden="true">&rarr;</span>
           </a>
-          <.link navigate={~p"/research/adaptation"} class="btn btn-outline">
-            ▶ Live demo: post-deployment adaptation
+          <.link navigate={~p"/research/workbench"} class="btn btn-outline">
+            ▶ The live workbench
           </.link>
         </div>
       </div>
