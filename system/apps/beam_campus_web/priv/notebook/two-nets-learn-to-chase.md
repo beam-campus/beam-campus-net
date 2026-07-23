@@ -1,7 +1,7 @@
 %{
   title: "Two networks learn to chase each other (and why we would not call it an arms race)",
   date: ~D[2026-07-23],
-  description: "We put a predator and a prey, each a tiny neural network, on a grid and let them evolve against each other. They got better. They did not run in circles. The hunter clearly pulled ahead. And then two rounds of adversarial review made us delete our own headline three times, because the exciting words were not what the data actually earned.",
+  description: "We put a predator and a prey, each a tiny neural network, on a grid and let them evolve against each other. They got better. They did not run in circles. The hunter clearly pulled ahead. Then two rounds of adversarial review and a decisive control experiment made us delete our own headline: there is no arms race here, just two learners on two treadmills.",
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [57],
   corpus_ref: "faber insight 057 + CHARTER_P7_COEVOLUTION"
@@ -46,4 +46,10 @@ What survived, after the cuts: real neural pursuit-evasion **climbs monotonicall
 
 It would have been easy to publish the exciting version. The equipment we spent three notes building exists precisely so we do not. A trustworthy ruler is worth most exactly when it tells you the boring answer, because that is when the temptation to round up is strongest.
 
-Next we run the missing control, the one that could actually earn the word "arms race": evolve each side alone against the frozen yardstick, and see whether the coevolving pair does better. If it does, they really are driving each other. If it does not, they were on separate treadmills all along. Either way, we will tell you.
+## The control, and its answer
+
+So we ran the control that could earn (or refuse) the word "arms race". Give each side a **frozen** opponent, one that never adapts, and let it improve against that fixed target. Then compare: does the pair whose opponent **moves** end up better on the yardstick than the pair whose opponent **stands still**? If a moving target drives extra progress, that is the arms race. If not, they were on separate treadmills.
+
+The answer came back clean, and it was the modest one. On every side, at both speed rungs, the coevolving player ended up **no better** than the one that trained against a frozen opponent. A moving target bought nothing you could measure. So the improvement we saw is real, but it is each side climbing against whatever opponent it is handed, not two rivals spiralling each other upward. On this small grid, at this scale, there is **no arms race** to find, only two learners on two treadmills.
+
+That closes the loop honestly. What survives, signed: real neural pursuit-evasion improves and does not run in circles; the hunter reliably gets better; the runner barely holds on; and the exciting story, two minds driving each other to ever-greater cunning, is not there. To find that, we suspect you need a richer world than a bare grid: space, food, many agents, somewhere for an escalation to actually go. That is where the next programmes point.
