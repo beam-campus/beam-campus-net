@@ -3,8 +3,8 @@
   date: ~D[2026-07-23],
   description: "Three tiny networks learn a task equally well. Does an equal score mean they think the same way inside? We built a mind-reader to check, got fooled by our own mistake, caught it, and found the honest answer.",
   tags: ["programme-3", "meta-learning", "open-science"],
-  sources: [35, 43, 44, 45, 47],
-  corpus_ref: "faber insight 047 + SYNTHESIS_P3"
+  sources: [35, 43, 44, 45, 47, 48],
+  corpus_ref: "faber insights 047-048 + SYNTHESIS_P3"
 }
 ---
 
@@ -129,6 +129,53 @@ Cheap to check: move the swap. Make it early (trial 20) or late (trial 40) inste
 The machines converge because they each learn the same real skill, not because a filter hides how they differ. That is a smaller, sturdier sentence than the one we started with, and we reached it by looking inside instead of trusting the score.
 
 The part we are proudest of is not the result. It is that the mistake in the first version was caught by a check built to catch exactly that, before it hardened into a published claim. [Publishing our failures](/research/notes/why-we-publish-our-failures) is the visible half of honest science. Building the checks that catch them early is the other half, and this is the first time one paid for itself in a single afternoon.
+
+## Postscript: how *deep* is that tracking?
+
+Same skill, three ways — but how deep does the skill run? When a network tracks which button pays, is it patiently weighing all its evidence since the start (a rich running tally of a whole lifetime), or just reacting to the last handful of tries (a short memory)? We looked. And once again the first look fooled us, in a way worth telling.
+
+The first measurement said **deep**: the network seemed to carry the good-button knowledge spread thinly across many past trials, as if integrating a long history. Our reviewer caught that this was the *measuring tool*, not the network. The mind-reader was too simple to represent one particular combination — "this reward **and** that action, together" — so it smeared what was really a short recent-memory signal across many trials, making a shallow thing look deep. We gave the reader the missing combination, and the picture flipped.
+
+<figure class="nb-fig">
+  <svg viewBox="0 0 560 300" role="img" aria-label="How much each past trial influences the network's current choice. The naive tool suggested a long slow tail reaching far back. With the fix, influence is concentrated on the last three to five trials and near zero beyond that.">
+    <g font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.55">
+      <text x="86" y="62" text-anchor="end">high</text>
+      <text x="86" y="230" text-anchor="end">none</text>
+    </g>
+    <text x="26" y="150" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.5" transform="rotate(-90 26 150)" text-anchor="middle">influence on the next choice</text>
+    <line x1="98" y1="230" x2="524" y2="230" stroke="currentColor" stroke-opacity="0.25"/>
+    <g font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor" opacity="0.6" text-anchor="middle">
+      <text x="140" y="250">1 ago</text>
+      <text x="204" y="250">2</text>
+      <text x="268" y="250">3</text>
+      <text x="332" y="250">4</text>
+      <text x="396" y="250">5</text>
+      <text x="460" y="250">6</text>
+      <text x="510" y="250">7+</text>
+    </g>
+    <!-- naive: long slow tail -->
+    <polyline points="140,120 204,132 268,146 332,158 396,168 460,176 510,184" fill="none" stroke="#C7583F" stroke-width="2" stroke-dasharray="6 5" stroke-opacity="0.6"/>
+    <text x="360" y="150" font-family="ui-monospace, monospace" font-size="10" fill="#C7583F" opacity="0.85">naive tool: a long tail</text>
+    <!-- fixed: concentrated on last 3-5, dies out -->
+    <g fill="#4E9F6B">
+      <rect x="122" y="70" width="36" height="160" rx="4"/>
+      <rect x="186" y="104" width="36" height="126" rx="4"/>
+      <rect x="250" y="150" width="36" height="80" rx="4"/>
+      <rect x="314" y="196" width="36" height="34" rx="4"/>
+      <rect x="378" y="216" width="36" height="14" rx="4" opacity="0.7"/>
+      <rect x="442" y="224" width="36" height="6" rx="3" opacity="0.5"/>
+      <rect x="492" y="227" width="36" height="3" rx="1.5" opacity="0.4"/>
+    </g>
+    <text x="150" y="60" font-family="ui-monospace, monospace" font-size="10.5" fill="#4E9F6B" opacity="0.9">with the fix: a short 3–5 trial window</text>
+    <g font-family="ui-monospace, monospace" font-size="11">
+      <rect x="120" y="282" width="14" height="10" rx="2" fill="#4E9F6B"/><text x="140" y="291" fill="currentColor" opacity="0.7">the real memory (short)</text>
+      <line x1="360" y1="287" x2="384" y2="287" stroke="#C7583F" stroke-width="2" stroke-dasharray="6 5" stroke-opacity="0.7"/><text x="392" y="291" fill="currentColor" opacity="0.7">the tool's illusion (deep)</text>
+    </g>
+  </svg>
+  <figcaption>How far back the network really looks. The naive mind-reader painted a long slow tail (terracotta, dashed) — a lifetime of evidence, apparently. With the missing "reward-and-action together" term restored, the truth is a short window (green): the last three to five tries carry almost all the weight, and everything older barely counts. The same short window held for all three kinds of network.</figcaption>
+</figure>
+
+So the learning is a **short reactive memory, not a deep integration of a whole lifetime** — and the same shallow window for all three network kinds. A smaller, truer sentence again, reached the same way: a check built to distrust our own tools caught the first version before it hardened.
 
 ## Read the rigorous version
 

@@ -39,21 +39,21 @@ defmodule BeamCampusWeb.ResearchLive do
       n: "P3",
       name: "Meta-learning",
       axis: "Meta-adaptation — learning to learn",
-      status: "Next",
+      status: "Closed",
       group: :engine,
       file: "CHARTER_P3_META_LEARNING.md",
       blurb:
-        "Evolved plasticity and lifetime learning: the system adapts its own learning, not just its weights."
+        "Evolved plasticity and lifetime learning. Closed arc: memory can come from learning rather than storage, and that lifetime learning is a shallow interaction window, not deep integration."
     },
     %{
       n: "P4",
       name: "Objectives",
       axis: "Selection pressure — what fitness rewards",
-      status: "Open",
+      status: "Active",
       group: :engine,
       file: "CHARTER_P4_OBJECTIVES.md",
       blurb:
-        "Quality-Diversity and novelty search: reward diversity and stepping-stones rather than a single objective. The answer to deception."
+        "Quality-Diversity and novelty search: reward diversity and stepping-stones, not a single objective. On a constructed deceptive maze, novelty search solves where objective search and a strong optimizer are both trapped."
     },
     %{
       n: "P5",
@@ -237,8 +237,8 @@ defmodule BeamCampusWeb.ResearchLive do
       </h2>
       <p class="mt-4 max-w-2xl text-base-content/70">
         Each programme has a charter: its axis, its open questions, a first experiment, and
-        where the literature already stands. One is the active front; the rest are chartered
-        and open to take up.
+        where the literature already stands. Two engine programmes have closed on signed findings;
+        objectives is the active front; the rest are chartered and open to take up.
       </p>
 
       <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -284,37 +284,42 @@ defmodule BeamCampusWeb.ResearchLive do
       <div class="mx-auto max-w-3xl px-6 py-20 sm:py-24">
         <p class="font-mono text-xs uppercase tracking-[0.2em] text-primary">Where it stands</p>
         <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
-          One wall, three explanations
+          One wall, three explanations — and what the fork found
         </h2>
         <p class="mt-6 text-base-content/70 leading-relaxed">
-          Two programmes have converged on the same open question: a classic non-Markov
-          control benchmark that neither the genetic algorithm nor a self-adaptive evolution
-          strategy has solved. That single wall has three competing explanations, one on each
-          of three axes, and the near-term work is a clean fork that resolves which:
+          Two programmes converged on the same open question: a classic non-Markov control
+          benchmark that neither the genetic algorithm nor a self-adaptive evolution strategy
+          solved. That single wall had three competing explanations, one on each of three axes.
+          The fork has now been run, and the answer is not the tidy one we expected:
         </p>
         <ul class="mt-6 space-y-3 text-sm">
           <li class="flex gap-3">
             <span class="font-mono text-primary shrink-0">P3</span>
             <span class="text-base-content/70">
-              <strong>Representation</strong> — the memory timescale is fixed and cannot evolve.
+              <strong>Representation</strong> — the memory timescale. Still live: a real factor,
+              but not the whole wall.
             </span>
           </li>
           <li class="flex gap-3">
             <span class="font-mono text-primary shrink-0">P2</span>
             <span class="text-base-content/70">
-              <strong>Optimizer</strong> — the search is too weak for the landscape.
+              <strong>Optimizer</strong> — search strength. The wall was localised to
+              optimizer-plus-representation together, not to any single axis.
             </span>
           </li>
           <li class="flex gap-3">
             <span class="font-mono text-primary shrink-0">P4</span>
             <span class="text-base-content/70">
-              <strong>Deception</strong> — the fitness gradient leads away from the solution.
+              <strong>Deception</strong> — ruled out for <em>this</em> wall as a signed negative,
+              then confirmed as a real phenomenon on a purpose-built deceptive maze, where novelty
+              search solves what objective search and a strong optimizer cannot.
             </span>
           </li>
         </ul>
         <p class="mt-6 text-base-content/70 leading-relaxed">
-          Whichever leg breaks the wall first becomes a signed finding; the ones that do not
-          are signed negatives, and just as valuable.
+          One leg became a signed positive elsewhere, one a signed negative here, and the
+          benchmark itself resolved into a joint optimizer-and-representation limit. The negatives
+          were as load-bearing as the positive — which is the point of writing them all down.
         </p>
       </div>
     </section>
