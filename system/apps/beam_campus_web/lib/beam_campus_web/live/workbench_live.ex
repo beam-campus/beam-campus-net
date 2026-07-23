@@ -10,9 +10,36 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
   @experiments [
     %{
+      id: "neural-coevolution",
+      title: "Neural coevolution: pursuers vs evaders",
+      tag: "Coevolution · torus",
+      kind: :engine,
+      status: :interactive,
+      route: "/research/workbench/neural-coevolution",
+      programme: "P7 · Coevolution",
+      insight: "053-055",
+      note: "/research/notes/running-to-stay-in-place",
+      blurb:
+        "Two populations of faber-tweann networks coevolve; every move is a live forward pass. Watch a champion chase end in a capture, and the honest outcome: disengagement, not an arms race. A two-sided race is a knife-edge."
+    },
+    %{
+      id: "red-queen",
+      title: "The Red Queen: running to stay in place",
+      tag: "Coevolution methodology",
+      kind: :methodology,
+      status: :interactive,
+      route: "/research/workbench/red-queen",
+      programme: "P7 · Coevolution",
+      insight: "053",
+      note: "/research/notes/running-to-stay-in-place",
+      blurb:
+        "Numbers, not networks, on purpose: the trait escalates without bound while the score against current rivals stays flat. The measurement trap that calibrates the ruler before we trust it on the real engine."
+    },
+    %{
       id: "deception-maze",
       title: "Abandoning the objective",
       tag: "Deceptive maze",
+      kind: :engine,
       status: :interactive,
       route: "/research/workbench/deception-maze",
       programme: "P4 · Objectives",
@@ -25,6 +52,7 @@ defmodule BeamCampusWeb.WorkbenchLive do
       id: "adaptation",
       title: "Adapt to a broken world",
       tag: "Cart-pole · motor fault",
+      kind: :engine,
       status: :interactive,
       route: "/research/workbench/adaptation",
       programme: "P3 · Meta-learning",
@@ -86,7 +114,10 @@ defmodule BeamCampusWeb.WorkbenchLive do
           <span class="font-mono text-[11px] uppercase tracking-widest text-base-content/50">{@x.tag}</span>
           <span class={["badge badge-sm", status_class(@x.status)]}>{status_label(@x.status)}</span>
         </div>
-        <h2 class="text-xl font-semibold">{@x.title}</h2>
+        <div class="flex items-center gap-2">
+          <h2 class="text-xl font-semibold">{@x.title}</h2>
+          <span class={["badge badge-xs whitespace-nowrap", kind_class(@x.kind)]}>{kind_label(@x.kind)}</span>
+        </div>
         <p class="text-sm text-base-content/70 leading-relaxed flex-1">{@x.blurb}</p>
 
         <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-base-content/50">
@@ -118,6 +149,11 @@ defmodule BeamCampusWeb.WorkbenchLive do
     </.link>
     """
   end
+
+  defp kind_class(:engine), do: "badge-success badge-outline"
+  defp kind_class(:methodology), do: "badge-ghost"
+  defp kind_label(:engine), do: "real engine"
+  defp kind_label(:methodology), do: "methodology · numbers"
 
   defp status_class(:interactive), do: "badge-primary"
   defp status_class(:planned), do: "badge-ghost"

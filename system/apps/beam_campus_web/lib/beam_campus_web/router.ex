@@ -24,6 +24,8 @@ defmodule BeamCampusWeb.Router do
     live "/research/workbench", WorkbenchLive, :index
     live "/research/workbench/adaptation", AdaptationLive, :index
     live "/research/workbench/deception-maze", DeceptionMazeLive, :index
+    live "/research/workbench/red-queen", RedQueenLive, :index
+    live "/research/workbench/neural-coevolution", NeuralCoevolutionLive, :index
     # legacy alias — the adaptation demo used to live here
     live "/research/adaptation", AdaptationLive, :index
   end
