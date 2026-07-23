@@ -66,6 +66,31 @@ Not a slogan. Concrete, from our own notebook, with the receipts:
 - **We published three nothings in a row.** On one question, three separate experiments (043, 044, 045) each found no difference between the things we were comparing. A conventional paper buries a single null; three would never see daylight. For us they *were* the finding: they revealed the thing we cared about belongs to a different regime entirely.
 - **We caught ourselves believing a fluke.** An early result looked spectacular, from a single run. Our own rule (no claim about a *rate* below ten runs) forced a rerun. It did not survive. Insight 026 keeps both the exciting fluke and its quiet death.
 
+This is not a handful of cherry-picked confessions. Here is the whole ledger:
+
+<figure class="nb-fig">
+  <svg viewBox="0 0 560 196" role="img" aria-label="Of 46 signed results, 30 are confirmed or a finding, 14 are a refutation, null, or correction, and 2 are inconclusive.">
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="12" fill="currentColor" opacity="0.7">our 46 signed results, by how they turned out</text>
+    <g>
+      <rect x="20" y="48" width="322" height="42" rx="6" fill="#4E9F6B"/>
+      <rect x="346" y="48" width="150" height="42" rx="6" fill="#C7583F"/>
+      <rect x="500" y="48" width="22" height="42" rx="6" fill="#F2B142"/>
+    </g>
+    <g font-family="ui-monospace, monospace" font-size="13" fill="#ffffff" font-weight="600">
+      <text x="34" y="75">30</text>
+      <text x="360" y="75">14</text>
+    </g>
+    <text x="511" y="108" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.7">2</text>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.8">
+      <rect x="20" y="120" width="12" height="12" rx="3" fill="#4E9F6B"/><text x="38" y="130">confirmed / finding</text>
+      <rect x="206" y="120" width="12" height="12" rx="3" fill="#C7583F"/><text x="224" y="130">refuted, null, or corrected</text>
+      <rect x="450" y="120" width="12" height="12" rx="3" fill="#F2B142"/><text x="468" y="130">inconclusive</text>
+    </g>
+    <text x="20" y="168" font-family="ui-monospace, monospace" font-size="12" fill="currentColor" opacity="0.9">One in three of our published results is a failure we chose to keep.</text>
+  </svg>
+  <figcaption>Every signed entry in the corpus, sorted by how it turned out. The terracotta block, 14 of 46, is refutations, dead-end nulls, and self-corrections, including the two theories we killed outright. In most of science that block goes in a drawer. Here it is a third of the visible record, on purpose.</figcaption>
+</figure>
+
 ## The discipline that makes it cheap and safe
 
 Publishing failures only works if the format removes the sting:
