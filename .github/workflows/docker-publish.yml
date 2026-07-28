@@ -5,7 +5,10 @@ name: Docker Build & Push (ghcr.io)
 # amd64 only — the box is x86_64.
 #
 # Publishes to ghcr.io/beam-campus/beam-campus-net using the Actions-provided
-# GITHUB_TOKEN (packages: write). Runs on the GitHub mirror of this repo.
+# GITHUB_TOKEN (packages: write). Runs on the canonical repo: GitHub became
+# canonical on 2026-07-26, so this no longer fires via a Codeberg push-mirror.
+# Watchtower on the box polls ghcr and rolling-restarts, so a push to main is
+# the whole deploy.
 on:
   push:
     branches: [main]
