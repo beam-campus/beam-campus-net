@@ -179,4 +179,4 @@ So the learning is a **short reactive memory, not a deep integration of a whole 
 
 ## Read the rigorous version
 
-Every number here is a signed, dated entry in the open corpus, including the upside-down run we kept. Follow the *sources* under this post, or start with the [Programme 3 synthesis](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/SYNTHESIS_P3.md).
+Every number here is a signed, dated entry in the open corpus, including the upside-down run we kept. Follow the *sources* under this post, or start with the [Programme 3 synthesis](https://github.com/rgfaber/faber-ecosystem/blob/master/plans/SYNTHESIS_P3.md).

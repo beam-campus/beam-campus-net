@@ -6,7 +6,7 @@ distributed and evolutionary AI.
 A Phoenix LiveView site, built to mirror the operational practices of
 `macula-internal/macula-realm`: self-hosted **Hanko** auth, **Mailgun** over
 HTTPS, **Caddy** with automatic Let's Encrypt, a release-overlay deploy, and CI
-that publishes an image to the Codeberg container registry.
+that publishes an image to the GitHub container registry (ghcr.io).
 
 ## Layout
 
@@ -23,7 +23,7 @@ beam-campus-net/
 │   ├── caddy/Caddyfile         # reverse proxy + automatic HTTPS
 │   └── hanko/config.yaml       # self-hosted auth (mirror of realm)
 ├── Dockerfile.prod             # multi-stage release image
-└── .github/workflows/          # CI + Codeberg image publish
+└── .github/workflows/          # CI + ghcr.io image publish
 ```
 
 ## Develop
@@ -57,8 +57,9 @@ Theme, logo, favicon and the self-hosted Hanken Grotesk font come from
 ## Deploy
 
 CI builds `Dockerfile.prod` and pushes to
-`codeberg.org/beam-campus/beam-campus-net` (tags → `:latest` + semver; `main` →
-`:main` + `:<sha>`). The container runs `bin/start`, which migrates then boots.
+`ghcr.io/beam-campus/beam-campus-net` (tags → `:latest` + semver; `main` →
+`:main` + `:<sha>`). Watchtower on the box polls that package and rolling-restarts,
+so a push to `main` is the whole deploy. The container runs `bin/start`, which migrates then boots.
 Set `PHX_HOST`, `SECRET_KEY_BASE`, `DATABASE_URL`, the `BEAM_CAMPUS_MAILGUN_*`
 and `HANKO_*` env, and (for Caddy) `SITE_ADDRESS` + `ACME_EMAIL`.
 

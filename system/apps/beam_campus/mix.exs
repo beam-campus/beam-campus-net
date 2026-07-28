@@ -46,7 +46,7 @@ defmodule BeamCampus.MixProject do
       # faber-tweann neuroevolution engine (Erlang). Used by BeamCampus.Adaptation
       # to run evolved controllers live. NIF is skipped (FABER_TWEANN_SKIP_NIF=1) and
       # the pure-Erlang fallback selected via config, so no Rust toolchain is needed.
-      {:faber_tweann, git: "https://codeberg.org/rgfaber/faber-tweann.git", branch: "master", manager: :rebar3}
+      {:faber_tweann, git: "https://github.com/rgfaber/faber-tweann.git", branch: "master", manager: :rebar3}
     ]
   end
 

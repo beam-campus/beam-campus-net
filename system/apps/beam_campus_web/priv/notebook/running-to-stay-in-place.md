@@ -57,4 +57,4 @@ This is rung one of a deliberately gentle climb: next the same test where the tr
 
 ## Read the rigorous version
 
-Every number here is a signed, dated entry in the open corpus, including the exploratory first run we discarded and kept on the record. Follow the *sources* under this post, or start with the [Programme 7 charter](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/CHARTER_P7_COEVOLUTION.md) and the [signed insights index](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md).
+Every number here is a signed, dated entry in the open corpus, including the exploratory first run we discarded and kept on the record. Follow the *sources* under this post, or start with the [Programme 7 charter](https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P7_COEVOLUTION.md) and the [signed insights index](https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md).

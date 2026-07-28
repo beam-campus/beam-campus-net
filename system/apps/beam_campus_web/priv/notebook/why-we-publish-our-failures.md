@@ -110,4 +110,4 @@ So this is not modesty, and it is not confession. It is just better engineering,
 
 All of it is open. The corpus is signed and dated. The [interactive demos](/research/workbench) let you reproduce the headline results with your own hands. The two claims we retracted are still there, labelled as such. If you go through it and find us wrong, that is not an embarrassment to us. That is the system doing exactly what it is for.
 
-Start anywhere: the [notebook](/research/notes), or the [signed insights](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md) themselves.
+Start anywhere: the [notebook](/research/notes), or the [signed insights](https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md) themselves.

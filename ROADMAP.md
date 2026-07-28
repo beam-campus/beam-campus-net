@@ -9,7 +9,7 @@
 - Operational stack mirrored from macula-realm: `Dockerfile.prod` + release
   overlay (`bin/start` → migrate → server), dev `docker-compose` (site +
   Postgres + Hanko + Caddy), Mailgun in `runtime.exs`, Caddy with automatic
-  Let's Encrypt, CI (compile/format/test) + Codeberg image publish.
+  Let's Encrypt, CI (compile/format/test) + ghcr.io image publish.
 - `/health` endpoint. Verified: compiles clean, assets build, `/` renders,
   `/health` returns 200.
 
@@ -17,9 +17,11 @@
 
 - [ ] **Domain.** `beam-campus.net` is a placeholder throughout (runtime.exs,
       Caddyfile, Hanko origins, mail domain). Confirm the real domain and sweep.
-- [ ] **Registry / GitHub mirror org.** CI publishes to
-      `codeberg.org/beam-campus/beam-campus-net`; confirm the container registry
-      + push-mirror are set up for the new `beam-campus` org.
+- [x] **Registry.** Resolved. CI publishes to
+      `ghcr.io/beam-campus/beam-campus-net`, the package is public so the box
+      pulls anonymously, and watchtower auto-pulls. The push-mirror question is
+      moot: GitHub became canonical on 2026-07-26, so CI runs on the canonical
+      repo and there is no mirror hop.
 - [ ] **Mailgun.** EU region assumed (`api.eu.mailgun.net`). Create the sending
       domain + API key, put them in the deploy secrets.
 

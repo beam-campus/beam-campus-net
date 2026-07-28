@@ -297,8 +297,8 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
               faster. Changing <em>what you reward</em>, not the strength of the search, is what escapes.
             </p>
             <div class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs text-base-content/50 pt-1">
-              <a href="https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/CHARTER_P4_OBJECTIVES.md" class="link link-hover" target="_blank" rel="noreferrer">Programme 4 charter</a>
-              <a href="https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">signed insight 051</a>
+              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P4_OBJECTIVES.md" class="link link-hover" target="_blank" rel="noreferrer">Programme 4 charter</a>
+              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">signed insight 051</a>
               <.link navigate={~p"/research/notes/abandoning-the-objective"} class="link link-hover">the plain-language note</.link>
             </div>
           </div>

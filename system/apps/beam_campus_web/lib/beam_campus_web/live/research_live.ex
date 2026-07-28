@@ -3,14 +3,14 @@ defmodule BeamCampusWeb.ResearchLive do
   The Faber neuroevolution research agenda — outward-facing.
 
   Surfaces the nine research programmes (one engine, two couplings) and links
-  each charter to its canonical home in the faber-ecosystem corpus on Codeberg.
+  each charter to its canonical home in the faber-ecosystem corpus on GitHub.
   This page does not host the charters; it points to them, so the corpus stays
   the single source of truth. Copy is commons-framed: participation and shared
   findings, never product or market.
   """
   use BeamCampusWeb, :live_view
 
-  @corpus "https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master"
+  @corpus "https://github.com/rgfaber/faber-ecosystem/blob/master"
   @charters "#{@corpus}/plans"
 
   # One engine (P1-P7), two couplings (P8 language, P9 body).
@@ -404,7 +404,7 @@ defmodule BeamCampusWeb.ResearchLive do
               signed corpus
             </a>
             <a
-              href="https://codeberg.org/rgfaber/faber-ecosystem"
+              href="https://github.com/rgfaber/faber-ecosystem"
               class="link link-hover"
               target="_blank"
               rel="noreferrer"

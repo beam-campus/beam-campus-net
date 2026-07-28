@@ -7,7 +7,7 @@ defmodule BeamCampusWeb.NotebookLive do
 
   alias BeamCampusWeb.Notebook
 
-  @corpus "https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md"
+  @corpus "https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
 
   @impl true
   def mount(_params, _session, socket) do

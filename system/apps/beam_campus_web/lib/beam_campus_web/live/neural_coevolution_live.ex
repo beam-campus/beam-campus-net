@@ -141,8 +141,8 @@ defmodule BeamCampusWeb.NeuralCoevolutionLive do
               proved correct.
             </p>
             <div class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs text-base-content/50 pt-1">
-              <a href="https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/CHARTER_P7_COEVOLUTION.md" class="link link-hover" target="_blank" rel="noreferrer">Programme 7 charter</a>
-              <a href="https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">signed insights 053-057</a>
+              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P7_COEVOLUTION.md" class="link link-hover" target="_blank" rel="noreferrer">Programme 7 charter</a>
+              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">signed insights 053-057</a>
               <.link navigate={~p"/research/notes/two-nets-learn-to-chase"} class="link link-hover">the plain-language note</.link>
             </div>
           </div>

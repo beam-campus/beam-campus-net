@@ -130,4 +130,4 @@ Two honest cautions. We could not prove the two are *exactly* equal in speed (ou
 
 ## Read the rigorous version
 
-Every number here is a signed, dated entry in the open corpus — including the retracted twenty-fold claim and the buggy first run, both kept on the record. Follow the *sources* under this post, or start with the [Programme 4 charter](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/CHARTER_P4_OBJECTIVES.md) and the [signed insights index](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md).
+Every number here is a signed, dated entry in the open corpus — including the retracted twenty-fold claim and the buggy first run, both kept on the record. Follow the *sources* under this post, or start with the [Programme 4 charter](https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P4_OBJECTIVES.md) and the [signed insights index](https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md).

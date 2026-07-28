@@ -185,7 +185,7 @@ defmodule BeamCampusWeb.HomeLive do
             Contribute compute to the mesh and help the federation grow. Every node that
             joins makes the network stronger and more resilient.
           </.way>
-          <.way title="Build on it" cta="Browse the code" href="https://codeberg.org/beam-campus">
+          <.way title="Build on it" cta="Browse the code" href="https://github.com/beam-campus">
             The core libraries are open source and on hex.pm. Integrate Macula or ReckonDB in
             your own Erlang/Elixir project, or dig into how it works.
           </.way>
@@ -238,8 +238,8 @@ defmodule BeamCampusWeb.HomeLive do
           <span>FABER</span>
           <span class="grow"></span>
           <a href={~p"/research"} class="link link-hover">research</a>
-          <a href="https://codeberg.org/beam-campus" class="link link-hover">
-            codeberg.org/beam-campus
+          <a href="https://github.com/beam-campus" class="link link-hover">
+            github.com/beam-campus
           </a>
           <a href="mailto:raf.lefever@erlef.org" class="link link-hover">raf.lefever@erlef.org</a>
         </div>

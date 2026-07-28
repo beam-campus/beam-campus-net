@@ -122,7 +122,7 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
         <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-base-content/50">
           <span>{@x.programme}</span>
-          <a href="https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">insight {@x.insight}</a>
+          <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">insight {@x.insight}</a>
           <.link navigate={@x.note} class="link link-hover">the note</.link>
         </div>
 

@@ -169,4 +169,4 @@ That is post-deployment adaptation, and you can watch it, evolve your own, and t
 
 ## Read the rigorous version
 
-None of the above asks you to take our word for it. Every claim here is a signed, dated entry in the open corpus, with the raw numbers and the statistics, including the two we retracted. Follow the *sources* under this post, or start with the [Programme 3 synthesis](https://codeberg.org/rgfaber/faber-ecosystem/src/branch/master/plans/SYNTHESIS_P3.md).
+None of the above asks you to take our word for it. Every claim here is a signed, dated entry in the open corpus, with the raw numbers and the statistics, including the two we retracted. Follow the *sources* under this post, or start with the [Programme 3 synthesis](https://github.com/rgfaber/faber-ecosystem/blob/master/plans/SYNTHESIS_P3.md).
