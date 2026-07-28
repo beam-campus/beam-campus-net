@@ -63,13 +63,19 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
   @impl true
   def handle_event("sc_toggle", _p, socket) do
     cond do
-      socket.assigns.sc_playing -> {:noreply, assign(socket, sc_playing: false)}
-      socket.assigns.sc_idx >= socket.assigns.sc_len -> {:noreply, socket |> assign(sc_idx: 0) |> sc_start()}
-      true -> {:noreply, sc_start(socket)}
+      socket.assigns.sc_playing ->
+        {:noreply, assign(socket, sc_playing: false)}
+
+      socket.assigns.sc_idx >= socket.assigns.sc_len ->
+        {:noreply, socket |> assign(sc_idx: 0) |> sc_start()}
+
+      true ->
+        {:noreply, sc_start(socket)}
     end
   end
 
-  def handle_event("sc_restart", _p, socket), do: {:noreply, assign(socket, sc_playing: false, sc_idx: 0)}
+  def handle_event("sc_restart", _p, socket),
+    do: {:noreply, assign(socket, sc_playing: false, sc_idx: 0)}
 
   # --- live evolve controls -----------------------------------------------------
 
@@ -90,7 +96,11 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
     task =
       Task.async(fn ->
         me = self()
-        Maze.evolve(mode, Maze.maze(:deceptive), gens, fn gen, champ -> send(me, {:f, frame(gen, champ)}) end)
+
+        Maze.evolve(mode, Maze.maze(:deceptive), gens, fn gen, champ ->
+          send(me, {:f, frame(gen, champ)})
+        end)
+
         collect(gens + 1, [])
       end)
 
@@ -113,7 +123,16 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
     Process.demonitor(ref, [:flush])
     tick = replay_tick(length(frames))
     Process.send_after(self(), :mtick, tick)
-    {:noreply, assign(socket, phase: :playing, frames: frames, play_idx: 0, frame: List.first(frames), play_tick: tick, task: nil)}
+
+    {:noreply,
+     assign(socket,
+       phase: :playing,
+       frames: frames,
+       play_idx: 0,
+       frame: List.first(frames),
+       play_tick: tick,
+       task: nil
+     )}
   end
 
   def handle_info(:mtick, %{assigns: %{phase: :playing}} = socket) do
@@ -141,18 +160,22 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
     assign(socket, sc_playing: true)
   end
 
-  defp frame(gen, champ), do: %{gen: gen, path: champ.path, solved: champ.solved, close: champ.close}
+  defp frame(gen, champ),
+    do: %{gen: gen, path: champ.path, solved: champ.solved, close: champ.close}
 
   # Snap a slider value into range and onto the step grid.
   defp clamp_gens(g), do: g |> to_string() |> Integer.parse() |> snap_gens()
   defp snap_gens(:error), do: @gen_default
-  defp snap_gens({v, _}), do: v |> max(@gen_min) |> min(@gen_max) |> div(@gen_step) |> Kernel.*(@gen_step)
+
+  defp snap_gens({v, _}),
+    do: v |> max(@gen_min) |> min(@gen_max) |> div(@gen_step) |> Kernel.*(@gen_step)
 
   # Pace the whole replay to ~@replay_ms regardless of generation count (clamped so a
   # short run is not a strobe and a long one is not a slideshow).
   defp replay_tick(frames), do: (@replay_ms / max(1, frames)) |> round() |> max(45) |> min(200)
 
   defp collect(0, acc), do: Enum.reverse(acc)
+
   defp collect(n, acc) do
     receive do
       {:f, f} -> collect(n - 1, [f | acc])
@@ -177,7 +200,10 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="mx-auto max-w-4xl px-6 py-16">
-        <.link navigate={~p"/research/workbench"} class="link link-hover font-mono text-xs text-base-content/50">
+        <.link
+          navigate={~p"/research/workbench"}
+          class="link link-hover font-mono text-xs text-base-content/50"
+        >
           &larr; Workbench
         </.link>
         <p class="font-mono text-xs uppercase tracking-[0.22em] text-primary mt-4 mb-4">
@@ -189,7 +215,8 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
         <p class="text-base-content/70 max-w-2xl mb-8">
           Same start, same goal, same network. One search is rewarded for getting <b>closer to the goal</b>;
           the other for reaching <b>new places</b>, ignoring the goal entirely. On a maze built as a trap —
-          the way through first leads <em>away</em> — only the second gets out. Every move here is the real
+          the way through first leads <em>away</em>
+          — only the second gets out. Every move here is the real
           faber-tweann engine on the server.
         </p>
 
@@ -199,20 +226,42 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
               {if @sc_playing, do: "❚❚ Pause", else: "▶ Play"}
             </button>
             <button class="btn btn-sm btn-outline" phx-click="sc_restart">↺ Restart</button>
-            <span class="font-mono text-xs text-base-content/50">step {min(@sc_idx, @sc_len)} / {@sc_len}</span>
+            <span class="font-mono text-xs text-base-content/50">
+              step {min(@sc_idx, @sc_len)} / {@sc_len}
+            </span>
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2">
-            <.panel title="Chasing the goal" sub="reward = get closer to G" accent="objective" solved={false}>
+            <.panel
+              title="Chasing the goal"
+              sub="reward = get closer to G"
+              accent="objective"
+              solved={false}
+            >
               <.maze_view
-                w={@w} h={@h} walls={@walls_d} start={@start} goal={@goal}
-                {trail_agent(@obj_path, @sc_idx)} accent="objective"
+                w={@w}
+                h={@h}
+                walls={@walls_d}
+                start={@start}
+                goal={@goal}
+                {trail_agent(@obj_path, @sc_idx)}
+                accent="objective"
               />
             </.panel>
-            <.panel title="Seeking novelty" sub="reward = reach new places" accent="novelty" solved={reached?(@nov_path, @sc_idx, @goal)}>
+            <.panel
+              title="Seeking novelty"
+              sub="reward = reach new places"
+              accent="novelty"
+              solved={reached?(@nov_path, @sc_idx, @goal)}
+            >
               <.maze_view
-                w={@w} h={@h} walls={@walls_d} start={@start} goal={@goal}
-                {trail_agent(@nov_path, @sc_idx)} accent="novelty"
+                w={@w}
+                h={@h}
+                walls={@walls_d}
+                start={@start}
+                goal={@goal}
+                {trail_agent(@nov_path, @sc_idx)}
+                accent="novelty"
               />
             </.panel>
           </div>
@@ -224,16 +273,30 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
         </section>
 
         <section class="mb-12">
-          <h2 class="text-lg font-semibold mb-1">The control: the same goal-chaser, on the twin maze</h2>
+          <h2 class="text-lg font-semibold mb-1">
+            The control: the same goal-chaser, on the twin maze
+          </h2>
           <p class="text-sm text-base-content/60 mb-4">
             Identical maze, but the wall's gap is moved onto the greedy route. Now chasing the goal works — it
-            solves in {length(@twin_path) - 1} steps. So it is the <em>trap</em> that stops it on the left, not the maze being hard.
+            solves in {length(@twin_path) - 1} steps. So it is the <em>trap</em>
+            that stops it on the left, not the maze being hard.
           </p>
           <div class="max-w-xs">
-            <.panel title="Goal-chaser · twin maze" sub="gap on the greedy route" accent="novelty" solved={true}>
+            <.panel
+              title="Goal-chaser · twin maze"
+              sub="gap on the greedy route"
+              accent="novelty"
+              solved={true}
+            >
               <.maze_view
-                w={@w} h={@h} walls={@walls_n} start={@start} goal={@goal}
-                trail={@twin_path} agent={List.last(@twin_path)} accent="novelty"
+                w={@w}
+                h={@h}
+                walls={@walls_n}
+                start={@start}
+                goal={@goal}
+                trail={@twin_path}
+                agent={List.last(@twin_path)}
+                accent="novelty"
               />
             </.panel>
           </div>
@@ -251,10 +314,26 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
             <div class="card-body gap-5">
               <div class="flex flex-wrap items-center gap-3">
                 <div class="flex gap-2">
-                  <button phx-click="mode" phx-value-mode="objective" class={["btn btn-sm", (@mode == :objective && "btn-primary") || "btn-outline"]}>Chase the goal</button>
-                  <button phx-click="mode" phx-value-mode="novelty" class={["btn btn-sm", (@mode == :novelty && "btn-primary") || "btn-outline"]}>Seek novelty</button>
+                  <button
+                    phx-click="mode"
+                    phx-value-mode="objective"
+                    class={["btn btn-sm", (@mode == :objective && "btn-primary") || "btn-outline"]}
+                  >
+                    Chase the goal
+                  </button>
+                  <button
+                    phx-click="mode"
+                    phx-value-mode="novelty"
+                    class={["btn btn-sm", (@mode == :novelty && "btn-primary") || "btn-outline"]}
+                  >
+                    Seek novelty
+                  </button>
                 </div>
-                <button phx-click="mevolve" disabled={@phase in [:evolving, :playing]} class="btn btn-secondary btn-sm">
+                <button
+                  phx-click="mevolve"
+                  disabled={@phase in [:evolving, :playing]}
+                  class="btn btn-secondary btn-sm"
+                >
                   {if @phase in [:evolving, :playing], do: "Evolving…", else: "⚙ Evolve"}
                 </button>
                 <.evolve_status phase={@phase} frame={@frame} goal={@goal} />
@@ -266,8 +345,12 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
                     Budget · {@generations} generations
                   </span>
                   <input
-                    type="range" name="generations"
-                    min={@gen_min} max={@gen_max} step={@gen_step} value={@generations}
+                    type="range"
+                    name="generations"
+                    min={@gen_min}
+                    max={@gen_max}
+                    step={@gen_step}
+                    value={@generations}
                     disabled={@phase in [:evolving, :playing]}
                     class="range range-secondary range-sm mt-2"
                   />
@@ -278,10 +361,21 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
               </form>
 
               <div class="max-w-xs">
-                <.panel title={mode_title(@mode)} sub="deceptive maze · live" accent={to_string(@mode)} solved={@frame && @frame.solved}>
+                <.panel
+                  title={mode_title(@mode)}
+                  sub="deceptive maze · live"
+                  accent={to_string(@mode)}
+                  solved={@frame && @frame.solved}
+                >
                   <.maze_view
-                    w={@w} h={@h} walls={@walls_d} start={@start} goal={@goal}
-                    trail={(@frame && @frame.path) || [@start]} agent={live_agent(@frame, @start)} accent={to_string(@mode)}
+                    w={@w}
+                    h={@h}
+                    walls={@walls_d}
+                    start={@start}
+                    goal={@goal}
+                    trail={(@frame && @frame.path) || [@start]}
+                    agent={live_agent(@frame, @start)}
+                    accent={to_string(@mode)}
                   />
                 </.panel>
               </div>
@@ -297,9 +391,25 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
               faster. Changing <em>what you reward</em>, not the strength of the search, is what escapes.
             </p>
             <div class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs text-base-content/50 pt-1">
-              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P4_OBJECTIVES.md" class="link link-hover" target="_blank" rel="noreferrer">Programme 4 charter</a>
-              <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">signed insight 051</a>
-              <.link navigate={~p"/research/notes/abandoning-the-objective"} class="link link-hover">the plain-language note</.link>
+              <a
+                href="https://github.com/rgfaber/faber-ecosystem/blob/master/plans/CHARTER_P4_OBJECTIVES.md"
+                class="link link-hover"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Programme 4 charter
+              </a>
+              <a
+                href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
+                class="link link-hover"
+                target="_blank"
+                rel="noreferrer"
+              >
+                signed insight 051
+              </a>
+              <.link navigate={~p"/research/notes/abandoning-the-objective"} class="link link-hover">
+                the plain-language note
+              </.link>
             </div>
           </div>
         </div>
@@ -343,26 +453,87 @@ defmodule BeamCampusWeb.DeceptionMazeLive do
   attr :accent, :string, required: true
 
   defp maze_view(assigns) do
-    assigns = assign(assigns, vb_w: @pad * 2 + assigns.w * @cell, vb_h: @pad * 2 + assigns.h * @cell, cell: @cell)
+    assigns =
+      assign(assigns,
+        vb_w: @pad * 2 + assigns.w * @cell,
+        vb_h: @pad * 2 + assigns.h * @cell,
+        cell: @cell
+      )
 
     ~H"""
-    <svg viewBox={"0 0 #{@vb_w} #{@vb_h}"} class="w-full h-auto" role="img"
-         aria-label="A grid maze with a wall, a start and a goal, and the agent's path.">
-      <rect :for={{x, y} <- @walls} x={cx(x) - @cell / 2 + 1} y={cy(y, @h) - @cell / 2 + 1}
-            width={@cell - 2} height={@cell - 2} rx="3" fill="currentColor" opacity="0.42" />
-      <rect x={cx(elem(@goal, 0)) - @cell / 2 + 2} y={cy(elem(@goal, 1), @h) - @cell / 2 + 2}
-            width={@cell - 4} height={@cell - 4} rx="4" fill="#4E9F6B" opacity="0.9" />
-      <text x={cx(elem(@goal, 0))} y={cy(elem(@goal, 1), @h) + 4} text-anchor="middle"
-            font-family="ui-monospace, monospace" font-size="11" font-weight="bold" fill="#fff">G</text>
-      <circle cx={cx(elem(@start, 0))} cy={cy(elem(@start, 1), @h)} r={@cell / 2 - 3}
-              fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" />
-      <text x={cx(elem(@start, 0))} y={cy(elem(@start, 1), @h) + 4} text-anchor="middle"
-            font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.5">S</text>
-      <polyline :if={length(@trail) > 1} points={points(@trail, @h)} fill="none"
-                stroke={accent_hex(@accent)} stroke-width="2.5" stroke-opacity="0.55"
-                stroke-linejoin="round" stroke-linecap="round" />
-      <circle :if={@agent} cx={cx(elem(@agent, 0))} cy={cy(elem(@agent, 1), @h)} r="6"
-              fill={accent_hex(@accent)} />
+    <svg
+      viewBox={"0 0 #{@vb_w} #{@vb_h}"}
+      class="w-full h-auto"
+      role="img"
+      aria-label="A grid maze with a wall, a start and a goal, and the agent's path."
+    >
+      <rect
+        :for={{x, y} <- @walls}
+        x={cx(x) - @cell / 2 + 1}
+        y={cy(y, @h) - @cell / 2 + 1}
+        width={@cell - 2}
+        height={@cell - 2}
+        rx="3"
+        fill="currentColor"
+        opacity="0.42"
+      />
+      <rect
+        x={cx(elem(@goal, 0)) - @cell / 2 + 2}
+        y={cy(elem(@goal, 1), @h) - @cell / 2 + 2}
+        width={@cell - 4}
+        height={@cell - 4}
+        rx="4"
+        fill="#4E9F6B"
+        opacity="0.9"
+      />
+      <text
+        x={cx(elem(@goal, 0))}
+        y={cy(elem(@goal, 1), @h) + 4}
+        text-anchor="middle"
+        font-family="ui-monospace, monospace"
+        font-size="11"
+        font-weight="bold"
+        fill="#fff"
+      >
+        G
+      </text>
+      <circle
+        cx={cx(elem(@start, 0))}
+        cy={cy(elem(@start, 1), @h)}
+        r={@cell / 2 - 3}
+        fill="none"
+        stroke="currentColor"
+        stroke-opacity="0.35"
+        stroke-width="1.5"
+      />
+      <text
+        x={cx(elem(@start, 0))}
+        y={cy(elem(@start, 1), @h) + 4}
+        text-anchor="middle"
+        font-family="ui-monospace, monospace"
+        font-size="10"
+        fill="currentColor"
+        opacity="0.5"
+      >
+        S
+      </text>
+      <polyline
+        :if={length(@trail) > 1}
+        points={points(@trail, @h)}
+        fill="none"
+        stroke={accent_hex(@accent)}
+        stroke-width="2.5"
+        stroke-opacity="0.55"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+      <circle
+        :if={@agent}
+        cx={cx(elem(@agent, 0))}
+        cy={cy(elem(@agent, 1), @h)}
+        r="6"
+        fill={accent_hex(@accent)}
+      />
     </svg>
     """
   end

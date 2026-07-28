@@ -54,7 +54,10 @@ defmodule BeamCampusWeb.Layouts do
               <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
                 Research <span aria-hidden="true">▾</span>
               </div>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-48 p-2 shadow-lg border border-base-300">
+              <ul
+                tabindex="0"
+                class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-48 p-2 shadow-lg border border-base-300"
+              >
                 <li><.link navigate={~p"/research"}>Programmes</.link></li>
                 <li><.link navigate={~p"/research/notes"}>Notebook</.link></li>
                 <li><.link navigate={~p"/research/workbench"}>Workbench</.link></li>

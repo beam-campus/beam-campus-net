@@ -66,7 +66,18 @@ defmodule BeamCampus.Coevolution do
       cofit: catch_rate(champ_p, [champ_e])
     }
 
-    step_done(g + 1 >= gens, gens, g, new_p, new_e, bench_p, bench_e, [frame | acc], champ_p, champ_e)
+    step_done(
+      g + 1 >= gens,
+      gens,
+      g,
+      new_p,
+      new_e,
+      bench_p,
+      bench_e,
+      [frame | acc],
+      champ_p,
+      champ_e
+    )
   end
 
   defp step_done(true, _gens, _g, _np, _ne, _bp, _be, acc, cp, ce),
@@ -76,7 +87,10 @@ defmodule BeamCampus.Coevolution do
     do: loop(gens, g + 1, np, ne, bp, be, acc)
 
   defp offspring(pop), do: for(_ <- 1..@lambda, do: mutate(Enum.random(pop)))
-  defp top_mu(scored), do: scored |> Enum.sort_by(&elem(&1, 0), :desc) |> Enum.take(@mu) |> Enum.map(&elem(&1, 1))
+
+  defp top_mu(scored),
+    do: scored |> Enum.sort_by(&elem(&1, 0), :desc) |> Enum.take(@mu) |> Enum.map(&elem(&1, 1))
+
   defp best(scored), do: scored |> Enum.max_by(&elem(&1, 0)) |> elem(1)
 
   # --- fitness / benchmark metrics ----------------------------------------------
@@ -114,6 +128,7 @@ defmodule BeamCampus.Coevolution do
   end
 
   defp play(_p, _e, pp, pe, 0), do: {chebyshev(pp, pe) <= 1, @t}
+
   defp play(p_net, e_net, pp, pe, t) do
     caught_now(chebyshev(pp, pe) <= 1, @t - t, p_net, e_net, pp, pe, t)
   end
@@ -135,7 +150,8 @@ defmodule BeamCampus.Coevolution do
   defp e_move_v(_r, pe, dir), do: move(pe, dir)
 
   # path for animation: list of {pursuer_cell, evader_cell} per step, stopping at capture.
-  defp walk_path(_p, _e, pp, pe, 0, acc), do: %{path: Enum.reverse(acc), caught: chebyshev(pp, pe) <= 1}
+  defp walk_path(_p, _e, pp, pe, 0, acc),
+    do: %{path: Enum.reverse(acc), caught: chebyshev(pp, pe) <= 1}
 
   defp walk_path(p_net, e_net, pp, pe, t, acc) do
     caught = chebyshev(pp, pe) <= 1
@@ -151,7 +167,8 @@ defmodule BeamCampus.Coevolution do
   end
 
   # sensors: opponent's shortest wrap-around relative position, normalised to [-1, 1].
-  defp sense({sx, sy}, {ox, oy}), do: [wrap_delta(ox - sx) / (@w / 2), wrap_delta(oy - sy) / (@w / 2)]
+  defp sense({sx, sy}, {ox, oy}),
+    do: [wrap_delta(ox - sx) / (@w / 2), wrap_delta(oy - sy) / (@w / 2)]
 
   defp wrap_delta(d) do
     m = Integer.mod(d, @w)
@@ -176,7 +193,13 @@ defmodule BeamCampus.Coevolution do
 
   # --- net / genome / numerics --------------------------------------------------
 
-  defp mk_net(g), do: :network_evaluator.set_weights(:network_evaluator.create_feedforward(2, @hidden, 4, :tanh, :tanh), g)
+  defp mk_net(g),
+    do:
+      :network_evaluator.set_weights(
+        :network_evaluator.create_feedforward(2, @hidden, 4, :tanh, :tanh),
+        g
+      )
+
   defp rand_genome, do: for(_ <- 1..@np, do: :rand.normal())
   defp mutate(g), do: for(x <- g, do: x + @sigma * :rand.normal())
   defp mean([]), do: 0.0

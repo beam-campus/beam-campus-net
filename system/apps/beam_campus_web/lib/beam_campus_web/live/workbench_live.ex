@@ -78,7 +78,10 @@ defmodule BeamCampusWeb.WorkbenchLive do
     <Layouts.app flash={@flash}>
       <section class="border-b border-base-300/60">
         <div class="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-          <.link navigate={~p"/research"} class="link link-hover font-mono text-xs text-base-content/50">
+          <.link
+            navigate={~p"/research"}
+            class="link link-hover font-mono text-xs text-base-content/50"
+          >
             &larr; Research
           </.link>
           <p class="font-mono text-xs uppercase tracking-[0.28em] text-primary mt-4">
@@ -111,18 +114,29 @@ defmodule BeamCampusWeb.WorkbenchLive do
     <article class="card bg-base-100 border border-base-300 h-full">
       <div class="card-body gap-3">
         <div class="flex items-center justify-between">
-          <span class="font-mono text-[11px] uppercase tracking-widest text-base-content/50">{@x.tag}</span>
+          <span class="font-mono text-[11px] uppercase tracking-widest text-base-content/50">
+            {@x.tag}
+          </span>
           <span class={["badge badge-sm", status_class(@x.status)]}>{status_label(@x.status)}</span>
         </div>
         <div class="flex items-center gap-2">
           <h2 class="text-xl font-semibold">{@x.title}</h2>
-          <span class={["badge badge-xs whitespace-nowrap", kind_class(@x.kind)]}>{kind_label(@x.kind)}</span>
+          <span class={["badge badge-xs whitespace-nowrap", kind_class(@x.kind)]}>
+            {kind_label(@x.kind)}
+          </span>
         </div>
         <p class="text-sm text-base-content/70 leading-relaxed flex-1">{@x.blurb}</p>
 
         <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-base-content/50">
           <span>{@x.programme}</span>
-          <a href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md" class="link link-hover" target="_blank" rel="noreferrer">insight {@x.insight}</a>
+          <a
+            href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
+            class="link link-hover"
+            target="_blank"
+            rel="noreferrer"
+          >
+            insight {@x.insight}
+          </a>
           <.link navigate={@x.note} class="link link-hover">the note</.link>
         </div>
 

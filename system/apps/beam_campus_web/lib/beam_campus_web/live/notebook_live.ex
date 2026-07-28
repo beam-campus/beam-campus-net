@@ -54,7 +54,9 @@ defmodule BeamCampusWeb.NotebookLive do
                     <span>{post.reading} min</span>
                     <span :for={tag <- post.tags} class="badge badge-sm badge-ghost">{tag}</span>
                   </div>
-                  <h2 class="text-xl font-semibold tracking-tight group-hover:text-primary">{post.title}</h2>
+                  <h2 class="text-xl font-semibold tracking-tight group-hover:text-primary">
+                    {post.title}
+                  </h2>
                   <p class="text-base-content/70 text-sm">{post.description}</p>
                 </div>
               </article>
@@ -83,16 +85,19 @@ defmodule BeamCampusWeb.NotebookLive do
           <span>{@post.reading} min read</span>
           <span :for={tag <- @post.tags} class="badge badge-sm badge-ghost">{tag}</span>
         </div>
-        <h1 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-balance">{@post.title}</h1>
+        <h1 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
+          {@post.title}
+        </h1>
         <p class="mt-3 text-lg text-base-content/70">{@post.description}</p>
 
         <div class="nb-body mt-8">{Phoenix.HTML.raw(@post.body)}</div>
 
         <footer class="mt-12 pt-6 border-t border-base-300">
-          <p class="font-mono text-xs uppercase tracking-[0.1em] text-base-content/50 mb-1">Provenance</p>
+          <p class="font-mono text-xs uppercase tracking-[0.1em] text-base-content/50 mb-1">
+            Provenance
+          </p>
           <p class="text-sm text-base-content/70">
-            Drawn from signed insights
-            <span class="font-mono">{@post.sources |> Enum.map(&"##{&1}") |> Enum.join(", ")}</span>.
+            Drawn from signed insights <span class="font-mono">{@post.sources |> Enum.map(&"##{&1}") |> Enum.join(", ")}</span>.
             Written against <span class="font-mono">{@post.corpus_ref}</span>.
             <a href={@corpus} target="_blank" rel="noreferrer" class="link link-hover text-primary">
               Read the rigorous version &rarr;

@@ -57,7 +57,8 @@ defmodule BeamCampusWeb.AdaptationLive do
   end
 
   def handle_event("params", %{"wind" => w, "shift_at" => s}, socket) do
-    {:noreply, socket |> assign(wind: to_num(w, 5.0), shift_at: trunc(to_num(s, 90))) |> to_idle()}
+    {:noreply,
+     socket |> assign(wind: to_num(w, 5.0), shift_at: trunc(to_num(s, 90))) |> to_idle()}
   end
 
   def handle_event("evolve", _params, socket) do
@@ -73,13 +74,31 @@ defmodule BeamCampusWeb.AdaptationLive do
         )
       end)
 
-    {:noreply, assign(socket, phase: :evolving, curve: [], best_fit: nil, genome: nil, agent: nil, task: task)}
+    {:noreply,
+     assign(socket,
+       phase: :evolving,
+       curve: [],
+       best_fit: nil,
+       genome: nil,
+       agent: nil,
+       task: task
+     )}
   end
 
   def handle_event("run", _params, socket) when not is_nil(socket.assigns.genome) do
-    agent = Adaptation.init_with(socket.assigns.controller, socket.assigns.genome, scenario(socket.assigns))
+    agent =
+      Adaptation.init_with(
+        socket.assigns.controller,
+        socket.assigns.genome,
+        scenario(socket.assigns)
+      )
+
     Process.send_after(self(), :tick, @tick_ms)
-    {:noreply, socket |> assign(phase: :running, agent: agent, frame: initial_frame()) |> push_event("wb_reset", %{})}
+
+    {:noreply,
+     socket
+     |> assign(phase: :running, agent: agent, frame: initial_frame())
+     |> push_event("wb_reset", %{})}
   end
 
   def handle_event("stop", _params, socket), do: {:noreply, assign(socket, phase: :ready)}
@@ -93,7 +112,8 @@ defmodule BeamCampusWeb.AdaptationLive do
   end
 
   def handle_event("sc_restart", _params, socket) do
-    {:noreply, socket |> assign(sc_playing: false) |> reset_showcase() |> push_event("reset", %{})}
+    {:noreply,
+     socket |> assign(sc_playing: false) |> reset_showcase() |> push_event("reset", %{})}
   end
 
   # --- evolution progress + result ----------------------------------------------
@@ -146,9 +166,14 @@ defmodule BeamCampusWeb.AdaptationLive do
 
   # --- helpers ------------------------------------------------------------------
 
-  defp showcase_agents, do: Map.new(Adaptation.arms(), fn %{key: k} -> {k, Adaptation.init(k)} end)
+  defp showcase_agents,
+    do: Map.new(Adaptation.arms(), fn %{key: k} -> {k, Adaptation.init(k)} end)
+
   defp showcase_frames, do: Map.new(Adaptation.arms(), fn %{key: k} -> {k, initial_frame()} end)
-  defp reset_showcase(socket), do: assign(socket, sc_agents: showcase_agents(), sc_frames: showcase_frames(), sc_step: 0)
+
+  defp reset_showcase(socket),
+    do: assign(socket, sc_agents: showcase_agents(), sc_frames: showcase_frames(), sc_step: 0)
+
   defp sc_all_done?(socket), do: Enum.all?(socket.assigns.sc_agents, fn {_, a} -> a.done end)
 
   defp sc_start(socket) do
@@ -156,14 +181,25 @@ defmodule BeamCampusWeb.AdaptationLive do
     assign(socket, sc_playing: true)
   end
 
-  defp scenario(a), do: %{wind: a.wind, shift_gain: fault_gain(a.fault), shift_at: a.shift_at, goal: a.goal}
+  defp scenario(a),
+    do: %{wind: a.wind, shift_gain: fault_gain(a.fault), shift_at: a.shift_at, goal: a.goal}
 
   defp fault_gain(:reversal), do: -1.0
   defp fault_gain(:weaken), do: 0.35
 
-  defp to_idle(socket), do: assign(socket, phase: :idle, curve: [], best_fit: nil, genome: nil, agent: nil, frame: initial_frame())
+  defp to_idle(socket),
+    do:
+      assign(socket,
+        phase: :idle,
+        curve: [],
+        best_fit: nil,
+        genome: nil,
+        agent: nil,
+        frame: initial_frame()
+      )
 
-  defp initial_frame, do: %{cpos: 0.0, angle: 0.0628, step: 0, done: false, status: :balancing, shifted: false}
+  defp initial_frame,
+    do: %{cpos: 0.0, angle: 0.0628, step: 0, done: false, status: :balancing, shifted: false}
 
   defp to_num(s, default) do
     case Float.parse(to_string(s)) do
@@ -187,7 +223,8 @@ defmodule BeamCampusWeb.AdaptationLive do
         </h1>
         <p class="text-base-content/70 max-w-2xl mb-8">
           Pick a controller and a fault, evolve it live with separable CMA-ES, then run it on a windy pole whose
-          motor <b>reverses</b> partway — a hidden fault it must survive by adapting, not by design. Evolution and
+          motor <b>reverses</b>
+          partway — a hidden fault it must survive by adapting, not by design. Evolution and
           physics both run the real faber-tweann engine on the server.
         </p>
 
@@ -204,7 +241,13 @@ defmodule BeamCampusWeb.AdaptationLive do
             <button class="btn btn-sm btn-outline" phx-click="sc_restart">↺ Restart</button>
             <span class="font-mono text-xs text-base-content/50">step {@sc_step} / {@sc_goal}</span>
           </div>
-          <div id="pole-field" phx-hook=".PoleField" data-limit={@limit} data-track={@track} class="grid gap-4 sm:grid-cols-3">
+          <div
+            id="pole-field"
+            phx-hook=".PoleField"
+            data-limit={@limit}
+            data-track={@track}
+            class="grid gap-4 sm:grid-cols-3"
+          >
             <.sc_panel :for={arm <- @arms} arm={arm} frame={@sc_frames[arm.key]} />
           </div>
         </section>
@@ -217,7 +260,9 @@ defmodule BeamCampusWeb.AdaptationLive do
         <div class="card bg-base-100 border border-base-300 mb-6">
           <div class="card-body gap-5">
             <div>
-              <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">Controller</p>
+              <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">
+                Controller
+              </p>
               <div class="flex flex-wrap gap-2">
                 <button
                   :for={arm <- @arms}
@@ -235,19 +280,55 @@ defmodule BeamCampusWeb.AdaptationLive do
 
             <form phx-change="params" class="grid gap-5 sm:grid-cols-3 sm:items-end">
               <div class="sm:col-span-1">
-                <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">Fault</p>
+                <p class="font-mono text-xs uppercase tracking-wide text-base-content/50 mb-2">
+                  Fault
+                </p>
                 <div class="flex gap-2">
-                  <button type="button" phx-click="fault" phx-value-type="reversal" class={["btn btn-sm", (@fault == :reversal && "btn-primary") || "btn-outline"]}>reverse</button>
-                  <button type="button" phx-click="fault" phx-value-type="weaken" class={["btn btn-sm", (@fault == :weaken && "btn-primary") || "btn-outline"]}>weaken</button>
+                  <button
+                    type="button"
+                    phx-click="fault"
+                    phx-value-type="reversal"
+                    class={["btn btn-sm", (@fault == :reversal && "btn-primary") || "btn-outline"]}
+                  >
+                    reverse
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="fault"
+                    phx-value-type="weaken"
+                    class={["btn btn-sm", (@fault == :weaken && "btn-primary") || "btn-outline"]}
+                  >
+                    weaken
+                  </button>
                 </div>
               </div>
               <label class="block">
-                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">Wind · {:erlang.float_to_binary(@wind, decimals: 1)} N</span>
-                <input type="range" name="wind" min="0" max="8" step="0.5" value={@wind} class="range range-primary range-sm mt-2" />
+                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">
+                  Wind · {:erlang.float_to_binary(@wind, decimals: 1)} N
+                </span>
+                <input
+                  type="range"
+                  name="wind"
+                  min="0"
+                  max="8"
+                  step="0.5"
+                  value={@wind}
+                  class="range range-primary range-sm mt-2"
+                />
               </label>
               <label class="block">
-                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">Fault at step · {@shift_at}</span>
-                <input type="range" name="shift_at" min="40" max="180" step="10" value={@shift_at} class="range range-primary range-sm mt-2" />
+                <span class="font-mono text-xs uppercase tracking-wide text-base-content/50">
+                  Fault at step · {@shift_at}
+                </span>
+                <input
+                  type="range"
+                  name="shift_at"
+                  min="40"
+                  max="180"
+                  step="10"
+                  value={@shift_at}
+                  class="range range-primary range-sm mt-2"
+                />
               </label>
             </form>
 
@@ -255,7 +336,11 @@ defmodule BeamCampusWeb.AdaptationLive do
               <button phx-click="evolve" disabled={@phase == :evolving} class="btn btn-primary">
                 {if @phase == :evolving, do: "Evolving…", else: "⚙ Evolve"}
               </button>
-              <button phx-click="run" disabled={@phase not in [:ready, :done]} class="btn btn-secondary">
+              <button
+                phx-click="run"
+                disabled={@phase not in [:ready, :done]}
+                class="btn btn-secondary"
+              >
                 ▶ Run the fault
               </button>
               <.phase_label phase={@phase} best={@best_fit} goal={@goal} />
@@ -266,7 +351,9 @@ defmodule BeamCampusWeb.AdaptationLive do
         <div class="grid gap-6 sm:grid-cols-2">
           <div class="card bg-base-100 border border-base-300">
             <div class="card-body p-4">
-              <h2 class="font-mono text-xs uppercase tracking-wide text-base-content/50">Evolution (best fitness / generation)</h2>
+              <h2 class="font-mono text-xs uppercase tracking-wide text-base-content/50">
+                Evolution (best fitness / generation)
+              </h2>
               <.fitness_curve curve={@curve} goal={@goal} />
             </div>
           </div>
@@ -287,9 +374,12 @@ defmodule BeamCampusWeb.AdaptationLive do
           <div class="card-body">
             <p class="text-sm text-base-content/70">
               A constant wind means the controller must always apply force, so a motor reversal actually bites (a
-              settled regulator applying no force would not notice). <b>Fixed</b> was never built to adapt and
-              topples; <b>adaptive</b> (reward-modulated plasticity) derives an error from the pole's tilt and
-              re-wires its own weights to recover; <b>recurrent</b> adapts through its internal state, less
+              settled regulator applying no force would not notice). <b>Fixed</b>
+              was never built to adapt and
+              topples; <b>adaptive</b>
+              (reward-modulated plasticity) derives an error from the pole's tilt and
+              re-wires its own weights to recover; <b>recurrent</b>
+              adapts through its internal state, less
               reliably. Try evolving each — and note that with a short budget none may fully solve, exactly as in
               the research (adaptation is reliable, not free).
             </p>
@@ -454,7 +544,9 @@ defmodule BeamCampusWeb.AdaptationLive do
   attr :goal, :integer, required: true
 
   defp fitness_curve(%{curve: []} = assigns) do
-    ~H|<div class="h-[200px] grid place-items-center text-base-content/40 font-mono text-xs">no data yet — press Evolve</div>|
+    ~H|<div class="h-[200px] grid place-items-center text-base-content/40 font-mono text-xs">
+  no data yet — press Evolve
+</div>|
   end
 
   defp fitness_curve(assigns) do
@@ -472,13 +564,40 @@ defmodule BeamCampusWeb.AdaptationLive do
     assigns = assign(assigns, poly: poly, maxg: maxg)
 
     ~H"""
-    <svg viewBox="0 0 320 200" class="w-full h-auto" role="img" aria-label="Best fitness per generation">
+    <svg
+      viewBox="0 0 320 200"
+      class="w-full h-auto"
+      role="img"
+      aria-label="Best fitness per generation"
+    >
       <line x1="34" y1="170" x2="312" y2="170" stroke="currentColor" stroke-opacity="0.2" />
       <line x1="34" y1="20" x2="34" y2="170" stroke="currentColor" stroke-opacity="0.2" />
-      <text x="30" y="24" text-anchor="end" font-family="monospace" font-size="9" fill="currentColor" opacity="0.5">{@goal}</text>
-      <text x="30" y="172" text-anchor="end" font-family="monospace" font-size="9" fill="currentColor" opacity="0.5">0</text>
+      <text
+        x="30"
+        y="24"
+        text-anchor="end"
+        font-family="monospace"
+        font-size="9"
+        fill="currentColor"
+        opacity="0.5"
+      >
+        {@goal}
+      </text>
+      <text
+        x="30"
+        y="172"
+        text-anchor="end"
+        font-family="monospace"
+        font-size="9"
+        fill="currentColor"
+        opacity="0.5"
+      >
+        0
+      </text>
       <polyline fill="none" stroke="#F2B142" stroke-width="2" points={@poly} />
-      <text x="312" y="14" text-anchor="end" font-family="monospace" font-size="10" fill="#F2B142">gen {@maxg}</text>
+      <text x="312" y="14" text-anchor="end" font-family="monospace" font-size="10" fill="#F2B142">
+        gen {@maxg}
+      </text>
     </svg>
     """
   end

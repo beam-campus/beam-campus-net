@@ -41,7 +41,11 @@ defmodule BeamCampus.RedQueen do
   defp offspring(pop), do: for(_ <- 1..@lambda, do: Enum.random(pop) + @sigma * :rand.normal())
 
   defp top_mu(cands, opp) do
-    cands |> Enum.map(&{fitness(&1, opp), &1}) |> Enum.sort_by(&elem(&1, 0), :desc) |> Enum.take(@mu) |> Enum.map(&elem(&1, 1))
+    cands
+    |> Enum.map(&{fitness(&1, opp), &1})
+    |> Enum.sort_by(&elem(&1, 0), :desc)
+    |> Enum.take(@mu)
+    |> Enum.map(&elem(&1, 1))
   end
 
   defp fitness(x, opp), do: mean(for o <- opp, do: logistic((x - o) / @tau))

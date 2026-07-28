@@ -16,11 +16,24 @@ defmodule BeamCampusWeb.Notebook.Post do
   """
 
   @enforce_keys [:id, :title, :body, :description, :date]
-  defstruct [:id, :title, :body, :description, :date, :corpus_ref, :reading, tags: [], sources: []]
+  defstruct [
+    :id,
+    :title,
+    :body,
+    :description,
+    :date,
+    :corpus_ref,
+    :reading,
+    tags: [],
+    sources: []
+  ]
 
   def build(filename, attrs, body) do
     id = filename |> Path.basename() |> Path.rootname()
-    words = body |> String.replace(~r/<[^>]+>/, " ") |> String.split(~r/\s+/, trim: true) |> length()
+
+    words =
+      body |> String.replace(~r/<[^>]+>/, " ") |> String.split(~r/\s+/, trim: true) |> length()
+
     reading = max(1, div(words, 200))
     struct!(__MODULE__, [id: id, body: body, reading: reading] ++ Map.to_list(attrs))
   end
