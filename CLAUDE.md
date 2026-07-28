@@ -35,12 +35,19 @@ localhost in dev).
 | Email | **Mailgun** HTTPS API via Swoosh. `BEAM_CAMPUS_MAILGUN_*` env, wired in `runtime.exs`. |
 | TLS / proxy | **Caddy** + automatic Let's Encrypt. `docker/caddy/Caddyfile`. |
 | Deploy | Release overlay `bin/start` (migrate → server). `Dockerfile.prod`. |
-| CI | GitHub Actions (via Codeberg push-mirror) → Codeberg container registry. |
+| CI | GitHub Actions on push to `main` → `ghcr.io/beam-campus/beam-campus-net` → watchtower on the box auto-pulls. |
 
 ## House rules (this repo)
 
-- **Codeberg is canonical** — push to `origin` (codeberg.org/beam-campus/…),
-  never GitHub first. GitHub is the CI/registry mirror.
+- **GitHub is canonical** (since 2026-07-26) — push to the `github` remote
+  (github.com/beam-campus/beam-campus-net), branch `main`. Do NOT push to
+  Codeberg: that copy is soon to be deleted. `origin` still points at Codeberg
+  in most clones, so check the full `git remote -v` and name the remote
+  explicitly (`git push github main`) until origins are flipped.
+  *Why the reversal:* Codeberg added Terms of Use § 2 (1) 7 by member vote on
+  2026-07-22, banning projects that mostly consist of AI-generated code.
+  The old push-mirror hop (Codeberg → GitHub) is gone; CI now runs directly on
+  the canonical repo.
 - **mix.exs leads, not the lock** — `mix.lock` is gitignored; deps resolve from
   `mix.exs` (`mix deps.get`, no `--frozen`).
 - **Brand lives in `beam-campus-artwork`** — don't fork the theme; the daisyUI
