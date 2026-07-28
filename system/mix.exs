@@ -50,7 +50,10 @@ defmodule BeamCampus.Umbrella.MixProject do
   defp deps do
     [
       # Required to run "mix format" on ~H/.heex files from the umbrella root
-      {:phoenix_live_view, ">= 0.0.0"}
+      {:phoenix_live_view, ">= 0.0.0"},
+      # Style linter. The Elixir counterpart to elvis/rebar3_lint on the Erlang
+      # repos; .credo.exs mirrors the `macula_min` ruleset used there.
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

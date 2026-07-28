@@ -48,6 +48,12 @@ jobs:
         working-directory: system
         run: mix format --check-formatted
 
+      # Credo is the Elixir counterpart to elvis/rebar3_lint on the Erlang
+      # repos. Config and rule parity are documented in system/.credo.exs.
+      - name: Lint (credo)
+        working-directory: system
+        run: mix credo --strict
+
       - name: Run tests
         working-directory: system
         run: mix test
