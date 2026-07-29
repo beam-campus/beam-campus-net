@@ -22,6 +22,14 @@ erl_crash.dump
 # Temporary files, for example, from tests.
 /tmp/
 
+# SQLite databases and their WAL/shared-memory sidecars. The dev and test DBs
+# are generated, not source: the `test` alias runs ecto.create + ecto.migrate,
+# and `mix setup` runs ecto.setup. The -shm/-wal sidecars in particular are
+# rewritten on every test run, so tracking them produces churn in every diff.
+*.db
+*.db-shm
+*.db-wal
+
 
 
 # House rule: mix.exs leads, not the lock — don't commit the lockfile.
