@@ -56,9 +56,13 @@ defmodule BeamCampusWeb.Layouts do
               </div>
               <ul
                 tabindex="0"
-                class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-48 p-2 shadow-lg border border-base-300"
+                class="dropdown-content menu bg-base-100 rounded-box z-10 mt-2 w-56 p-2 shadow-lg border border-base-300"
               >
-                <li><.link navigate={~p"/research"}>Programmes</.link></li>
+                <li><.link navigate={~p"/research"}>Overview</.link></li>
+                <li class="menu-title text-[11px] uppercase tracking-widest">The lines</li>
+                <li><.link navigate={~p"/research/faber"}>Faber · neuroevolution</.link></li>
+                <li><.link navigate={~p"/research/spartan"}>Spartan · LLM cognition</.link></li>
+                <li class="menu-title text-[11px] uppercase tracking-widest">Across both</li>
                 <li><.link navigate={~p"/research/notes"}>Notebook</.link></li>
                 <li><.link navigate={~p"/research/workbench"}>Workbench</.link></li>
               </ul>

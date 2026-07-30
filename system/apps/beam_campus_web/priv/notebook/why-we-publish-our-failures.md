@@ -2,6 +2,7 @@
   title: "Why we publish our failures",
   date: ~D[2026-07-23],
   description: "Most research quietly buries the experiments that didn't work. We publish every one, signed and dated, including the two theories we killed and the three experiments that found nothing. Here is why that is better science, not worse.",
+  corpus: :faber,
   tags: ["method", "commons", "open-science"],
   sources: [24, 26, 38, 40, 43, 44, 45, 46],
   corpus_ref: "faber insights 024 to 046"

@@ -2,6 +2,7 @@
   title: "Does a machine learn better by remembering, or by rewiring itself?",
   date: ~D[2026-07-22],
   description: "Two ways for a tiny neural network to hold onto what it knows, and a run of experiments (including the ones where we turned out to be wrong) working out when each one wins.",
+  corpus: :faber,
   tags: ["programme-3", "memory", "plasticity"],
   sources: [31, 34, 35, 38, 39, 40, 41, 43, 45, 46],
   corpus_ref: "faber insight 046 + SYNTHESIS_P3"

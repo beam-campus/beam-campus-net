@@ -18,7 +18,10 @@ defmodule BeamCampusWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive, :index
+    # /research is the hub over the research lines; each line owns its own page.
     live "/research", ResearchLive, :index
+    live "/research/faber", FaberLive, :index
+    live "/research/spartan", SpartanLive, :index
     live "/research/notes", NotebookLive, :index
     live "/research/notes/:id", NotebookLive, :show
     live "/research/workbench", WorkbenchLive, :index

@@ -2,6 +2,7 @@
   title: "Abandoning the objective: when chasing the goal is how you fail",
   date: ~D[2026-07-23],
   description: "Some problems are traps: aiming straight at the goal walks you into a dead end, and a stronger optimiser just gets there faster. We built one such trap on purpose and watched a search that ignores the goal entirely walk out of it — after a bug nearly convinced us otherwise.",
+  corpus: :faber,
   tags: ["programme-4", "quality-diversity", "open-science"],
   sources: [50, 51, 52],
   corpus_ref: "faber insights 050-052 + CHARTER_P4_OBJECTIVES"

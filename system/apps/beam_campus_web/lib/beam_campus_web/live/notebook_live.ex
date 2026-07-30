@@ -6,23 +6,39 @@ defmodule BeamCampusWeb.NotebookLive do
   use BeamCampusWeb, :live_view
 
   alias BeamCampusWeb.Notebook
-
-  @corpus "https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
+  alias BeamCampusWeb.Notebook.Post
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, posts: Notebook.all_posts(), corpus: @corpus)}
+    {:ok, assign(socket, corpora: Notebook.corpora_with_posts())}
   end
 
   @impl true
   def handle_params(%{"id" => id}, _uri, socket) do
     post = Notebook.get_post_by_id!(id)
-    {:noreply, assign(socket, page_title: post.title, post: post)}
+
+    {:noreply,
+     assign(socket,
+       page_title: post.title,
+       post: post,
+       corpus_url: Notebook.corpus_url(post.corpus)
+     )}
   end
 
-  def handle_params(_params, _uri, socket) do
-    {:noreply, assign(socket, page_title: "Notebook", post: nil)}
+  def handle_params(params, _uri, socket) do
+    line = parse_line(params["line"])
+
+    {:noreply,
+     assign(socket, page_title: "Notebook", post: nil, line: line, posts: posts_for(line))}
   end
+
+  # An unknown or absent ?line= shows everything rather than failing; the slug never
+  # becomes an atom, so a crafted query string cannot grow the atom table.
+  defp parse_line(nil), do: nil
+  defp parse_line(slug), do: Enum.find(Post.corpora(), &(Atom.to_string(&1) == slug))
+
+  defp posts_for(nil), do: Notebook.all_posts()
+  defp posts_for(corpus), do: Notebook.posts_in(corpus)
 
   # --- index --------------------------------------------------------------------
 
@@ -43,6 +59,25 @@ defmodule BeamCampusWeb.NotebookLive do
           check our work.
         </p>
 
+        <div class="flex flex-wrap items-center gap-2 mb-8">
+          <span class="font-mono text-[11px] uppercase tracking-widest text-base-content/50 mr-1">
+            Line
+          </span>
+          <.link
+            patch={~p"/research/notes"}
+            class={["btn btn-xs", is_nil(@line) && "btn-primary", @line && "btn-ghost"]}
+          >
+            All
+          </.link>
+          <.link
+            :for={c <- @corpora}
+            patch={~p"/research/notes?line=#{c}"}
+            class={["btn btn-xs", @line == c && "btn-primary", @line != c && "btn-ghost"]}
+          >
+            {Notebook.corpus_label(c)}
+          </.link>
+        </div>
+
         <ul class="flex flex-col gap-4">
           <li :for={post <- @posts}>
             <.link navigate={~p"/research/notes/#{post.id}"} class="block group">
@@ -52,6 +87,9 @@ defmodule BeamCampusWeb.NotebookLive do
                     <time>{Calendar.strftime(post.date, "%d %b %Y")}</time>
                     <span>·</span>
                     <span>{post.reading} min</span>
+                    <span class="badge badge-sm badge-outline">
+                      {Notebook.corpus_label(post.corpus)}
+                    </span>
                     <span :for={tag <- post.tags} class="badge badge-sm badge-ghost">{tag}</span>
                   </div>
                   <h2 class="text-xl font-semibold tracking-tight group-hover:text-primary">
@@ -83,6 +121,7 @@ defmodule BeamCampusWeb.NotebookLive do
           <time>{Calendar.strftime(@post.date, "%d %b %Y")}</time>
           <span>·</span>
           <span>{@post.reading} min read</span>
+          <span class="badge badge-sm badge-outline">{Notebook.corpus_label(@post.corpus)}</span>
           <span :for={tag <- @post.tags} class="badge badge-sm badge-ghost">{tag}</span>
         </div>
         <h1 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
@@ -97,9 +136,11 @@ defmodule BeamCampusWeb.NotebookLive do
             Provenance
           </p>
           <p class="text-sm text-base-content/70">
-            Drawn from signed insights <span class="font-mono">{@post.sources |> Enum.map(&"##{&1}") |> Enum.join(", ")}</span>.
+            Drawn from signed
+            <span class="font-mono">{Notebook.corpus_label(@post.corpus)}</span>
+            insights <span class="font-mono">{@post.sources |> Enum.map(&"##{&1}") |> Enum.join(", ")}</span>.
             Written against <span class="font-mono">{@post.corpus_ref}</span>.
-            <a href={@corpus} target="_blank" rel="noreferrer" class="link link-hover text-primary">
+            <a href={@corpus_url} target="_blank" rel="noreferrer" class="link link-hover text-primary">
               Read the rigorous version &rarr;
             </a>
           </p>

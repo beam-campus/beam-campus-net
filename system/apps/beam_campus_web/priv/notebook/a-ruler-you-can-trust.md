@@ -2,6 +2,7 @@
   title: "A ruler you can trust: three ways to measure an arms race wrong",
   date: ~D[2026-07-23],
   description: "Before you can study two rivals driving each other to improve, you need a way to tell real progress from noise. We built the ruler and then tried to break it three times: a ruler too weak to read, a ruler that rewards the wrong thing, and a race that runs in circles. Each failure is a rule we now keep.",
+  corpus: :faber,
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [54, 55, 56],
   corpus_ref: "faber insights 054-056 + CHARTER_P7_COEVOLUTION"

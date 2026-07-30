@@ -2,6 +2,7 @@
   title: "Running to stay in place: when the scoreboard lies",
   date: ~D[2026-07-23],
   description: "In a contest where both sides keep improving, the head-to-head score can read 50-50 forever, hiding real progress in plain sight. We built the smallest possible version to watch it happen, because we need a ruler we trust before the interesting games begin.",
+  corpus: :faber,
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [53],
   corpus_ref: "faber insight 053 + CHARTER_P7_COEVOLUTION"

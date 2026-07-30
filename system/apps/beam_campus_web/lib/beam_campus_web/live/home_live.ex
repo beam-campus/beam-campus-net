@@ -123,7 +123,7 @@ defmodule BeamCampusWeb.HomeLive do
         </div>
 
         <div class="mt-8">
-          <a href={~p"/research"} class="link link-primary link-hover text-sm font-medium">
+          <a href={~p"/research/faber"} class="link link-primary link-hover text-sm font-medium">
             Faber's research agenda — nine open programmes <span aria-hidden="true">&rarr;</span>
           </a>
         </div>

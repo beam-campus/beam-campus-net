@@ -2,6 +2,7 @@
   title: "We built a tiny world of life to find an arms race (it refused, and told us why)",
   date: ~D[2026-07-24],
   description: "On a bare grid, two evolving networks would not arms-race. So we built them a living world: food, hunger, death, and many creatures at once. Across five experiments the world refused just as firmly, and each refusal was a lesson. Here is the honest map of why a simple artificial world does not spontaneously catch fire.",
+  corpus: :faber,
   tags: ["programme-7", "artificial-life", "coevolution", "open-science"],
   sources: [58, 59, 60, 61, 62],
   corpus_ref: "faber insights 058-062 + PLAN_FLATLAND"

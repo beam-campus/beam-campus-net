@@ -2,6 +2,7 @@
   title: "Same score, same mind? We opened the box to find out",
   date: ~D[2026-07-23],
   description: "Three tiny networks learn a task equally well. Does an equal score mean they think the same way inside? We built a mind-reader to check, got fooled by our own mistake, caught it, and found the honest answer.",
+  corpus: :faber,
   tags: ["programme-3", "meta-learning", "open-science"],
   sources: [35, 43, 44, 45, 47, 48],
   corpus_ref: "faber insights 047-048 + SYNTHESIS_P3"

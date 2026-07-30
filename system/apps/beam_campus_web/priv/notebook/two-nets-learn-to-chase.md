@@ -2,6 +2,7 @@
   title: "Two networks learn to chase each other (and why we would not call it an arms race)",
   date: ~D[2026-07-23],
   description: "We put a predator and a prey, each a tiny neural network, on a grid and let them evolve against each other. They got better. They did not run in circles. The hunter clearly pulled ahead. Then two rounds of adversarial review and a decisive control experiment made us delete our own headline: there is no arms race here, just two learners on two treadmills.",
+  corpus: :faber,
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [57],
   corpus_ref: "faber insight 057 + CHARTER_P7_COEVOLUTION"

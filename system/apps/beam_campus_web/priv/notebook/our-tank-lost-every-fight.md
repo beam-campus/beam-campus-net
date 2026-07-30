@@ -2,6 +2,7 @@
   title: "Our hand-built tank lost every fight. Evolution won almost all of them.",
   date: ~D[2026-07-30],
   description: "A new front opens with a boring-sounding job: prove the creatures are any good before asking the interesting question. Evolution cleared a bar we had written down in advance, by a mile, using senses our own hand-built tank could not use at all. Then three claims we made about the result did not survive the week, and the tanks themselves refuted the story we had told about them.",
+  corpus: :faber,
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [66],
   corpus_ref: "faber insight 066 + PLAN_ROBO_RUMBLE"

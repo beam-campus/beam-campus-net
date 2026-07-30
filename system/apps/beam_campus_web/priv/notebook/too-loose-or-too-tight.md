@@ -2,6 +2,7 @@
   title: "Too loose or too tight: the shape of ten experiments that never caught fire",
   date: ~D[2026-07-29],
   description: "We spent a research programme looking for an arms race between evolving creatures and never found one. Closing it out, the ten results turn out to have a shape: every world we built was either too loosely coupled for anything to escalate, or so tightly coupled that everything died first. There was no setting in between, and we never once tried moving the world itself.",
+  corpus: :faber,
   tags: ["programme-7", "coevolution", "open-science"],
   sources: [53, 54, 55, 56, 57, 58, 59, 60, 61, 62],
   corpus_ref: "faber insights 053-062 + SYNTHESIS_P7"
