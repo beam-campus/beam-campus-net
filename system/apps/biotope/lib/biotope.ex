@@ -57,18 +57,30 @@ defmodule Biotope do
   @quiet_after_ms 15_000
 
   @doc """
-  `:live`, `{:quiet, ms}`, or `:never_heard`.
+  `:live`, `{:extinct, tick}`, `{:quiet, ms}`, or `:never_heard`.
 
-  Three states rather than two, because "this island has stopped" and "I have
-  never heard from this island" want different responses from whoever is
-  reading, and a single boolean would collapse them.
+  FOUR STATES, AND EACH WANTS A DIFFERENT RESPONSE FROM WHOEVER IS READING.
+  Never heard from is a configuration question. Quiet is a transport question:
+  the island may be fine and unreachable. Extinct is neither, and it is the one
+  that would otherwise hide: an island whose last creature died goes on
+  publishing perfectly, on time, with a tick that keeps advancing, so it reads
+  as healthy unless someone happens to notice the population is zero.
+
+  Extinction is checked FIRST, because a dead island that is also unreachable is
+  still dead, and that is the more important fact about it.
   """
-  @spec liveness(String.t()) :: :live | {:quiet, non_neg_integer()} | :never_heard
-  def liveness(name), do: judge(quiet_for(name))
+  @spec liveness(String.t()) ::
+          :live | {:extinct, non_neg_integer()} | {:quiet, non_neg_integer()} | :never_heard
+  def liveness(name), do: judge(island(name), quiet_for(name))
 
-  defp judge(nil), do: :never_heard
-  defp judge(ms) when ms < @quiet_after_ms, do: :live
-  defp judge(ms), do: {:quiet, ms}
+  defp judge(nil, _ms), do: :never_heard
+
+  defp judge(%{stats: %{"extinct_at" => tick}}, _ms) when is_integer(tick),
+    do: {:extinct, tick}
+
+  defp judge(_row, ms) when is_integer(ms) and ms < @quiet_after_ms, do: :live
+  defp judge(_row, ms) when is_integer(ms), do: {:quiet, ms}
+  defp judge(_row, _ms), do: :never_heard
 
   @doc "Human-readable elapsed time, for a page to show next to a quiet island."
   def since(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"

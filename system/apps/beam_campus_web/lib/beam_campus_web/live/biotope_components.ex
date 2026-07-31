@@ -51,12 +51,16 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   @doc """
-  Whether an island is still talking.
+  What state an island is in.
 
-  THREE STATES, NOT TWO. "Stopped" and "never heard from" want different
-  responses from whoever is reading. And the elapsed time is always shown next
-  to the verdict, so the threshold this makes a judgement against is visible
-  rather than buried in a constant.
+  FOUR STATES, AND EACH WANTS A DIFFERENT RESPONSE. Never heard from is a
+  configuration question. Quiet is a transport question: the island may be fine
+  and merely unreachable. Extinct is neither, and it is the one that would
+  otherwise hide, because a dead island publishes perfectly well. Live is the
+  boring one.
+
+  The elapsed time and the tick are always shown next to the verdict, so the
+  judgement each constant makes is visible rather than buried.
   """
   attr :liveness, :any, required: true
 
@@ -65,6 +69,23 @@ defmodule BeamCampusWeb.BiotopeComponents do
     <span class="inline-flex items-center gap-1.5 text-xs">
       <span class="inline-block h-1.5 w-1.5 rounded-full bg-success"></span>
       <span class="opacity-60">live</span>
+    </span>
+    """
+  end
+
+  # AN EXTINCT ISLAND PUBLISHES PERFECTLY WELL. Its plants regrow, its tick
+  # advances, every fact arrives on time, and it reads as healthy unless someone
+  # notices the population is zero. Named here so nobody has to.
+  def liveness(%{liveness: {:extinct, tick}} = assigns) do
+    assigns = assign(assigns, tick: tick)
+
+    ~H"""
+    <span
+      class="inline-flex items-center gap-1.5 text-xs"
+      title="Every creature died. Nothing reseeds a world, so this is permanent."
+    >
+      <span class="inline-block h-1.5 w-1.5 rounded-full bg-error"></span>
+      <span class="text-error">extinct at tick {@tick}</span>
     </span>
     """
   end

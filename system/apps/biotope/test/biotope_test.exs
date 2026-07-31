@@ -107,7 +107,10 @@ defmodule BiotopeTest do
       Board.put_stats(%{"island" => "beam02", "population" => 3})
 
       assert Board.islands() == ["beam01", "beam02"]
-      assert %{stats: %{"population" => 7}, chart: %{"creatures" => [0, 0]}} = Board.island("beam01")
+
+      assert %{stats: %{"population" => 7}, chart: %{"creatures" => [0, 0]}} =
+               Board.island("beam01")
+
       assert %{stats: %{"population" => 3}, chart: nil} = Board.island("beam02")
     end
 
@@ -149,6 +152,54 @@ defmodule BiotopeTest do
       refute Biotope.configured?()
       refute Biotope.watching?()
       assert Biotope.Mesh.handle() == {:error, :not_ready}
+    end
+  end
+
+  describe "liveness" do
+    setup do
+      :ets.whereis(:biotope_board) == :undefined and Board.init()
+      :ets.delete_all_objects(:biotope_board)
+      :ok
+    end
+
+    test "an island that just spoke is live" do
+      Board.put_stats(%{"island" => "beam01", "population" => 40})
+      assert Biotope.liveness("beam01") == :live
+    end
+
+    # AN EXTINCT ISLAND PUBLISHES PERFECTLY WELL. Its plants regrow, its tick
+    # advances, every fact arrives on time. Without this it reads as healthy and
+    # the only clue is a population of zero that nobody is looking at.
+    test "an extinct island is extinct, not live" do
+      Board.put_stats(%{"island" => "beam09", "population" => 0, "extinct_at" => 4213})
+      assert Biotope.liveness("beam09") == {:extinct, 4213}
+    end
+
+    # Dead AND unreachable is still dead, and that is the more important fact.
+    test "extinction outranks silence" do
+      Board.put_stats(%{"island" => "beam09", "population" => 0, "extinct_at" => 7})
+      [{key, row}] = :ets.lookup(:biotope_board, {:island, "beam09"})
+      :ets.insert(:biotope_board, {key, %{row | seen_at: 0}})
+
+      assert {:extinct, 7} = Biotope.liveness("beam09")
+    end
+
+    test "an island that stopped talking is quiet, with how long" do
+      Board.put_stats(%{"island" => "beam02", "population" => 40})
+      [{key, row}] = :ets.lookup(:biotope_board, {:island, "beam02"})
+
+      :ets.insert(
+        :biotope_board,
+        {key, %{row | seen_at: System.system_time(:millisecond) - 120_000}}
+      )
+
+      assert {:quiet, ms} = Biotope.liveness("beam02")
+      assert ms > 100_000
+      assert Biotope.since(ms) == "2m"
+    end
+
+    test "an island never heard from is its own state" do
+      assert Biotope.liveness("nowhere") == :never_heard
     end
   end
 end

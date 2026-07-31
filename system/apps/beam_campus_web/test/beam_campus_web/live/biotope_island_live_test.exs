@@ -101,4 +101,15 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
     assert html =~ "Robo Rumble"
   end
+
+  # AN EXTINCT ISLAND PUBLISHES PERFECTLY WELL: plants regrow, the tick advances,
+  # every fact arrives on time. Without naming it the page shows a healthy-looking
+  # island whose only tell is a population of zero.
+  test "names an extinct island rather than showing it as live", %{conn: conn} do
+    Board.put_stats(stats(%{"population" => 0, "extinct_at" => 4213}))
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "extinct at tick 4213"
+    refute html =~ ">live<"
+  end
 end
