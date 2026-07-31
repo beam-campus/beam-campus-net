@@ -22,6 +22,8 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
 
   use BeamCampusWeb, :live_view
 
+  import BeamCampusWeb.BiotopeComponents
+
   alias Biotope.RecordHistory
 
   @w 640
@@ -62,6 +64,8 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         </:subtitle>
       </.header>
 
+      <.switch current={:history} />
+
       <p
         :if={@islands == []}
         class="mt-8 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
@@ -82,10 +86,6 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         islands are the things that are actually alive. Rows older than thirty
         days are pruned.
       </p>
-
-      <.link navigate={~p"/research/workbench/biotope"} class="mt-6 inline-block text-sm link">
-        ← the islands as they are right now
-      </.link>
     </div>
     """
   end

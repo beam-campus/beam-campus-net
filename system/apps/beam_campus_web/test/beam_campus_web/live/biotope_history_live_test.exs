@@ -53,10 +53,13 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
     assert html =~ "75"
   end
 
-  test "links back to the live islands", %{conn: conn} do
+  test "offers both faces and a way back up", %{conn: conn} do
     sample("beam01", 1, 40)
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/history")
-    assert html =~ "/research/workbench/biotope"
+
+    assert html =~ ~s|href="/research/workbench/biotope"|
+    assert html =~ ~s|href="/research/workbench"|
+    assert html =~ ~s|aria-current="page"|
   end
 
   # A single sample is a real state right after an island is first heard from,

@@ -74,6 +74,14 @@ defmodule BeamCampusWeb.Layouts do
                     Robo Rumble <span class="opacity-50">· live</span>
                   </.link>
                 </li>
+                <%!-- Same reason as Robo Rumble: an island is a world running on a
+                      machine in the lab right now, not a simulation this node
+                      starts when you open the page. --%>
+                <li>
+                  <.link navigate={~p"/research/workbench/biotope"}>
+                    Biotopes <span class="opacity-50">· live</span>
+                  </.link>
+                </li>
               </ul>
             </div>
           </li>

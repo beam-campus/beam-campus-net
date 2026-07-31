@@ -104,4 +104,17 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "137"
     assert html =~ "safety cap"
   end
+
+  # NAVIGATION IS ONE FEATURE WITH TWO FACES. Before the switch existed the
+  # history page linked back here and this one linked nowhere, so the history was
+  # reachable only by someone who already knew the URL. A one-way link is not
+  # navigation.
+  test "offers both faces and a way back up", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ ~s|href="/research/workbench/biotope/history"|
+    assert html =~ ~s|href="/research/workbench"|
+    # The page says which of the two it is, for a screen reader as well as an eye.
+    assert html =~ ~s|aria-current="page"|
+  end
 end

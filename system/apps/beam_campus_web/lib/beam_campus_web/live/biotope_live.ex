@@ -23,6 +23,8 @@ defmodule BeamCampusWeb.BiotopeLive do
 
   use BeamCampusWeb, :live_view
 
+  import BeamCampusWeb.BiotopeComponents
+
   @size 320
 
   @impl true
@@ -56,6 +58,8 @@ defmodule BeamCampusWeb.BiotopeLive do
           starve. Nothing here has a brain yet.
         </:subtitle>
       </.header>
+
+      <.switch current={:now} />
 
       <div :if={@islands == []} class="mt-8">
         <.dark configured?={@configured?} watching?={@watching?} />
