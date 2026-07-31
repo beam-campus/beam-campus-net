@@ -8,7 +8,15 @@ mirroring `macula-internal/macula-realm`'s operational practices.
 - It **is** a content/landing site: the thesis, the substrate, the commons value
   theory, the three asks (run a node / patron / open a door).
 - It is **not** the mesh, the identity service, or an event-sourced domain app.
-  No `reckon_db` / `evoq` / `macula` here — plain Phoenix + Ecto + Swoosh.
+  No `reckon_db` / `evoq` here, and no store.
+- **It IS a mesh CONSUMER, as of 2026-07-31.** `macula` belongs here now: the
+  Robo Rumble spectator (`apps/robo_rumbler`) subscribes to rumble facts and
+  renders them. The rule until now said "no macula here", which was a blanket
+  exclusion that had stopped being true, and a stale prohibition in a rules file
+  is worse than none: the next session reads it and undoes the work. The
+  constraint that actually matters is narrower and survives:
+  **subscribe and render, never publish, never hold a store.** The site is a
+  reader of the mesh, not a participant in it.
 - Framing is the **position paper**'s: a commons, not a company. Copy says
   *commons / steward / federation / participation*, never *customer / product /
   market / exit*.
