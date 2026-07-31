@@ -11,6 +11,7 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias BeamCampusWeb.RoboRumbleLive
   alias RoboRumbler.WatchRumbles.Board
 
   setup do
@@ -81,17 +82,17 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
   # cap" for both. It announced a live 1913-turn draw as having hit the 2000-turn
   # cap, which is false.
   test "a draw that ended is not called a timeout" do
-    assert verdict(%{winner: :none, challenger: :first}, true) == "A draw: neither tank survived."
+    assert RoboRumbleLive.verdict(%{winner: :none, challenger: :first}, true) ==
+             "A draw: neither tank survived."
 
-    assert verdict(%{winner: :none, challenger: :first}, false) ==
+    assert RoboRumbleLive.verdict(%{winner: :none, challenger: :first}, false) ==
              "Stalemate: ran out the turn cap."
 
-    assert verdict(%{winner: :first, challenger: :first}, true) == "The visitor won."
-    assert verdict(%{winner: :second, challenger: :first}, true) == "The resident won."
-  end
+    assert RoboRumbleLive.verdict(%{winner: :first, challenger: :first}, true) ==
+             "The visitor won."
 
-  defp verdict(replay, decided) do
-    apply(BeamCampusWeb.RoboRumbleLive, :verdict, [replay, decided])
+    assert RoboRumbleLive.verdict(%{winner: :second, challenger: :first}, true) ==
+             "The resident won."
   end
 
   test "a stalemate duel is labelled", %{conn: conn} do
