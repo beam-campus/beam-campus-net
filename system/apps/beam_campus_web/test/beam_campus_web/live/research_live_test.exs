@@ -3,12 +3,15 @@ defmodule BeamCampusWeb.ResearchLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "renders the research agenda", %{conn: conn} do
+  # Rewritten against the page as it stands. It asserted the single-agenda copy
+  # from before 7e15bf3 split /research into research lines, so it had been
+  # failing on four strings that moved to other pages.
+  test "renders the research lines", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research")
-    assert html =~ "One engine, two couplings"
-    assert html =~ "DARS / Physical AI"
-    assert html =~ "The nine charters"
-    assert html =~ "CHARTER_P2_SEARCH_STRATEGIES.md"
+    assert html =~ "Faber"
+    assert html =~ "Spartan"
+    assert html =~ "Shared surfaces"
+    assert html =~ "seven engine axes and two couplings"
   end
 
   test "the landing page links to the research agenda", %{conn: conn} do

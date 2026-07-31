@@ -58,6 +58,9 @@ defmodule BeamCampusWeb.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:beam_campus, in_umbrella: true},
+      # The Robo Rumble spectator: subscribes to the rumbler's mesh facts and
+      # regenerates a published duel locally so the workbench can draw it.
+      {:robo_rumbler, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).

@@ -10,6 +10,19 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
   @experiments [
     %{
+      id: "robo-rumble",
+      title: "Robo Rumble: a field of forty, live from the mesh",
+      tag: "Tank duels · mesh",
+      kind: :engine,
+      status: :interactive,
+      route: "/research/workbench/robo-rumble",
+      programme: "P8 · Robo Rumble",
+      insight: "058-066",
+      note: "/research/notes/our-tank-lost-every-fight",
+      blurb:
+        "Forty trained tanks hold a field on a machine in the lab. Visitors send a genome, it fights all forty from eighty geometries in both seats, and the row is published to the mesh. This page subscribes to it, and re-runs the featured duels here: the fight is not shipped, it is regenerated from two genomes and a start index, because the engine is deterministic to the turn."
+    },
+    %{
       id: "neural-coevolution",
       title: "Neural coevolution: pursuers vs evaders",
       tag: "Coevolution · torus",
