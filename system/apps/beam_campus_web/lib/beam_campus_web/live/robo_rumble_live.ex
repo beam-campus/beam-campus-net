@@ -331,7 +331,7 @@ defmodule BeamCampusWeb.RoboRumbleLive do
       </div>
 
       <p :if={@replay} class="text-xs opacity-50">
-        {verdict(@replay)}
+        {verdict(@replay, @duel["decided"])}
         <span :if={Map.get(@replay, :verified)}>
           · reproduced exactly: {@replay.turns} turns here, {@duel["turns"]} on the rumbler
         </span>
@@ -412,9 +412,15 @@ defmodule BeamCampusWeb.RoboRumbleLive do
   # bar uses.
   defp energy(e), do: max(0.0, min(1.0, e / 25_600))
 
-  defp verdict(%{winner: :none}), do: "Draw at the turn cap."
-  defp verdict(%{winner: w, challenger: w}), do: "The visitor won."
-  defp verdict(%{winner: _w}), do: "The resident won."
+  # A DRAW AND A TIMEOUT ARE NOT THE SAME THING, and this said "Draw at the turn
+  # cap" for both. The live page duly announced a 1913-turn draw as having hit a
+  # 2000-turn cap, which is simply false. Whether the fight ended or ran out is
+  # what `decided` on the fact records, so it is what decides the sentence.
+  @doc false
+  def verdict(%{winner: w, challenger: w}, _decided), do: "The visitor won."
+  def verdict(%{winner: :none}, false), do: "Stalemate: ran out the turn cap."
+  def verdict(%{winner: :none}, _decided), do: "A draw: neither tank survived."
+  def verdict(%{winner: _w}, _decided), do: "The resident won."
 
   defp short(nil), do: "?"
   defp short(id), do: String.slice(id, 0, 10)

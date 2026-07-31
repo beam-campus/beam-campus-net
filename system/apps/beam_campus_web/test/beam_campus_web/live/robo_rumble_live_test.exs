@@ -77,6 +77,23 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
   # rumbler prefers decided battles now, but a row where nothing was decided
   # still features its longest, and two tanks circling for 2000 turns should not
   # be presented as the fight worth seeing.
+  # A draw and a timeout are different things and the page said "Draw at the turn
+  # cap" for both. It announced a live 1913-turn draw as having hit the 2000-turn
+  # cap, which is false.
+  test "a draw that ended is not called a timeout" do
+    assert verdict(%{winner: :none, challenger: :first}, true) == "A draw: neither tank survived."
+
+    assert verdict(%{winner: :none, challenger: :first}, false) ==
+             "Stalemate: ran out the turn cap."
+
+    assert verdict(%{winner: :first, challenger: :first}, true) == "The visitor won."
+    assert verdict(%{winner: :second, challenger: :first}, true) == "The resident won."
+  end
+
+  defp verdict(replay, decided) do
+    apply(BeamCampusWeb.RoboRumbleLive, :verdict, [replay, decided])
+  end
+
   test "a stalemate duel is labelled", %{conn: conn} do
     Board.put_duel(%{
       "challenger_id" => "abcdef0123456789",
