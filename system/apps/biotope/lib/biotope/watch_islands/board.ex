@@ -68,6 +68,24 @@ defmodule Biotope.WatchIslands.Board do
   @doc "Islands refused because the cap was reached. Non-zero means the view lies."
   def refused, do: counter(:refused)
 
+  @doc """
+  Milliseconds since anything was last heard from this island.
+
+  WITHOUT THIS A DEAD ISLAND IS INVISIBLE. The board keeps the last fact
+  forever, so an island whose world stopped, or whose transport did, goes on
+  showing its final frame with a tick that never advances. At one island you
+  would notice. At six you would not, and the page would be quietly lying about
+  five of them.
+
+  `nil` for an island never heard from.
+  """
+  def quiet_for(name) do
+    case island(name) do
+      %{seen_at: at} when is_integer(at) -> System.system_time(:millisecond) - at
+      _never -> nil
+    end
+  end
+
   # ── Writes. Subscriber only. ────────────────────────────────────
 
   @doc "File a `world_advanced` fact under its island."
@@ -83,17 +101,21 @@ defmodule Biotope.WatchIslands.Board do
     write(existing, name, key, fact)
   end
 
+  # Stamped on every write, from either fact, because either one arriving is
+  # proof the island is still talking.
+  defp now, do: System.system_time(:millisecond)
+
   # A known island is always updated, cap or no cap: the cap is about admitting
   # NEW islands, and applying it to updates would freeze the ones already shown.
   defp write(nil, name, key, fact), do: admit(length(islands()) < @max_islands, name, key, fact)
-  defp write(row, name, key, fact), do: store(name, Map.put(row, key, fact))
+  defp write(row, name, key, fact), do: store(name, row |> Map.put(key, fact) |> Map.put(:seen_at, now()))
 
   defp admit(false, _name, _key, _fact), do: bump(:refused)
 
   # A new island starts with both slots present and empty, so a page can tell
   # "has not sent a picture yet" from "is not an island I know about".
   defp admit(true, name, key, fact) do
-    store(name, Map.put(%{stats: nil, chart: nil}, key, fact))
+    store(name, %{stats: nil, chart: nil, seen_at: now()} |> Map.put(key, fact))
   end
 
   defp store(name, row), do: :ets.insert(@table, {{:island, name}, row})

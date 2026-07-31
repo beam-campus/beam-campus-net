@@ -34,9 +34,6 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
 
   alias Biotope.RecordHistory
 
-  @w 640
-  @h 120
-
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: RecordHistory.subscribe()
@@ -105,83 +102,31 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
   attr :samples, :list, required: true
 
   defp series(assigns) do
-    samples = assigns.samples
-
     assigns =
-      assign(assigns,
-        w: @w,
-        h: @h,
-        population: polyline(samples, & &1.population),
-        plants: polyline(samples, & &1.plants),
-        first: List.first(samples),
-        last: List.last(samples)
-      )
+      assign(assigns, first: List.first(assigns.samples), last: List.last(assigns.samples))
 
     ~H"""
     <section>
       <div class="flex items-baseline justify-between">
-        <h2 class="font-semibold">{@name}</h2>
+        <h2 class="font-semibold">
+          <.link navigate={~p"/research/workbench/biotope/#{@name}"} class="link link-hover">
+            {@name}
+          </.link>
+        </h2>
         <span class="text-xs opacity-60">
           {length(@samples)} samples · ticks {@first.tick} to {@last.tick}
         </span>
       </div>
 
-      <svg
-        viewBox={"0 0 #{@w} #{@h}"}
-        class="mt-2 w-full h-auto rounded bg-black/40"
-        role="img"
-        aria-label={"Population and plants on #{@name} over #{length(@samples)} samples"}
-      >
-        <polyline points={@plants} fill="none" stroke="#3FBF7F" stroke-width="1.5" opacity="0.8" />
-        <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
-      </svg>
+      <.sparkline samples={@samples} w={640} h={120} class="mt-2" />
 
-      <dl class="mt-2 flex gap-6 text-sm">
-        <.legend colour="#F2B142" label="creatures" value={@last.population} />
-        <.legend colour="#3FBF7F" label="plants" value={@last.plants} />
-        <.legend colour="transparent" label="starved" value={@last.starved} />
-        <.legend colour="transparent" label="of old age" value={@last.aged_out} />
+      <dl class="mt-2 flex flex-wrap gap-6 text-sm">
+        <.stat label="creatures" value={@last.population} />
+        <.stat label="plants" value={@last.plants} />
+        <.stat label="starved" value={@last.starved} />
+        <.stat label="of old age" value={@last.aged_out} />
       </dl>
     </section>
     """
-  end
-
-  attr :colour, :string, required: true
-  attr :label, :string, required: true
-  attr :value, :integer, required: true
-
-  defp legend(assigns) do
-    ~H"""
-    <div class="flex items-center gap-2">
-      <span class="inline-block h-2 w-2 rounded-full" style={"background: #{@colour}"}></span>
-      <dt class="opacity-60">{@label}</dt>
-      <dd class="font-mono">{@value}</dd>
-    </div>
-    """
-  end
-
-  # ── Plotting ────────────────────────────────────────────────────
-
-  # Each series is scaled to its own maximum, because population and standing
-  # crop are different quantities in different units and forcing them onto one
-  # axis would say something false about their relative size. What the pair is
-  # for is the SHAPE: grazing pressure against regrowth.
-  # NOT called `path`: Phoenix.VerifiedRoutes imports path/2, and shadowing it
-  # fails at compile time inside ~p with a message about a path string that names
-  # neither this function nor the collision.
-  defp polyline([], _get), do: ""
-
-  defp polyline(samples, get) do
-    values = Enum.map(samples, get)
-    top = max(Enum.max(values), 1)
-    span = max(length(values) - 1, 1)
-
-    values
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {v, i} ->
-      x = i / span * @w
-      y = @h - v / top * (@h - 4) - 2
-      "#{Float.round(x, 1)},#{Float.round(y, 1)}"
-    end)
   end
 end

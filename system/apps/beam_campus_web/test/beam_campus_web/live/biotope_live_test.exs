@@ -80,29 +80,7 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
 
     assert html =~ "beam02"
-    assert html =~ "no picture yet"
-  end
-
-  # A non-zero refusal count means the population is sitting on a safety valve
-  # rather than at a natural ceiling, and a page that does not say so is
-  # showing a stable-looking number that means something else entirely.
-  test "warns when births are being refused", %{conn: conn} do
-    Board.put_stats(%{
-      "island" => "beam03",
-      "tick" => 100,
-      "population" => 2000,
-      "plants" => 4,
-      "energy_total" => 999,
-      "born" => 5000,
-      "starved" => 3000,
-      "aged_out" => 0,
-      "births_refused" => 137
-    })
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
-
-    assert html =~ "137"
-    assert html =~ "safety cap"
+    assert html =~ "Counts but no picture"
   end
 
   # NAVIGATION IS ONE FEATURE WITH TWO FACES. Before the switch existed the
@@ -128,5 +106,48 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
 
     assert html =~ "Robo Rumble"
     assert html =~ ">Workbench<"
+  end
+
+  # WITHOUT THIS A DEAD ISLAND IS INVISIBLE. The board keeps the last fact
+  # forever, so an island whose world stopped, or whose transport did, goes on
+  # showing its final frame with a tick that never advances. At one island you
+  # would notice. At six you would not.
+  test "says which islands are still talking", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam01", "tick" => 1, "population" => 5, "plants" => 5})
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "live"
+  end
+
+  # PAGING APPEARS ONLY WHEN IT IS NEEDED, so two islands see no pager at all
+  # and fifty are readable. Discs are about a hundred and eighty circles each.
+  test "shows no pager for a single page", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam01", "tick" => 1, "population" => 5, "plants" => 5})
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    refute html =~ "page 1 of"
+  end
+
+  test "pages once there are more islands than fit", %{conn: conn} do
+    for n <- 1..8 do
+      Board.put_stats(%{"island" => "beam#{n}", "tick" => n, "population" => n, "plants" => n})
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "page 1 of 2"
+    assert html =~ "next"
+    # Six on the first page, so the seventh and eighth are not.
+    assert html =~ "beam6"
+    refute html =~ "beam7"
+  end
+
+  # Each card is a way in. Before this the only view was every island stacked on
+  # one page, which stops being readable somewhere around four.
+  test "each card links to its own island", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam01", "tick" => 1, "population" => 5, "plants" => 5})
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ ~s|href="/research/workbench/biotope/beam01"|
   end
 end

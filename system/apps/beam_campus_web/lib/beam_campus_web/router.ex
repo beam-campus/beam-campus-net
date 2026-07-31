@@ -31,7 +31,12 @@ defmodule BeamCampusWeb.Router do
     live "/research/workbench/neural-coevolution", NeuralCoevolutionLive, :index
     live "/research/workbench/robo-rumble", RoboRumbleLive, :index
     live "/research/workbench/biotope", BiotopeLive, :index
+    # DECLARED BEFORE THE :island CATCH-ALL, because routes match in order and
+    # an island genuinely named "history" would otherwise be unreachable. Island
+    # names are node names, so that is a remote risk, but the ordering costs
+    # nothing and the failure would be baffling.
     live "/research/workbench/biotope/history", BiotopeHistoryLive, :index
+    live "/research/workbench/biotope/:island", BiotopeIslandLive, :show
     # legacy alias — the adaptation demo used to live here
     live "/research/adaptation", AdaptationLive, :index
   end

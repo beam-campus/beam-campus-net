@@ -43,6 +43,38 @@ defmodule Biotope do
   @doc "Whether anything has arrived yet."
   defdelegate empty?(), to: Board
 
+  @doc "Islands refused because the board is full. Non-zero means a page is lying."
+  defdelegate refused(), to: Board
+
+  @doc "Milliseconds since this island last said anything, or `nil`."
+  defdelegate quiet_for(name), to: Board
+
+  # An island publishes counts about once a second. Fifteen is fifteen missed
+  # beats: long enough that a slow tick or a dropped frame does not cry wolf,
+  # short enough that a dead island is called dead while someone is still
+  # looking at it. The elapsed time is always shown alongside, so the judgement
+  # this constant makes is visible rather than hidden.
+  @quiet_after_ms 15_000
+
+  @doc """
+  `:live`, `{:quiet, ms}`, or `:never_heard`.
+
+  Three states rather than two, because "this island has stopped" and "I have
+  never heard from this island" want different responses from whoever is
+  reading, and a single boolean would collapse them.
+  """
+  @spec liveness(String.t()) :: :live | {:quiet, non_neg_integer()} | :never_heard
+  def liveness(name), do: judge(quiet_for(name))
+
+  defp judge(nil), do: :never_heard
+  defp judge(ms) when ms < @quiet_after_ms, do: :live
+  defp judge(ms), do: {:quiet, ms}
+
+  @doc "Human-readable elapsed time, for a page to show next to a quiet island."
+  def since(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
+  def since(ms) when ms < 3_600_000, do: "#{div(ms, 60_000)}m"
+  def since(ms), do: "#{div(ms, 3_600_000)}h"
+
   @doc "Subscribe the calling process to board changes."
   defdelegate subscribe(), to: WatchIslands
 
