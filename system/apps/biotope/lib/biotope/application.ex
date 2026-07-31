@@ -13,7 +13,11 @@ defmodule Biotope.Application do
   def start(_type, _args) do
     children = [
       Biotope.Mesh,
-      Biotope.WatchIslands
+      Biotope.WatchIslands,
+      # Started after the subscriber, because it reads the board the subscriber
+      # creates. It writes nothing until an island's tick advances, so it is
+      # harmless on a node that never hears from one.
+      Biotope.RecordHistory
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Biotope.Supervisor)

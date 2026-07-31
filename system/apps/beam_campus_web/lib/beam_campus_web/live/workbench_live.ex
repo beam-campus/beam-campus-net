@@ -10,6 +10,19 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
   @experiments [
     %{
+      id: "biotope",
+      title: "Biotopes: open populations on the mesh",
+      tag: "ALife · mesh",
+      kind: :engine,
+      status: :interactive,
+      route: "/research/workbench/biotope",
+      programme: "P5 · Scale / Substrate",
+      insight: "061-062",
+      note: "/research/notes/too-loose-or-too-tight",
+      blurb:
+        "An island on a machine in the lab: plants grow, creatures forage, breed and starve, and it says what happened. Nothing has a brain yet, so the creatures walk at random \u2014 they are the null forager any later brain has to beat. This page subscribes and draws the last frame that arrived; it runs no world of its own and shares no code with the islands. Starvation outnumbers old age about seventy to one, which is another way of saying selection pressure exists."
+    },
+    %{
       id: "robo-rumble",
       title: "Robo Rumble: a field of forty, live from the mesh",
       tag: "Tank duels · mesh",

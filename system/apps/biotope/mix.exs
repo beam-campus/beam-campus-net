@@ -11,7 +11,8 @@ defmodule Biotope.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: aliases()
     ]
   end
 
@@ -31,8 +32,27 @@ defmodule Biotope.MixProject do
   defp deps do
     [
       {:macula, "~> 7.1"},
+      # The Repo, and the PubSub the subscriber already broadcasts on. Declared
+      # now rather than relied on implicitly: an umbrella lets a sibling's
+      # modules resolve at runtime without a dependency, which compiles happily
+      # and orders the release wrong.
+      {:beam_campus, in_umbrella: true},
+      {:ecto_sql, "~> 3.10"},
       {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.2"}
+    ]
+  end
+
+  # The Repo lives in :beam_campus, so the repo has to be named explicitly:
+  # `mix ecto.migrate` run from here would otherwise look for :biotope's own
+  # :ecto_repos, find none, and do nothing at all rather than complain.
+  defp aliases do
+    [
+      test: [
+        "ecto.create -r BeamCampus.Repo --quiet",
+        "ecto.migrate -r BeamCampus.Repo --quiet",
+        "test"
+      ]
     ]
   end
 end
