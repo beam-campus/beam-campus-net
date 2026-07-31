@@ -55,38 +55,40 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-5xl px-4 py-10">
-      <.header>
-        Biotope history
-        <:subtitle>
-          Population and standing crop over time, sampled from what the islands
-          published. Drawn against the world's own tick.
-        </:subtitle>
-      </.header>
+    <Layouts.app flash={@flash}>
+      <div class="mx-auto max-w-5xl px-4 py-10">
+        <.header>
+          Biotope history
+          <:subtitle>
+            Population and standing crop over time, sampled from what the islands
+            published. Drawn against the world's own tick.
+          </:subtitle>
+        </.header>
 
-      <.switch current={:history} />
+        <.switch current={:history} />
 
-      <p
-        :if={@islands == []}
-        class="mt-8 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
-      >
-        No history recorded yet. Samples are written every thirty seconds once an
-        island is heard from, and only when its tick has advanced, so a page this
-        empty means nothing is being received rather than that nothing is
-        happening.
-      </p>
+        <p
+          :if={@islands == []}
+          class="mt-8 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
+        >
+          No history recorded yet. Samples are written every thirty seconds once an
+          island is heard from, and only when its tick has advanced, so a page this
+          empty means nothing is being received rather than that nothing is
+          happening.
+        </p>
 
-      <div class="mt-8 space-y-10">
-        <.series :for={{name, samples} <- @islands} name={name} samples={samples} />
+        <div class="mt-8 space-y-10">
+          <.series :for={{name, samples} <- @islands} name={name} samples={samples} />
+        </div>
+
+        <p :if={@islands != []} class="mt-10 text-sm opacity-60">
+          {@rows} samples held. This is a read model: it is rebuilt from the facts
+          that arrive and can be deleted without losing anything, because the
+          islands are the things that are actually alive. Rows older than thirty
+          days are pruned.
+        </p>
       </div>
-
-      <p :if={@islands != []} class="mt-10 text-sm opacity-60">
-        {@rows} samples held. This is a read model: it is rebuilt from the facts
-        that arrive and can be deleted without losing anything, because the
-        islands are the things that are actually alive. Rows older than thirty
-        days are pruned.
-      </p>
-    </div>
+    </Layouts.app>
     """
   end
 

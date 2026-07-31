@@ -117,4 +117,16 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     # The page says which of the two it is, for a screen reader as well as an eye.
     assert html =~ ~s|aria-current="page"|
   end
+
+  # THE PAGE MUST CARRY THE SITE, not just its own content. Both biotope pages
+  # shipped without `<Layouts.app>`, so they rendered with no header, no nav, no
+  # theme toggle and no footer: the content looked right in a curl and the page
+  # was a dead end in a browser. Asserting on a nav item that belongs to the
+  # layout and not to this page is what catches that.
+  test "renders inside the site layout", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "Robo Rumble"
+    assert html =~ ">Workbench<"
+  end
 end

@@ -50,31 +50,33 @@ defmodule BeamCampusWeb.BiotopeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="mx-auto max-w-5xl px-4 py-10">
-      <.header>
-        Biotopes
-        <:subtitle>
-          Open populations on the mesh. Plants grow, creatures forage, breed and
-          starve. Nothing here has a brain yet.
-        </:subtitle>
-      </.header>
+    <Layouts.app flash={@flash}>
+      <div class="mx-auto max-w-5xl px-4 py-10">
+        <.header>
+          Biotopes
+          <:subtitle>
+            Open populations on the mesh. Plants grow, creatures forage, breed and
+            starve. Nothing here has a brain yet.
+          </:subtitle>
+        </.header>
 
-      <.switch current={:now} />
+        <.switch current={:now} />
 
-      <div :if={@islands == []} class="mt-8">
-        <.dark configured?={@configured?} watching?={@watching?} />
+        <div :if={@islands == []} class="mt-8">
+          <.dark configured?={@configured?} watching?={@watching?} />
+        </div>
+
+        <div class="mt-8 grid gap-8 md:grid-cols-2">
+          <.island :for={{name, row} <- @islands} name={name} row={row} />
+        </div>
+
+        <p class="mt-10 text-sm opacity-60">
+          Each island publishes counts once a second and a picture more often. The
+          site subscribes and draws; it holds no world of its own and shares no code
+          with the islands. What you see is the last frame that arrived.
+        </p>
       </div>
-
-      <div class="mt-8 grid gap-8 md:grid-cols-2">
-        <.island :for={{name, row} <- @islands} name={name} row={row} />
-      </div>
-
-      <p class="mt-10 text-sm opacity-60">
-        Each island publishes counts once a second and a picture more often. The
-        site subscribes and draws; it holds no world of its own and shares no code
-        with the islands. What you see is the last frame that arrived.
-      </p>
-    </div>
+    </Layouts.app>
     """
   end
 
