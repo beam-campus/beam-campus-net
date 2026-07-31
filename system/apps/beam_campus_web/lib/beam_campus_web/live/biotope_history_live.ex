@@ -62,7 +62,10 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         </:subtitle>
       </.header>
 
-      <p :if={@islands == []} class="mt-8 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm">
+      <p
+        :if={@islands == []}
+        class="mt-8 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
+      >
         No history recorded yet. Samples are written every thirty seconds once an
         island is heard from, and only when its tick has advanced, so a page this
         empty means nothing is being received rather than that nothing is
