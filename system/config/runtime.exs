@@ -13,12 +13,19 @@ import Config
 # The site READS the mesh: it subscribes to the rumbler's facts and renders them.
 # It never publishes and holds no store.
 #
-# NO DEFAULTS, DELIBERATELY. The realm tag is the routing identifier for every
-# topic on that realm, not just the rumble ones, so committing it to a public
-# website repo would widen read access well past this feature. Unset means the
-# site boots normally and the workbench page shows its empty state.
+# THE REALM IS PUBLIC AND SO IS ITS NAME. Rumble facts do not ride the Hecate
+# fleet realm; they have their own, `net.beamcampus.rumble`, precisely so that a
+# public web container never holds the tag that routes sentinel sightings and
+# warden facts. A realm id is sha256 of its name, so this tag is derived rather
+# than issued, and stating it openly is the point rather than a leak.
+#
+# The SEEDS have no default, though. Naming a public realm costs nothing; dialling
+# a production station from every dev clone does. Unset seeds means the site boots
+# normally, connects to nothing, and the workbench page shows its empty state.
 config :robo_rumbler,
-  realm: System.get_env("BEAM_CAMPUS_RUMBLE_REALM"),
+  realm:
+    System.get_env("BEAM_CAMPUS_RUMBLE_REALM") ||
+      "0a346d25957755075dabefcc88e03c050df86ce3b7dc5a5a63ff38f32462c352",
   namespace: System.get_env("BEAM_CAMPUS_RUMBLE_NS") || "rumble-scratch",
   seeds:
     System.get_env("BEAM_CAMPUS_RUMBLE_SEEDS", "")

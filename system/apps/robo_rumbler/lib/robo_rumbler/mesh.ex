@@ -9,17 +9,20 @@ defmodule RoboRumbler.Mesh do
   ## Unconfigured is a normal state, not an error
 
   The site must boot with no mesh at all: in dev, in CI, and for anyone who
-  clones the repo. So the realm and seeds are read from the environment with no
-  defaults, and when they are absent this holder stays quietly unconnected and
-  `handle/0` answers `{:error, :not_ready}` forever. The workbench page then
-  renders its empty state. Nothing crashes and nothing retries in a hot loop.
+  clones the repo. With no seeds configured this holder stays quietly
+  unconnected and `handle/0` answers `{:error, :not_ready}` forever. The
+  workbench page then renders its empty state. Nothing crashes and nothing
+  retries in a hot loop.
 
-  ## Why no realm is baked in
+  ## The realm is public, the seeds are not defaulted
 
-  The rumble facts currently ride the same realm as the rest of the Hecate fleet.
-  Committing that realm tag to a public website repo would hand every reader the
-  routing identifier for every topic on it, not just the rumble ones. So it is
-  configuration, supplied to the deployed site and to nobody else.
+  Rumble facts have their own realm, `net.beamcampus.rumble`, exactly so that a
+  public web container never holds the tag that routes sentinel sightings and
+  warden facts. A realm id is sha256 of its name, so that tag is derived rather
+  than issued and naming it openly is the point.
+
+  Seeds have no default. Naming a public realm costs nothing; dialling a
+  production station from every dev clone does.
   """
 
   use GenServer
