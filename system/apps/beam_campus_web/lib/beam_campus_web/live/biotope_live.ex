@@ -185,7 +185,7 @@ defmodule BeamCampusWeb.BiotopeLive do
 
       <dl :if={@stats} class="mt-3 grid grid-cols-3 gap-2 text-sm">
         <.stat label="creatures" value={@stats["population"]} />
-        <.stat label="plants" value={@stats["plants"]} />
+        <.stat label="stayed put" value={pct(@stats["still_pct"])} />
         <.stat label="tick" value={@stats["tick"]} />
       </dl>
 
@@ -220,4 +220,7 @@ defmodule BeamCampusWeb.BiotopeLive do
     </div>
     """
   end
+
+  defp pct(nil), do: "–"
+  defp pct(n), do: "#{n}%"
 end

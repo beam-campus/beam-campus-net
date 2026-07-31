@@ -66,7 +66,7 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         <.header>
           Biotope history
           <:subtitle>
-            Population and standing crop over time, sampled from what the islands
+            Population and the energy still in the ground, sampled from what the islands
             published. Drawn against the world's own tick.
           </:subtitle>
         </.header>
@@ -122,7 +122,7 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
 
       <dl class="mt-2 flex flex-wrap gap-6 text-sm">
         <.stat label="creatures" value={@last.population} />
-        <.stat label="plants" value={@last.plants} />
+        <.stat label="in the ground" value={@last.ground_total} />
         <.stat label="starved" value={@last.starved} />
         <.stat label="of old age" value={@last.aged_out} />
       </dl>

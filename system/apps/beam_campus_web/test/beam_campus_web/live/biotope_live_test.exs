@@ -33,7 +33,13 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
       "island" => "beam01",
       "tick" => 412,
       "population" => 78,
-      "plants" => 100,
+      "ground_total" => 42000,
+      "still_pct" => 61,
+      "ground_spread" => 17,
+      "movers" => 70,
+      "breeders" => 66,
+      "hidden_mean" => 140,
+      "absorbed" => 9100,
       "energy_total" => 5882,
       "born" => 249,
       "starved" => 171,
@@ -47,7 +53,7 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
       "radius" => 20,
       "stride" => 2,
       "creatures" => [0, 0, 1, -1],
-      "plants" => [2, 0]
+      "ground" => [2, 0, 400]
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
@@ -58,7 +64,7 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     # Two creatures and one plant, drawn as circles.
     assert html =~ "<svg"
     assert html =~ "#F2B142"
-    assert html =~ "#3FBF7F"
+    assert html =~ "#2F7D52"
   end
 
   # Counts arrive on their own clock and a picture may be switched off entirely,
@@ -69,7 +75,13 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
       "island" => "beam02",
       "tick" => 9,
       "population" => 40,
-      "plants" => 300,
+      "ground_total" => 51000,
+      "still_pct" => 44,
+      "ground_spread" => 22,
+      "movers" => 40,
+      "breeders" => 38,
+      "hidden_mean" => 90,
+      "absorbed" => 4400,
       "energy_total" => 3200,
       "born" => 0,
       "starved" => 0,

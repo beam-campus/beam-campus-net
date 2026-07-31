@@ -20,7 +20,13 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "island" => "beam01",
         "tick" => 412,
         "population" => 78,
-        "plants" => 100,
+        "ground_total" => 42000,
+        "still_pct" => 61,
+        "ground_spread" => 17,
+        "movers" => 70,
+        "breeders" => 66,
+        "hidden_mean" => 140,
+        "absorbed" => 9100,
         "energy_total" => 5882,
         "born" => 249,
         "starved" => 171,
@@ -37,7 +43,8 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "sensors_gained" => 812,
         "sensors_lost" => 799,
         "sensors" => %{
-          "plants" => %{"carriers" => 54, "reach" => 61, "attention" => 430},
+          "ground" => %{"carriers" => 54, "reach" => 61, "attention" => 430},
+          "self" => %{"carriers" => 12, "reach" => 0, "attention" => 210},
           "creatures" => %{"carriers" => 7, "reach" => 7, "attention" => 0},
           "scent" => %{"carriers" => 0, "reach" => 0, "attention" => 0}
         },
@@ -57,7 +64,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "radius" => 20,
       "stride" => 2,
       "creatures" => [0, 0, 1, -1],
-      "plants" => [2, 0]
+      "ground" => [2, 0, 400]
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
@@ -166,7 +173,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "radius" => 3,
       "creatures" => [0, 0, 1, 0],
       "energies" => [10, 300],
-      "plants" => [],
+      "ground" => [],
       "scent" => []
     })
 
@@ -190,7 +197,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "radius" => 3,
       "creatures" => [],
       "energies" => [],
-      "plants" => [],
+      "ground" => [],
       "scent" => [0, 0, 30, 1, 0, 10]
     })
 
@@ -210,7 +217,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "tick" => 412,
       "radius" => 3,
       "creatures" => [0, 0, 1, 0],
-      "plants" => [],
+      "ground" => [],
       "scent" => []
     })
 
@@ -259,7 +266,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "creatures" => [0, 0, 1, 0],
       "energies" => [200, 200],
       "signatures" => [0, 255],
-      "plants" => [],
+      "ground" => [],
       "scent" => []
     })
 
@@ -281,7 +288,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "radius" => 3,
       "creatures" => [0, 0],
       "energies" => [200],
-      "plants" => [],
+      "ground" => [],
       "scent" => []
     })
 

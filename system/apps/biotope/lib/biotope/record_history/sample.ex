@@ -9,12 +9,15 @@ defmodule Biotope.RecordHistory.Sample do
   than recorded with a zero, because a zero population is a real and alarming
   value that must never be manufactured by a parser.
 
-  THAT STRICTNESS HAS A BITE AND IT HAS ALREADY BITTEN. When the islands were
-  rebuilt, `eaten` became `plants_eaten` and this schema still required the old
-  name, so every arriving fact failed validation and recording stopped dead. No
-  error surfaced anywhere: the writer simply had nothing valid to write, and the
-  chart went flat while the islands were perfectly healthy. A renamed field is a
-  breaking change to this file even though nothing here mentions the wire.
+  THAT STRICTNESS HAS A BITE AND IT HAS ALREADY BITTEN TWICE. When the islands
+  were first rebuilt, `eaten` became `plants_eaten` and this schema still
+  required the old name, so every arriving fact failed validation and recording
+  stopped dead. No error surfaced anywhere: the writer simply had nothing valid
+  to write, and the chart went flat while the islands were perfectly healthy.
+
+  World 2 then deleted plants outright, because a plant was never a kind of
+  thing. A renamed or removed field is a breaking change to this file even though
+  nothing here mentions the wire, and the only warning is a chart that stops.
   """
 
   use Ecto.Schema
@@ -25,15 +28,17 @@ defmodule Biotope.RecordHistory.Sample do
     :tick,
     :econ_id,
     :population,
-    :plants,
     :energy_total,
+    :ground_total,
     :born,
     :starved,
     :aged_out,
     :consumed,
-    :plants_eaten,
+    :absorbed,
     :from_creatures_pct,
-    :sensor_mean
+    :sensor_mean,
+    :still_pct,
+    :ground_spread
   ]
 
   schema "biotope_samples" do
@@ -46,17 +51,25 @@ defmodule Biotope.RecordHistory.Sample do
     # finding about ecology.
     field :econ_id, :string
     field :population, :integer
-    field :plants, :integer
     field :energy_total, :integer
+    # The other half of the books. Energy is in a creature or in the ground, and
+    # the pair only changes by what arrives from the sun and what living costs.
+    field :ground_total, :integer
     field :born, :integer
     field :starved, :integer
     field :aged_out, :integer
     field :consumed, :integer
-    field :plants_eaten, :integer
+    field :absorbed, :integer
     # Observers' numbers, counted from what happened. Nothing in the island's
     # physics reads either and no creature is treated differently for them.
     field :from_creatures_pct, :integer
     field :sensor_mean, :integer
+    # THE PLANT-NESS OF THE POPULATION and whether places have come to differ.
+    # Neither is a category the world enforces: there are no plants in world 2,
+    # and no terrain was ever installed, so whatever structure the ground has was
+    # made by things dying on it.
+    field :still_pct, :integer
+    field :ground_spread, :integer
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

@@ -151,6 +151,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   """
   attr :chart, :map, required: true
   attr :size, :integer, default: 320
+  attr :ceiling, :integer, default: 400
 
   # The energy at which a creature is drawn at full size. Above it they stop
   # growing, because past a point the only question is who is larger.
@@ -166,7 +167,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     assigns =
       assign(assigns,
         cell: cell,
-        plants: place(assigns.chart["plants"], box),
+        ground: soil(assigns.chart, box, assigns.ceiling),
         creatures: creatures(assigns.chart, box, cell),
         trails: trails(assigns.chart, box)
       )
@@ -176,7 +177,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       viewBox={"0 0 #{@size} #{@size}"}
       class="w-full h-auto rounded bg-black/40"
       role="img"
-      aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@plants)} plants and #{length(@trails)} scent marks"}
+      aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
     >
       <circle
         cx={@size / 2}
@@ -188,6 +189,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
         opacity="0.12"
       />
       <circle
+        :for={{x, y, colour, alpha} <- @ground}
+        cx={x}
+        cy={y}
+        r={@cell * 1.05}
+        fill={colour}
+        opacity={alpha}
+      />
+      <circle
         :for={{x, y, strength} <- @trails}
         cx={x}
         cy={y}
@@ -195,14 +204,13 @@ defmodule BeamCampusWeb.BiotopeComponents do
         fill="#8B7CE8"
         opacity={strength}
       />
-      <circle :for={{x, y} <- @plants} cx={x} cy={y} r={@cell * 0.55} fill="#3FBF7F" opacity="0.85" />
       <circle :for={{x, y, r, colour} <- @creatures} cx={x} cy={y} r={r} fill={colour} />
     </svg>
     """
   end
 
   @doc """
-  Population and standing crop over time.
+  Population and the energy lying in the ground, over time.
 
   Each series is scaled to its OWN maximum, because they are different
   quantities in different units and one axis would say something false about
@@ -224,7 +232,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     assigns =
       assign(assigns,
         population: polyline(assigns.samples, & &1.population, assigns.w, assigns.h),
-        plants: polyline(assigns.samples, & &1.plants, assigns.w, assigns.h)
+        ground: polyline(assigns.samples, & &1.ground_total, assigns.w, assigns.h)
       )
 
     ~H"""
@@ -232,9 +240,9 @@ defmodule BeamCampusWeb.BiotopeComponents do
       viewBox={"0 0 #{@w} #{@h}"}
       class={["w-full h-auto rounded bg-black/40", @class]}
       role="img"
-      aria-label={"Population and plants over #{length(@samples)} samples"}
+      aria-label={"Population and energy in the ground over #{length(@samples)} samples"}
     >
-      <polyline points={@plants} fill="none" stroke="#3FBF7F" stroke-width="1.5" opacity="0.8" />
+      <polyline points={@ground} fill="none" stroke="#2F7D52" stroke-width="1.5" opacity="0.8" />
       <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
     </svg>
     """
@@ -281,6 +289,80 @@ defmodule BeamCampusWeb.BiotopeComponents do
       <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
       <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
     </svg>
+    """
+  end
+
+  @doc """
+  How much of this population has become sessile.
+
+  THE HEADLINE OF THIS WORLD, AND IT IS NOT A CATEGORY ANYONE ASSIGNED. There are
+  no plants in these rules: energy gathers in the ground and a creature absorbs
+  what has gathered where it stands, so staying put and living off that simply IS
+  being a plant. This counts the ones that did not move, and nothing anywhere
+  calls them anything.
+  """
+  attr :stats, :map, required: true
+
+  def sessile(assigns) do
+    assigns = assign(assigns, pct: assigns.stats["still_pct"] || 0)
+
+    ~H"""
+    <div>
+      <dt class="text-xs uppercase tracking-wide opacity-50">stayed put</dt>
+      <dd class="mt-1 font-mono text-lg leading-none">{@pct}%</dd>
+      <div
+        class="mt-2 h-1.5 w-full overflow-hidden rounded bg-base-content/10"
+        role="img"
+        aria-label={"#{@pct} percent of creatures did not move this tick"}
+      >
+        <div class="h-full bg-success" style={"width: #{@pct}%"}></div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  The ground, and whether places have come to differ from one another.
+
+  Ten percent in the richest tenth of cells is flat. Above that, the landscape
+  has structure, and since no terrain was ever installed, whatever structure
+  exists was made by things dying: a corpse is added on top of the ceiling, and
+  no amount of sunlight can carry a cell that high.
+  """
+  attr :stats, :map, required: true
+
+  def landscape(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">the ground</h3>
+      <dl class="mt-2 grid grid-cols-2 gap-3 text-sm">
+        <.stat label="energy in it" value={@stats["ground_total"]} />
+        <.stat label="in richest 10%" value={pct(@stats["ground_spread"])} />
+      </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  What these creatures can do at all.
+
+  AN ABSENT OUTPUT IS NOT A WEAK ONE. A creature with no move output never moves,
+  which in this world is a living rather than a death sentence. One with no breed
+  output leaves no descendants, so its lineage ends there. Both are things that
+  mutation takes away and gives back.
+  """
+  attr :stats, :map, required: true
+
+  def capable(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">what they can do</h3>
+      <dl class="mt-2 grid grid-cols-3 gap-3 text-sm">
+        <.stat label="can move" value={@stats["movers"]} />
+        <.stat label="can breed" value={@stats["breeders"]} />
+        <.stat label="hidden nodes" value={hundredths(@stats["hidden_mean"])} />
+      </dl>
+    </div>
     """
   end
 
@@ -478,10 +560,38 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   # ── Helpers ─────────────────────────────────────────────────────
 
-  defp place(flat, box) do
-    flat
-    |> Biotope.points()
-    |> Enum.map(&Biotope.to_pixel(&1, box))
+  # THE GROUND IS A FIELD, NOT A SET OF OBJECTS, and that is the whole reason
+  # this replaced a scatter of plant dots. There are no plants: energy gathers in
+  # every cell and a creature takes what has gathered where it stands. A cell
+  # holds an AMOUNT, so the honest picture is a tinted surface.
+  #
+  # It also makes three things visible that were only ever numbers. Grazing shows
+  # as depletion, in the dark trail a population leaves behind it. Death shows as
+  # ENRICHMENT, because a corpse is added on top of the ceiling and no untouched
+  # cell can reach that. And whether the landscape has come to differ from itself
+  # stops being a statistic and becomes something you can see.
+  #
+  # An empty cell is drawn as nothing rather than as black: the island does not
+  # send it, and on a grazed board most cells are empty.
+  defp soil(chart, box, ceiling) do
+    chart["ground"]
+    |> Biotope.marks()
+    |> Enum.map(fn {q, r, amount} ->
+      {x, y} = Biotope.to_pixel({q, r}, box)
+      {x, y, soil_colour(amount, ceiling), soil_alpha(amount, ceiling)}
+    end)
+  end
+
+  # ABOVE THE CEILING MEANS SOMETHING DIED HERE. Ambient supply stops at the
+  # ceiling, so no amount of sunlight reaches this; only a corpse does. Worth its
+  # own colour, because "places became different because things died there" is
+  # the one claim this rendering can settle at a glance.
+  defp soil_colour(amount, ceiling) when amount > ceiling, do: "#C9A227"
+  defp soil_colour(_amount, _ceiling), do: "#2F7D52"
+
+  defp soil_alpha(amount, ceiling) do
+    full = max(ceiling, 1)
+    Float.round(0.12 + 0.48 * min(1.0, amount / full), 3)
   end
 
   # Energies run PARALLEL to creatures rather than interleaved, so they are
@@ -569,7 +679,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     census = stats["sensors"] || %{}
     population = max(stats["population"] || 0, 1)
 
-    for field <- ~w(plants creatures scent) do
+    for field <- ~w(ground creatures scent self) do
       carriers = get_in(census, [field, "carriers"]) || 0
       attention = (get_in(census, [field, "attention"]) || 0) / 100
 
@@ -577,6 +687,12 @@ defmodule BeamCampusWeb.BiotopeComponents do
        :erlang.float_to_binary(attention, decimals: 1)}
     end
   end
+
+  defp pct(nil), do: "–"
+  defp pct(n), do: "#{n}%"
+
+  defp hundredths(nil), do: "–"
+  defp hundredths(n), do: :erlang.float_to_binary(n / 100, decimals: 2)
 
   defp number(nil), do: "–"
   defp number(n) when is_integer(n), do: Integer.to_string(n)

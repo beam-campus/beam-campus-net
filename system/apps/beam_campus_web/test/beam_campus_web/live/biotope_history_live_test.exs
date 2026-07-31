@@ -23,15 +23,17 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
         "tick" => tick,
         "econ_id" => "0badc0ffee123456",
         "population" => population,
-        "plants" => 100,
         "energy_total" => 5000,
+        "ground_total" => 42000,
         "born" => 200,
         "starved" => 150,
         "aged_out" => 3,
         "consumed" => 800,
-        "plants_eaten" => 1200,
+        "absorbed" => 1200,
         "from_creatures_pct" => 42,
-        "sensor_mean" => 130
+        "sensor_mean" => 130,
+        "still_pct" => 61,
+        "ground_spread" => 17
       })
     )
   end

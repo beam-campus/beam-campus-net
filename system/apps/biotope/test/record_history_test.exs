@@ -22,15 +22,17 @@ defmodule Biotope.RecordHistoryTest do
         "tick" => tick,
         "econ_id" => "17b90de41d26da0e",
         "population" => 78,
-        "plants" => 100,
         "energy_total" => 5882,
+        "ground_total" => 42000,
         "born" => 249,
         "starved" => 171,
         "aged_out" => 0,
         "consumed" => 900,
-        "plants_eaten" => 1200,
+        "absorbed" => 1200,
         "from_creatures_pct" => 39,
-        "sensor_mean" => 104
+        "sensor_mean" => 104,
+        "still_pct" => 61,
+        "ground_spread" => 17
       },
       overrides
     )

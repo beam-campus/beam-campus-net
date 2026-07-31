@@ -55,6 +55,12 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
     )
   end
 
+  # The island publishes its own rules, so the viewer never has to be configured
+  # to agree with a world it cannot see. Above the ceiling means a corpse, and
+  # without it the picture could not tell enrichment from a full cell.
+  defp ceiling(nil), do: 400
+  defp ceiling(stats), do: get_in(stats, ["econ", "ground_ceiling"]) || 400
+
   defp load_history(socket) do
     assign(socket, samples: RecordHistory.history(socket.assigns.name, 240))
   end
@@ -89,7 +95,7 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         </p>
 
         <div :if={@chart} class="mt-6">
-          <.disc chart={@chart} size={480} />
+          <.disc chart={@chart} size={480} ceiling={ceiling(@stats)} />
         </div>
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
@@ -97,27 +103,31 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           weaker on contact and so energy is armour. Its COLOUR is its lineage:
           creatures carry a heritable scent signature and read a trail by how
           unlike themselves it smells, so kin share a colour and long-separated
-          families do not. Green is a plant. The violet haze is scent, ground
-          something walked over recently, fading tick by tick, and the only thing
-          here that outlives the moment it was made.
+          families do not. The green surface is the ground itself, brighter where
+          more energy has gathered and dark where something has grazed it bare.
+          GOLD MEANS SOMETHING DIED THERE: sunlight stops at the ceiling, so only
+          a corpse can carry a cell that high. The violet haze is scent, ground
+          walked over recently, fading tick by tick.
         </p>
 
         <dl :if={@stats} class="mt-4 grid grid-cols-3 gap-3 text-sm sm:grid-cols-4">
           <.stat label="creatures" value={@stats["population"]} />
-          <.stat label="plants" value={@stats["plants"]} />
-          <.stat label="energy" value={@stats["energy_total"]} />
+          <.stat label="in creatures" value={@stats["energy_total"]} />
           <.stat label="tick" value={@stats["tick"]} />
           <.stat label="born" value={@stats["born"]} />
-          <.stat label="plants eaten" value={@stats["plants_eaten"]} />
-          <.stat label="breeds at" value={@stats["breed_at_mean"]} />
+          <.stat label="absorbed" value={@stats["absorbed"]} />
+          <.stat label="signatures" value={@stats["scent_tags"]} />
+          <.stat label="spread" value={@stats["scent_spread"]} />
           <.stat label="ticks/s" value={@stats["ticks_per_second"]} />
         </dl>
 
         <div :if={@stats} class="mt-6 grid gap-6 sm:grid-cols-2">
+          <.sessile stats={@stats} />
           <.share stats={@stats} />
           <.census stats={@stats} />
+          <.landscape stats={@stats} />
+          <.capable stats={@stats} />
           <.deaths stats={@stats} />
-          <.signature stats={@stats} />
           <.churn stats={@stats} />
         </div>
 
@@ -131,7 +141,7 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         <section :if={@stats} class="mt-8">
           <h2 class="text-sm font-semibold opacity-70">Where it has been</h2>
           <p class="mt-1 text-xs opacity-50">
-            Amber is the population, green the standing crop. Each is scaled to its
+            Amber is the population, green the energy still lying in the ground. Each is scaled to its
             own maximum: they are different quantities, and one axis would say
             something false about their relative size. Plotted against the world's
             own tick.
