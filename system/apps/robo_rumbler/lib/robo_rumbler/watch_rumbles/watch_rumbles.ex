@@ -13,15 +13,28 @@ defmodule RoboRumbler.WatchRumbles do
   never receiving anything. So this ticks until every topic is subscribed and then
   stops ticking.
 
-  ## Payload keys arrive tagged and that has bitten this codebase before
+  ## The same wire value arrives in two different shapes, and which one is luck
 
-  CBOR distinguishes text strings from byte strings, and the SDK preserves the
-  distinction: a map published as `%{type: :visit_settled}` is delivered as
-  `%{{:text, "type"} => {:text, "visit_settled"}}`. Matching on `%{"type" => t}`
-  never matches and every event looks like it never arrived. `plain/1` untags the
-  whole structure once, at the edge, so nothing downstream has to know.
+  CBOR encodes both an atom and a binary as a text string, and the SDK decodes a
+  text string to an **existing atom when one exists** and to `{:text, binary}`
+  when it does not. So the shape a key arrives in depends on what happens to be
+  in the receiving node's atom table, which differs between nodes and changes as
+  modules load.
 
-  Keys stay strings rather than becoming atoms. These are bytes off a network and
+  A real duel fact arrived here with its keys split down the middle:
+
+      [:type, :turns, :wire_version, :engine_id,
+       "challenger_genome", "challenger_id", "challenger_seat", ...]
+
+  Four atoms and eleven strings, from one published map. `Map.get(fact, "turns")`
+  returned nil, so the replay self-check silently did not run and the page would
+  have shown a blank turn count. Nothing raised.
+
+  `untag/1` therefore collapses **both** shapes to strings, keys and values
+  alike, once at the edge. `true`, `false` and `nil` are left alone: CBOR has real
+  booleans and null, so those never came from text.
+
+  Nothing downstream becomes an atom. These are bytes off a network, and
   `String.to_atom/1` on network input fills the atom table until the node dies.
   """
 
@@ -38,6 +51,23 @@ defmodule RoboRumbler.WatchRumbles do
 
   @doc "Subscribe the calling LiveView to board changes."
   def subscribe, do: Phoenix.PubSub.subscribe(@pubsub, @channel)
+
+  @doc """
+  Collapse a delivered payload to plain strings, keys and values alike.
+
+  Public because it IS the contract with the transport, and the shape it
+  normalises away is not something a reader can guess. See the module doc.
+  """
+  @spec untag(term()) :: term()
+  def untag({:text, b}), do: b
+  def untag(m) when is_map(m), do: Map.new(m, fn {k, v} -> {untag(k), untag(v)} end)
+  def untag(l) when is_list(l), do: Enum.map(l, &untag/1)
+  # CBOR booleans and null are real types, never text, so they stay as they are.
+  def untag(v) when is_boolean(v) or is_nil(v), do: v
+  # Everything else that decoded to an atom came off the wire as a text string
+  # and would have been a binary on a node whose atom table happened to differ.
+  def untag(v) when is_atom(v), do: Atom.to_string(v)
+  def untag(v), do: v
 
   # ── GenServer ───────────────────────────────────────────────────
 
@@ -60,7 +90,7 @@ defmodule RoboRumbler.WatchRumbles do
   # says which of the four subscriptions this is, which is more reliable than
   # re-parsing the topic string.
   def handle_info({:macula_event, ref, _topic, payload, _meta}, s) do
-    file(Map.get(s.refs, ref), plain(payload))
+    file(Map.get(s.refs, ref), untag(payload))
     {:noreply, s}
   end
 
@@ -140,10 +170,4 @@ defmodule RoboRumbler.WatchRumbles do
   # Matches `visit_facts:namespace/0` in the rumbler, scratch default included.
   defp namespace, do: Application.get_env(:robo_rumbler, :namespace, "rumble-scratch")
 
-  # ── Untagging ───────────────────────────────────────────────────
-
-  defp plain({:text, b}), do: b
-  defp plain(m) when is_map(m), do: Map.new(m, fn {k, v} -> {plain(k), plain(v)} end)
-  defp plain(l) when is_list(l), do: Enum.map(l, &plain/1)
-  defp plain(v), do: v
 end

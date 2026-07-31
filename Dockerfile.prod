@@ -39,11 +39,27 @@ ENV MIX_ENV=prod
 # toolchain needed in the image. Pairs with `config :faber_tweann, nif_impl: :fallback`.
 ENV FABER_TWEANN_SKIP_NIF=1
 
+# macula, on the other hand, CANNOT be built without Rust. Its QUIC transport
+# (quinn) and crypto (ed25519-dalek) are Rust NIFs with no pure-Erlang fallback,
+# and the Robo Rumble spectator dials the mesh over that transport. There is no
+# equivalent of FABER_TWEANN_SKIP_NIF to reach for: skipping it yields a release
+# that boots and then cannot connect to anything.
+#
+# rustup rather than the distro package, because Debian's rustc trails the crates
+# these NIFs require. Pinned so a CI build is reproducible and a silent toolchain
+# bump cannot break the site.
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+RUN curl -fsSL https://sh.rustup.rs \
+      | sh -s -- -y --profile minimal --default-toolchain 1.85.0 \
+    && rustc --version
+
 # Dependency caching: copy mix files first (lock may not exist — deps.get creates it)
 COPY system/mix.exs ./
-RUN mkdir -p apps/beam_campus apps/beam_campus_web
+RUN mkdir -p apps/beam_campus apps/beam_campus_web apps/robo_rumbler
 COPY system/apps/beam_campus/mix.exs ./apps/beam_campus/
 COPY system/apps/beam_campus_web/mix.exs ./apps/beam_campus_web/
+COPY system/apps/robo_rumbler/mix.exs ./apps/robo_rumbler/
 
 COPY system/config ./config
 COPY system/rel ./rel

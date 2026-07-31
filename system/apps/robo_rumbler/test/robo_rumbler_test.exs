@@ -9,6 +9,7 @@ defmodule RoboRumblerTest do
   """
   use ExUnit.Case, async: true
 
+  alias RoboRumbler.WatchRumbles
   alias RoboRumbler.WatchRumbles.Board
 
   # FROZEN, NOT COMPUTED HERE. Both numbers come from running the two fixture
@@ -192,6 +193,70 @@ defmodule RoboRumblerTest do
     # loop running. The armed timer has to be state to be observable at all.
     test "the subscriber stops ticking rather than retrying forever" do
       assert %{timer: nil} = :sys.get_state(RoboRumbler.WatchRumbles)
+    end
+  end
+
+  # ── The wire shapes ─────────────────────────────────────────────
+
+  describe "untagging a delivered payload" do
+    # THE BUG THIS EXISTS FOR, taken from a real fact off the mesh. CBOR encodes
+    # an atom and a binary identically, and the SDK decodes text back to an
+    # EXISTING atom when one exists. So one published map arrived with four atom
+    # keys and eleven string keys, and `fact["turns"]` was nil while
+    # `fact["start_index"]` worked. Nothing raised; the self-check just silently
+    # stopped running.
+    test "atom keys and tagged keys both become strings" do
+      delivered = %{
+        :type => :duel_featured,
+        :turns => 2000,
+        {:text, "challenger_seat"} => {:text, "first"},
+        {:text, "start_index"} => 32
+      }
+
+      plain = WatchRumbles.untag(delivered)
+
+      assert plain == %{
+               "type" => "duel_featured",
+               "turns" => 2000,
+               "challenger_seat" => "first",
+               "start_index" => 32
+             }
+    end
+
+    # A seat published as a binary can come back as the atom :first purely
+    # because robo_rumble put that atom in the table. Values need collapsing for
+    # the same reason keys do.
+    test "an atom value becomes a string too" do
+      assert WatchRumbles.untag(%{{:text, "challenger_seat"} => :second}) == %{
+               "challenger_seat" => "second"
+             }
+    end
+
+    # CBOR has real booleans and null. Those never came from text, so turning
+    # them into "true"/"false" would corrupt them.
+    test "booleans and null survive untouched" do
+      assert WatchRumbles.untag(%{{:text, "decided"} => false, {:text, "winner"} => nil}) == %{
+               "decided" => false,
+               "winner" => nil
+             }
+    end
+
+    test "nested lists and maps are untagged all the way down" do
+      assert WatchRumbles.untag(%{{:text, "results"} => [%{:resident_id => {:text, "AB"}, :wins => 3}]}) == %{
+               "results" => [%{"resident_id" => "AB", "wins" => 3}]
+             }
+    end
+
+    # A fact whose keys arrive as atoms must still replay. This is the failure
+    # that was observed live: the turn count was unreadable, so the replay ran
+    # unverified rather than checking itself.
+    test "a fact delivered with atom keys still replays and verifies" do
+      atom_keyed =
+        Map.new(duel_fact(), fn {k, v} -> {String.to_atom(k), v} end)
+
+      {:ok, r} = RoboRumbler.replay(WatchRumbles.untag(atom_keyed))
+      assert r.turns == @golden_turns
+      assert r.verified
     end
   end
 
