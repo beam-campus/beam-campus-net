@@ -179,10 +179,8 @@ defmodule BeamCampusWeb.BiotopeComponents do
       role="img"
       aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
     >
-      <circle
-        cx={@size / 2}
-        cy={@size / 2}
-        r={@size / 2 - @cell}
+      <polygon
+        points={rim(@size, @cell)}
         fill="none"
         stroke="currentColor"
         stroke-width="1"
@@ -686,6 +684,22 @@ defmodule BeamCampusWeb.BiotopeComponents do
       {field, carriers, min(100, round(carriers * 100 / population)),
        :erlang.float_to_binary(attention, decimals: 1)}
     end
+  end
+
+  # THE BOARD IS A HEXAGON, so a circular rim misdescribes it: a full population
+  # visibly fills a hex sitting inside a round outline, which reads as though the
+  # corners were somehow uninhabitable. Pointy-top, matching the cells.
+  defp rim(size, cell) do
+    centre = size / 2
+    radius = centre - cell
+
+    0..5
+    |> Enum.map_join(" ", fn i ->
+      angle = :math.pi() / 3 * i - :math.pi() / 6
+      x = centre + radius * :math.cos(angle)
+      y = centre + radius * :math.sin(angle)
+      "#{Float.round(x, 1)},#{Float.round(y, 1)}"
+    end)
   end
 
   defp pct(nil), do: "–"
