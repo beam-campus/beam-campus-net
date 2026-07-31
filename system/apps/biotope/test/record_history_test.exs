@@ -97,4 +97,42 @@ defmodule Biotope.RecordHistoryTest do
       assert RecordHistory.count() == 0
     end
   end
+
+  describe "telling a page" do
+    setup do
+      # The subscriber owns this table and creates it at application start, so it
+      # already exists here. Creating it again raises.
+      :ets.whereis(:biotope_board) == :undefined and Biotope.WatchIslands.Board.init()
+      :ets.delete_all_objects(:biotope_board)
+      :ok
+    end
+
+    # THE WRITER KNOWS WHEN A ROW APPEARS; the page should not have to guess. The
+    # first version had the page poll on its own thirty-second timer against a
+    # writer sampling on a thirty-second timer, unsynchronised, so a new point
+    # could sit unshown for another thirty seconds.
+    #
+    # Driven through the real writer rather than by broadcasting by hand, because
+    # what is being asserted is WHEN it speaks, and a hand-rolled broadcast would
+    # test only that PubSub works.
+    test "announces when it records, and stays quiet when it does not" do
+      RecordHistory.subscribe()
+      Biotope.WatchIslands.Board.put_stats(fact("beam09", 100))
+
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      # A FROZEN ISLAND MUST NOT REDRAW ANYTHING. Its last fact stays on the
+      # board forever, so every later wake sees the same tick and writes nothing.
+      send(RecordHistory, :sample)
+      refute_receive {:biotope_history, :written}, 200
+
+      # And it moves again as soon as the world does.
+      Biotope.WatchIslands.Board.put_stats(fact("beam09", 160))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      assert Enum.map(RecordHistory.history("beam09"), & &1.tick) == [100, 160]
+    end
+  end
 end

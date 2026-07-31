@@ -13,6 +13,14 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
   chart against wall clock would compress or stretch depending on how fast the
   world happened to be running. The tick is the world's own time.
 
+  ## Pushed, not polled
+
+  The writer broadcasts when it actually writes a row, and this page redraws
+  then. It has no timer of its own. Polling meant two unsynchronised
+  thirty-second clocks, so a point could exist for another thirty seconds before
+  anyone saw it; pushing makes the chart exactly as fresh as the data and repaints
+  only when there is something new to draw.
+
   ## A gap in the line is a real thing and is left visible
 
   A row is written only when an island's tick advances, so a frozen island stops
@@ -28,19 +36,20 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
 
   @w 640
   @h 120
-  # Refreshed on a timer rather than on a fact, because the writer samples on a
-  # slow clock of its own. Redrawing on every arriving fact would repaint a chart
-  # that had not changed.
-  @refresh_ms 30_000
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: :timer.send_interval(@refresh_ms, :refresh)
+    if connected?(socket), do: RecordHistory.subscribe()
     {:ok, load(socket)}
   end
 
   @impl true
-  def handle_info(:refresh, socket), do: {:noreply, load(socket)}
+  # PUSHED BY THE WRITER, NOT POLLED. The first version ticked its own
+  # thirty-second timer against a writer that sampled on a thirty-second timer of
+  # its own, unsynchronised, so a new point could sit unshown for another thirty
+  # seconds and the chart could be a minute behind the world. The writer knows
+  # exactly when a row appears; it says so, and only when it actually wrote one.
+  def handle_info({:biotope_history, :written}, socket), do: {:noreply, load(socket)}
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp load(socket) do

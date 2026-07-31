@@ -46,7 +46,24 @@ defmodule Biotope.RecordHistory do
   # every Nth wake rather than on a second timer.
   @prune_every 120
 
+  @pubsub BeamCampus.PubSub
+  # ITS OWN CHANNEL, not the one the live page listens on. Facts arrive twice a
+  # second and a row is written at most every thirty, so sharing a channel would
+  # make each page redraw for the other's events: the live islands repainting for
+  # a database write, and the chart repainting for a frame it does not plot.
+  @channel "biotope_history"
+
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+
+  @doc """
+  Subscribe the calling process to history being written.
+
+  A page listens for this instead of polling. The writer knows exactly when a row
+  appears, so the chart can be exactly as fresh as the data and repaint only when
+  there is something new to draw. Polling meant two unsynchronised thirty-second
+  clocks and a chart that could be a minute behind the world.
+  """
+  def subscribe, do: Phoenix.PubSub.subscribe(@pubsub, @channel)
 
   @doc """
   The most recent samples for one island, oldest first.
@@ -86,7 +103,10 @@ defmodule Biotope.RecordHistory do
   @impl true
   def handle_info(:sample, s) do
     schedule()
-    {:noreply, s |> record_all() |> maybe_prune()}
+    before = s.written
+    s1 = s |> record_all() |> maybe_prune()
+    announce(s1.written > before)
+    {:noreply, s1}
   end
 
   def handle_info(_msg, s), do: {:noreply, s}
@@ -140,6 +160,12 @@ defmodule Biotope.RecordHistory do
   end
 
   # ── Config ──────────────────────────────────────────────────────
+
+  # Only when something was actually written. A wake that recorded nothing, which
+  # is every wake for a frozen island, must not tell a page to redraw an
+  # unchanged chart.
+  defp announce(false), do: :ok
+  defp announce(true), do: Phoenix.PubSub.broadcast(@pubsub, @channel, {:biotope_history, :written})
 
   defp schedule, do: Process.send_after(self(), :sample, sample_ms())
 
