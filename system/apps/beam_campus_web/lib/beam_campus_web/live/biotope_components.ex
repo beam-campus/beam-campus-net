@@ -140,6 +140,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
   scale rather than the largest in the frame: a creature twice the size of
   another must always look twice the size, or a frame in which everything is
   starving would silently rescale itself to look ordinary.
+
+  AND THE COLOUR OF ITS LINEAGE. A creature carries a heritable eight-bit scent
+  signature, and reads a trail by how unlike itself it smells, so relatedness is
+  already what the signature is. Colouring by it turns the disc into a family
+  map: kin share a colour, long-separated lineages do not, and whether the
+  population is one family or several becomes something you see rather than a
+  number you read. When migration exists, a foreigner will simply be the wrong
+  colour, with no further machinery.
   """
   attr :chart, :map, required: true
   attr :size, :integer, default: 320
@@ -168,7 +176,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       viewBox={"0 0 #{@size} #{@size}"}
       class="w-full h-auto rounded bg-black/40"
       role="img"
-      aria-label={"#{length(@creatures)} creatures, #{length(@plants)} plants and #{length(@trails)} scent marks"}
+      aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@plants)} plants and #{length(@trails)} scent marks"}
     >
       <circle
         cx={@size / 2}
@@ -188,7 +196,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
         opacity={strength}
       />
       <circle :for={{x, y} <- @plants} cx={x} cy={y} r={@cell * 0.55} fill="#3FBF7F" opacity="0.85" />
-      <circle :for={{x, y, r} <- @creatures} cx={x} cy={y} r={r} fill="#F2B142" />
+      <circle :for={{x, y, r, colour} <- @creatures} cx={x} cy={y} r={r} fill={colour} />
     </svg>
     """
   end
@@ -273,6 +281,31 @@ defmodule BeamCampusWeb.BiotopeComponents do
       <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
       <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
     </svg>
+    """
+  end
+
+  @doc """
+  Whether the body plan is still moving.
+
+  The census says what the population is built from NOW. These say whether that
+  is settled or still churning, which a census on its own cannot distinguish: a
+  lineage steadily gaining and losing sensors and one that has not changed in a
+  thousand ticks can show the identical census.
+
+  Totals since the world began, never reset, so a reader who looks twice can
+  recover the rate and a reader who looks once cannot be misled by one.
+  """
+  attr :stats, :map, required: true
+
+  def churn(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">body plans, since the start</h3>
+      <dl class="mt-2 grid grid-cols-2 gap-3 text-sm">
+        <.stat label="sensors gained" value={@stats["sensors_gained"]} />
+        <.stat label="sensors lost" value={@stats["sensors_lost"]} />
+      </dl>
+    </div>
     """
   end
 
@@ -375,13 +408,23 @@ defmodule BeamCampusWeb.BiotopeComponents do
         <h3 class="text-xs uppercase tracking-wide opacity-50">what they measure</h3>
         <span class="font-mono text-xs opacity-60">{@per_creature} per creature</span>
       </div>
+      <p class="mt-1 text-xs opacity-40">
+        carriers, then how hard the brain acts on it. A sensor that is carried and
+        ignored is an organ being paid for and changing nothing.
+      </p>
       <dl class="mt-2 space-y-1.5">
-        <div :for={{field, carriers, pct} <- @rows} class="flex items-center gap-2 text-xs">
+        <div :for={{field, carriers, pct, acted} <- @rows} class="flex items-center gap-2 text-xs">
           <dt class="w-20 shrink-0 opacity-60">{field}</dt>
           <div class="h-1.5 flex-1 overflow-hidden rounded bg-base-content/10">
             <div class="h-full bg-info" style={"width: #{pct}%"}></div>
           </div>
-          <dd class="w-16 shrink-0 text-right font-mono opacity-70">{carriers}</dd>
+          <dd class="w-10 shrink-0 text-right font-mono opacity-70">{carriers}</dd>
+          <dd
+            class={["w-10 shrink-0 text-right font-mono", acted == "0.0" && "opacity-30"]}
+            title="Mean weight the brain puts on this measurement. Zero is an organ that is carried, paid for, and ignored."
+          >
+            {acted}
+          </dd>
         </div>
       </dl>
     </div>
@@ -447,18 +490,19 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # accurate sizing and not the page.
   defp creatures(chart, box, cell) do
     points = Biotope.points(chart["creatures"])
-    energies = pad(chart["energies"] || [], length(points))
+    energies = pad(chart["energies"] || [], length(points), 0)
+    signatures = pad(chart["signatures"] || [], length(points), nil)
 
-    points
-    |> Enum.zip(energies)
-    |> Enum.map(fn {point, energy} ->
+    [points, energies, signatures]
+    |> Enum.zip()
+    |> Enum.map(fn {point, energy, tag} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {x, y, radius_for(cell, energy)}
+      {x, y, radius_for(cell, energy), lineage_colour(tag)}
     end)
   end
 
-  defp pad(energies, wanted) do
-    energies ++ List.duplicate(0, max(0, wanted - length(energies)))
+  defp pad(values, wanted, filler) do
+    values ++ List.duplicate(filler, max(0, wanted - length(values)))
   end
 
   # A floor as well as a scale, because a creature about to starve is still
@@ -468,6 +512,27 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   defp radius_for(cell, _energy), do: cell * 0.35
+
+  # EACH BIT GROUP DRIVES ONE CHANNEL, which is the whole reason this is not a
+  # hue. Mapping the byte onto a colour wheel would put tags 127 and 128 side by
+  # side though they differ in every single component, and split kin one flip
+  # apart across half the spectrum. Here a single mutation moves exactly one
+  # channel by one step, so how alike two creatures look is how related they
+  # actually are.
+  #
+  # Kept bright: the disc is dark, and a lineage that happened to inherit a low
+  # byte should not be invisible.
+  defp lineage_colour(tag) when is_integer(tag) and tag >= 0 do
+    r = 90 + Bitwise.band(tag, 0x07) * 22
+    g = 90 + Bitwise.band(Bitwise.bsr(tag, 3), 0x07) * 22
+    b = 90 + Bitwise.band(Bitwise.bsr(tag, 6), 0x03) * 50
+    "rgb(#{r},#{g},#{b})"
+  end
+
+  # An island still publishing the older chart sends no signatures. Amber is what
+  # every creature used to be, so an unlabelled one keeps that rather than
+  # pretending to a lineage it did not declare.
+  defp lineage_colour(_absent), do: "#F2B142"
 
   # Faint on purpose. A trail is evidence that something passed, and at full
   # strength it would read as a wall.
@@ -506,7 +571,10 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
     for field <- ~w(plants creatures scent) do
       carriers = get_in(census, [field, "carriers"]) || 0
-      {field, carriers, min(100, round(carriers * 100 / population))}
+      attention = (get_in(census, [field, "attention"]) || 0) / 100
+
+      {field, carriers, min(100, round(carriers * 100 / population)),
+       :erlang.float_to_binary(attention, decimals: 1)}
     end
   end
 

@@ -34,10 +34,12 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "sensor_mean" => 104,
         "scent_tags" => 26,
         "scent_spread" => 44,
+        "sensors_gained" => 812,
+        "sensors_lost" => 799,
         "sensors" => %{
-          "plants" => %{"carriers" => 54, "reach" => 61},
-          "creatures" => %{"carriers" => 0, "reach" => 0},
-          "scent" => %{"carriers" => 0, "reach" => 0}
+          "plants" => %{"carriers" => 54, "reach" => 61, "attention" => 430},
+          "creatures" => %{"carriers" => 7, "reach" => 7, "attention" => 0},
+          "scent" => %{"carriers" => 0, "reach" => 0, "attention" => 0}
         },
         "econ_id" => "17b90de41d26da0e",
         "econ" => %{"metabolism" => 1, "regrowth_per_tick" => 4}
@@ -208,6 +210,77 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "tick" => 412,
       "radius" => 3,
       "creatures" => [0, 0, 1, 0],
+      "plants" => [],
+      "scent" => []
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "#F2B142"
+  end
+
+  # AN ORGAN THAT EXISTS AND AN ORGAN THAT MATTERS ARE DIFFERENT THINGS. Seven
+  # creatures carry a creature sensor and not one of them acts on it: it is being
+  # paid for every tick and changing nothing. Carriers alone would report that as
+  # perception.
+  test "separates a carried measurement from an acted-on one", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "4.3"
+    assert html =~ "0.0"
+    assert html =~ "carried and"
+  end
+
+  # A census says what the population is built from now; these say whether that
+  # is still moving.
+  test "shows whether body plans are still changing", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "sensors gained"
+    assert html =~ "812"
+    assert html =~ "799"
+  end
+
+  # KIN SHARE A COLOUR AND STRANGERS DO NOT. Each bit group drives one channel,
+  # so a single mutation moves one channel by one step and how alike two
+  # creatures look is how related they are. Two signatures eight bits apart must
+  # not come out the same colour.
+  test "colours creatures by lineage", %{conn: conn} do
+    Board.put_stats(stats())
+
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 412,
+      "radius" => 3,
+      "creatures" => [0, 0, 1, 0],
+      "energies" => [200, 200],
+      "signatures" => [0, 255],
+      "plants" => [],
+      "scent" => []
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    colours = Regex.scan(~r/fill="(rgb\([^)]+\))"/, html) |> Enum.map(&List.last/1)
+    assert length(Enum.uniq(colours)) == 2
+  end
+
+  # An island still publishing the older chart sends no signatures at all. Amber
+  # is what every creature used to be, so an unlabelled one keeps that rather
+  # than being given a lineage it never declared.
+  test "falls back to amber when no signatures are sent", %{conn: conn} do
+    Board.put_stats(stats())
+
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 412,
+      "radius" => 3,
+      "creatures" => [0, 0],
+      "energies" => [200],
       "plants" => [],
       "scent" => []
     })

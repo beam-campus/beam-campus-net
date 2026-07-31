@@ -93,11 +93,13 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         </div>
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
-          Amber is a creature and its size is its energy, because the stronger
-          consumes the weaker on contact and so energy is armour. Green is a
-          plant. The violet haze is scent: ground something walked over recently,
-          fading tick by tick, and the only thing here that outlives the moment
-          it was made.
+          A creature's SIZE is its energy, because the stronger consumes the
+          weaker on contact and so energy is armour. Its COLOUR is its lineage:
+          creatures carry a heritable scent signature and read a trail by how
+          unlike themselves it smells, so kin share a colour and long-separated
+          families do not. Green is a plant. The violet haze is scent, ground
+          something walked over recently, fading tick by tick, and the only thing
+          here that outlives the moment it was made.
         </p>
 
         <dl :if={@stats} class="mt-4 grid grid-cols-3 gap-3 text-sm sm:grid-cols-4">
@@ -116,6 +118,7 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.census stats={@stats} />
           <.deaths stats={@stats} />
           <.signature stats={@stats} />
+          <.churn stats={@stats} />
         </div>
 
         <p :if={@stats && (@stats["births_refused"] || 0) > 0} class="mt-3 text-xs text-warning">
