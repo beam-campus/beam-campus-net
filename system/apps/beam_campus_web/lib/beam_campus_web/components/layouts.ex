@@ -65,6 +65,15 @@ defmodule BeamCampusWeb.Layouts do
                 <li class="menu-title text-[11px] uppercase tracking-widest">Across both</li>
                 <li><.link navigate={~p"/research/notes"}>Notebook</.link></li>
                 <li><.link navigate={~p"/research/workbench"}>Workbench</.link></li>
+                <%!-- Its own entry rather than only a workbench card, because it is
+                      the one page here that is LIVE: everything else on the
+                      workbench is a simulation this node runs on demand, and this
+                      shows facts published by a machine in the lab as they land. --%>
+                <li>
+                  <.link navigate={~p"/research/workbench/robo-rumble"}>
+                    Robo Rumble <span class="opacity-50">· live</span>
+                  </.link>
+                </li>
               </ul>
             </div>
           </li>

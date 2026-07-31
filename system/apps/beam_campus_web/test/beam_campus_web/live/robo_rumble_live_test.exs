@@ -34,6 +34,14 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
     assert html =~ ~p"/research/workbench/robo-rumble"
   end
 
+  # Reachable in one click from anywhere, not two. It is the only live page on
+  # the site, so it gets its own nav entry rather than only a workbench card.
+  test "the research nav links straight to it", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ ~p"/research/workbench/robo-rumble"
+  end
+
   # Facts filed on the board reach the page. Written directly here rather than
   # published, because the point under test is the render, not the transport.
   test "renders a settled row and a featured duel", %{conn: conn} do
