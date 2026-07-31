@@ -125,22 +125,42 @@ defmodule BeamCampusWeb.BiotopeComponents do
   def refused_notice(assigns), do: ~H""
 
   @doc """
-  A hex disc: plants, creatures, and the rim.
+  A hex disc: trails, plants, creatures, and the rim.
 
   Sized from the chart's own radius, so a viewer never has to be configured to
   agree with a world it cannot see.
+
+  THREE LAYERS, BOTTOM TO TOP, AND THE ORDER IS THE POINT. Trails go under
+  everything because they are the past and should not obscure the present.
+  Creatures go on top because they are the only thing that decides anything.
+
+  A CREATURE IS DRAWN THE SIZE OF ITS ENERGY, which is not decoration. In this
+  world the stronger consumes the weaker on contact, so energy IS armour and how
+  big a dot is is the most informative thing about it. Drawn against an absolute
+  scale rather than the largest in the frame: a creature twice the size of
+  another must always look twice the size, or a frame in which everything is
+  starving would silently rescale itself to look ordinary.
   """
   attr :chart, :map, required: true
   attr :size, :integer, default: 320
 
+  # The energy at which a creature is drawn at full size. Above it they stop
+  # growing, because past a point the only question is who is larger.
+  @energy_full 300
+  # A mark at the island's ceiling. Anything fresher is simply as strong as
+  # ground gets.
+  @scent_full 30
+
   def disc(assigns) do
     box = %{radius: assigns.chart["radius"] || 20, size: assigns.size}
+    cell = Biotope.cell_radius(box)
 
     assigns =
       assign(assigns,
-        cell: Biotope.cell_radius(box),
+        cell: cell,
         plants: place(assigns.chart["plants"], box),
-        creatures: place(assigns.chart["creatures"], box)
+        creatures: creatures(assigns.chart, box, cell),
+        trails: trails(assigns.chart, box)
       )
 
     ~H"""
@@ -148,7 +168,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       viewBox={"0 0 #{@size} #{@size}"}
       class="w-full h-auto rounded bg-black/40"
       role="img"
-      aria-label={"#{length(@creatures)} creatures and #{length(@plants)} plants"}
+      aria-label={"#{length(@creatures)} creatures, #{length(@plants)} plants and #{length(@trails)} scent marks"}
     >
       <circle
         cx={@size / 2}
@@ -159,8 +179,16 @@ defmodule BeamCampusWeb.BiotopeComponents do
         stroke-width="1"
         opacity="0.12"
       />
+      <circle
+        :for={{x, y, strength} <- @trails}
+        cx={x}
+        cy={y}
+        r={@cell * 1.2}
+        fill="#8B7CE8"
+        opacity={strength}
+      />
       <circle :for={{x, y} <- @plants} cx={x} cy={y} r={@cell * 0.55} fill="#3FBF7F" opacity="0.85" />
-      <circle :for={{x, y} <- @creatures} cx={x} cy={y} r={@cell * 0.8} fill="#F2B142" />
+      <circle :for={{x, y, r} <- @creatures} cx={x} cy={y} r={r} fill="#F2B142" />
     </svg>
     """
   end
@@ -200,6 +228,50 @@ defmodule BeamCampusWeb.BiotopeComponents do
     >
       <polyline points={@plants} fill="none" stroke="#3FBF7F" stroke-width="1.5" opacity="0.8" />
       <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
+    </svg>
+    """
+  end
+
+  @doc """
+  What the population BECAME, over time.
+
+  Two evolved quantities rather than two counts. Amber is the share of eaten
+  energy that came from other creatures; blue is how much measuring a creature
+  carries. Neither is a rule and neither is read by the island's physics: they
+  are counted from what happened.
+
+  Each is scaled to its own maximum, because they are different quantities in
+  different units and one axis would say something false about their relative
+  size. What the pair is for is the SHAPE: whether a world that eats itself is
+  also a world that stops bothering to look.
+  """
+  attr :samples, :list, required: true
+  attr :w, :integer, default: 640
+  attr :h, :integer, default: 120
+  attr :class, :string, default: ""
+
+  def trends(%{samples: []} = assigns) do
+    ~H"""
+    <p class={["text-xs opacity-40", @class]}>no history yet</p>
+    """
+  end
+
+  def trends(assigns) do
+    assigns =
+      assign(assigns,
+        meat: polyline(assigns.samples, & &1.from_creatures_pct, assigns.w, assigns.h),
+        sensors: polyline(assigns.samples, & &1.sensor_mean, assigns.w, assigns.h)
+      )
+
+    ~H"""
+    <svg
+      viewBox={"0 0 #{@w} #{@h}"}
+      class={["w-full h-auto rounded bg-black/40", @class]}
+      role="img"
+      aria-label={"Share of energy from creatures, and sensors carried, over #{length(@samples)} samples"}
+    >
+      <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
+      <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
     </svg>
     """
   end
@@ -246,12 +318,166 @@ defmodule BeamCampusWeb.BiotopeComponents do
     """
   end
 
+  @doc """
+  How much of what this island eats is other creatures.
+
+  THE HEADLINE NUMBER OF THIS WORLD AND THE ONE THAT USED TO BE INVISIBLE. There
+  is no herbivore field and no carnivore flag anywhere in the island: this is
+  counted from where energy actually came from, afterwards, and nothing in the
+  rules ever reads it.
+
+  Green is what came from plants and amber what came from creatures, matching the
+  disc above, so the bar and the picture are speaking the same language.
+  """
+  attr :stats, :map, required: true
+
+  def share(assigns) do
+    assigns = assign(assigns, pct: assigns.stats["from_creatures_pct"] || 0)
+
+    ~H"""
+    <div>
+      <dt class="text-xs uppercase tracking-wide opacity-50">energy from creatures</dt>
+      <dd class="mt-1 font-mono text-lg leading-none">{@pct}%</dd>
+      <div
+        class="mt-2 h-1.5 w-full overflow-hidden rounded bg-success/40"
+        role="img"
+        aria-label={"#{@pct} percent of eaten energy came from other creatures"}
+      >
+        <div class="h-full bg-warning" style={"width: #{@pct}%"}></div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  What the population is built from, per measurable field.
+
+  A CENSUS AND NOT A VERDICT: it says what survived, not what was useful, and
+  those are only the same thing after enough generations that drift has been
+  outvoted. A field at zero carriers has been selected out of this island
+  entirely, which is a finding worth being able to see at a glance.
+
+  There is no eye and no nose. A sensor is a field and a reach, and which fields
+  exist is a fact about what there is to measure rather than a menu of senses.
+  """
+  attr :stats, :map, required: true
+
+  def census(assigns) do
+    assigns =
+      assign(assigns,
+        rows: census_rows(assigns.stats),
+        per_creature: (assigns.stats["sensor_mean"] || 0) / 100
+      )
+
+    ~H"""
+    <div>
+      <div class="flex items-baseline justify-between">
+        <h3 class="text-xs uppercase tracking-wide opacity-50">what they measure</h3>
+        <span class="font-mono text-xs opacity-60">{@per_creature} per creature</span>
+      </div>
+      <dl class="mt-2 space-y-1.5">
+        <div :for={{field, carriers, pct} <- @rows} class="flex items-center gap-2 text-xs">
+          <dt class="w-20 shrink-0 opacity-60">{field}</dt>
+          <div class="h-1.5 flex-1 overflow-hidden rounded bg-base-content/10">
+            <div class="h-full bg-info" style={"width: #{pct}%"}></div>
+          </div>
+          <dd class="w-16 shrink-0 text-right font-mono opacity-70">{carriers}</dd>
+        </div>
+      </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  Deaths by cause, never summed.
+
+  "The population crashed" is not a finding. Starvation, predation and old age
+  are three different stories and one total cannot tell them apart, so the island
+  counts them separately and so does this.
+  """
+  attr :stats, :map, required: true
+
+  def deaths(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">deaths, by cause</h3>
+      <dl class="mt-2 grid grid-cols-3 gap-3 text-sm">
+        <.stat label="eaten" value={@stats["consumed"]} />
+        <.stat label="starved" value={@stats["starved"]} />
+        <.stat label="of old age" value={@stats["aged_out"]} />
+      </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  How distinguishable the population smells.
+
+  A property of the SIGNAL and not of anything evolved to use it. A creature
+  reads a trail by how unlike itself it smells, so one signature everywhere means
+  mutual kin and a nose with nothing to discriminate. Two unrelated signatures
+  differ in half their components, which is why 50 rather than 100 is the
+  interesting mark.
+  """
+  attr :stats, :map, required: true
+
+  def signature(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">signatures</h3>
+      <dl class="mt-2 grid grid-cols-2 gap-3 text-sm">
+        <.stat label="distinct" value={@stats["scent_tags"]} />
+        <.stat label="spread" value={@stats["scent_spread"]} />
+      </dl>
+    </div>
+    """
+  end
+
   # ── Helpers ─────────────────────────────────────────────────────
 
   defp place(flat, box) do
     flat
     |> Biotope.points()
     |> Enum.map(&Biotope.to_pixel(&1, box))
+  end
+
+  # Energies run PARALLEL to creatures rather than interleaved, so they are
+  # zipped here. Padded rather than assumed equal: a truncated frame, or an
+  # island still publishing the older chart with no energies at all, should cost
+  # accurate sizing and not the page.
+  defp creatures(chart, box, cell) do
+    points = Biotope.points(chart["creatures"])
+    energies = pad(chart["energies"] || [], length(points))
+
+    points
+    |> Enum.zip(energies)
+    |> Enum.map(fn {point, energy} ->
+      {x, y} = Biotope.to_pixel(point, box)
+      {x, y, radius_for(cell, energy)}
+    end)
+  end
+
+  defp pad(energies, wanted) do
+    energies ++ List.duplicate(0, max(0, wanted - length(energies)))
+  end
+
+  # A floor as well as a scale, because a creature about to starve is still
+  # there and a dot of radius zero is a creature the picture has lost.
+  defp radius_for(cell, energy) when is_integer(energy) and energy > 0 do
+    cell * (0.35 + 0.65 * min(1.0, energy / @energy_full))
+  end
+
+  defp radius_for(cell, _energy), do: cell * 0.35
+
+  # Faint on purpose. A trail is evidence that something passed, and at full
+  # strength it would read as a wall.
+  defp trails(chart, box) do
+    chart["scent"]
+    |> Biotope.marks()
+    |> Enum.map(fn {q, r, strength} ->
+      {x, y} = Biotope.to_pixel({q, r}, box)
+      {x, y, Float.round(min(1.0, strength / @scent_full) * 0.30, 3)}
+    end)
   end
 
   # NOT called `path`: Phoenix.VerifiedRoutes imports path/2, and shadowing it
@@ -271,6 +497,17 @@ defmodule BeamCampusWeb.BiotopeComponents do
       y = h - v / top * (h - 4) - 2
       "#{Float.round(x, 1)},#{Float.round(y, 1)}"
     end)
+  end
+
+  # Ordered as the island orders its fields, so two islands read the same way.
+  defp census_rows(stats) do
+    census = stats["sensors"] || %{}
+    population = max(stats["population"] || 0, 1)
+
+    for field <- ~w(plants creatures scent) do
+      carriers = get_in(census, [field, "carriers"]) || 0
+      {field, carriers, min(100, round(carriers * 100 / population))}
+    end
   end
 
   defp number(nil), do: "–"

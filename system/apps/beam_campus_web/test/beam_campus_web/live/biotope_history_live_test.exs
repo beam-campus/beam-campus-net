@@ -12,18 +12,26 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
   # error and does not raise: the inserts simply land on one connection and the
   # LiveView reads from the other, so the page renders its empty state while the
   # rows sit there. Two of these tests failed exactly that way.
+  # `econ_id` is fixed across the fixture on purpose: `history/2` draws only
+  # samples sharing one fingerprint, because an island before and after a rules
+  # change is two different games and splicing them makes a deploy look like
+  # something the world did.
   defp sample(island, tick, population) do
     Repo.insert!(
       Sample.changeset(%{
         "island" => island,
         "tick" => tick,
+        "econ_id" => "0badc0ffee123456",
         "population" => population,
         "plants" => 100,
         "energy_total" => 5000,
         "born" => 200,
         "starved" => 150,
         "aged_out" => 3,
-        "eaten" => 800
+        "consumed" => 800,
+        "plants_eaten" => 1200,
+        "from_creatures_pct" => 42,
+        "sensor_mean" => 130
       })
     )
   end

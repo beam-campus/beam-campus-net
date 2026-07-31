@@ -92,16 +92,31 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.disc chart={@chart} size={480} />
         </div>
 
+        <p :if={@chart} class="mt-2 text-xs opacity-50">
+          Amber is a creature and its size is its energy, because the stronger
+          consumes the weaker on contact and so energy is armour. Green is a
+          plant. The violet haze is scent: ground something walked over recently,
+          fading tick by tick, and the only thing here that outlives the moment
+          it was made.
+        </p>
+
         <dl :if={@stats} class="mt-4 grid grid-cols-3 gap-3 text-sm sm:grid-cols-4">
           <.stat label="creatures" value={@stats["population"]} />
           <.stat label="plants" value={@stats["plants"]} />
           <.stat label="energy" value={@stats["energy_total"]} />
           <.stat label="tick" value={@stats["tick"]} />
           <.stat label="born" value={@stats["born"]} />
-          <.stat label="starved" value={@stats["starved"]} />
-          <.stat label="of old age" value={@stats["aged_out"]} />
+          <.stat label="plants eaten" value={@stats["plants_eaten"]} />
+          <.stat label="breeds at" value={@stats["breed_at_mean"]} />
           <.stat label="ticks/s" value={@stats["ticks_per_second"]} />
         </dl>
+
+        <div :if={@stats} class="mt-6 grid gap-6 sm:grid-cols-2">
+          <.share stats={@stats} />
+          <.census stats={@stats} />
+          <.deaths stats={@stats} />
+          <.signature stats={@stats} />
+        </div>
 
         <p :if={@stats && (@stats["births_refused"] || 0) > 0} class="mt-3 text-xs text-warning">
           {@stats["births_refused"]} births refused: this island is at its safety
@@ -123,6 +138,20 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
             {length(@samples)} samples, ticks {List.first(@samples).tick} to {List.last(@samples).tick}.
             A line that stops is an island that stopped: a row is written only when
             its tick advances.
+          </p>
+
+          <h2 class="mt-8 text-sm font-semibold opacity-70">What they became</h2>
+          <p class="mt-1 text-xs opacity-50">
+            Amber is the share of eaten energy that came from other creatures;
+            blue is how much measuring a creature carries. Neither is a rule.
+            There is no herbivore field and no carnivore flag anywhere in the
+            island: both are counted afterwards from what actually happened.
+          </p>
+          <.trends samples={@samples} w={720} h={140} class="mt-3" />
+          <p class="mt-2 text-xs opacity-50">
+            Only samples sharing this island's current rules are drawn. Change the
+            economy and the line starts again rather than bending, because an
+            island before and after a rules change is two different games.
           </p>
         </section>
       </div>

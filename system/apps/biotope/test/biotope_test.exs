@@ -202,4 +202,27 @@ defmodule BiotopeTest do
       assert Biotope.liveness("nowhere") == :never_heard
     end
   end
+
+  describe "marks/1" do
+    # A SEPARATE STRIDE FROM points/1, because a scent mark is a position AND a
+    # strength with no list to run parallel to, while creature energies do have
+    # one and arrive alongside. Mixing the two conventions is how a reader draws
+    # a plausible and completely wrong picture instead of failing.
+    test "reads flat triples" do
+      assert Biotope.marks([0, 0, 30, 1, -1, 12]) == [{0, 0, 30}, {1, -1, 12}]
+    end
+
+    # Network input. A truncated frame should cost one smudge on one redraw, not
+    # the page.
+    test "drops a trailing partial mark" do
+      assert Biotope.marks([0, 0, 30, 1]) == [{0, 0, 30}]
+      assert Biotope.marks([0, 0, 30, 1, -1]) == [{0, 0, 30}]
+    end
+
+    test "an absent or malformed field is no marks" do
+      assert Biotope.marks([]) == []
+      assert Biotope.marks(nil) == []
+      assert Biotope.marks("scent") == []
+    end
+  end
 end

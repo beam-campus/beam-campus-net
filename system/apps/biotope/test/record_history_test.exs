@@ -20,13 +20,17 @@ defmodule Biotope.RecordHistoryTest do
       %{
         "island" => island,
         "tick" => tick,
+        "econ_id" => "17b90de41d26da0e",
         "population" => 78,
         "plants" => 100,
         "energy_total" => 5882,
         "born" => 249,
         "starved" => 171,
         "aged_out" => 0,
-        "eaten" => 900
+        "consumed" => 900,
+        "plants_eaten" => 1200,
+        "from_creatures_pct" => 39,
+        "sensor_mean" => 104
       },
       overrides
     )
@@ -133,6 +137,41 @@ defmodule Biotope.RecordHistoryTest do
       assert_receive {:biotope_history, :written}, 1_000
 
       assert Enum.map(RecordHistory.history("beam09"), & &1.tick) == [100, 160]
+    end
+  end
+
+  describe "history/2 and the rules a sample was taken under" do
+    # TWO ISLANDS SHARING A FINGERPRINT ARE COMPARABLE AND TWO THAT DO NOT ARE
+    # PLAYING DIFFERENT GAMES, and the same is true of one island before and
+    # after its economy changes. Without this filter a deploy that alters the
+    # rules bends the existing curve instead of starting a new one, and the
+    # discontinuity reads as something the world did.
+    test "draws only samples that share the island's current rules" do
+      Repo.insert!(Sample.changeset(fact("beam01", 10, %{"econ_id" => "old00000000000a"})))
+      Repo.insert!(Sample.changeset(fact("beam01", 11, %{"econ_id" => "old00000000000a"})))
+      Repo.insert!(Sample.changeset(fact("beam01", 12, %{"econ_id" => "new00000000000b"})))
+
+      ticks = Enum.map(RecordHistory.history("beam01"), & &1.tick)
+
+      assert ticks == [12]
+    end
+
+    # A short line is an honest answer to "what has happened under these rules".
+    # A long one spliced from two rulebooks is not an answer at all.
+    test "a rules change shortens the chart rather than corrupting it" do
+      for tick <- 1..5 do
+        Repo.insert!(Sample.changeset(fact("beam01", tick, %{"econ_id" => "aaaaaaaaaaaaaaaa"})))
+      end
+
+      assert length(RecordHistory.history("beam01")) == 5
+
+      Repo.insert!(Sample.changeset(fact("beam01", 6, %{"econ_id" => "bbbbbbbbbbbbbbbb"})))
+
+      assert length(RecordHistory.history("beam01")) == 1
+    end
+
+    test "an island with no history at all draws nothing" do
+      assert RecordHistory.history("nowhere") == []
     end
   end
 end

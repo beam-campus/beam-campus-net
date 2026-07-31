@@ -66,18 +66,47 @@ defmodule Biotope.RecordHistory do
   def subscribe, do: Phoenix.PubSub.subscribe(@pubsub, @channel)
 
   @doc """
-  The most recent samples for one island, oldest first.
+  The most recent samples for one island, oldest first, under its current rules.
 
   Ordered by tick rather than by insertion time: the tick is the world's own
   clock, and it is the axis a population curve is actually drawn against.
+
+  FILTERED TO ONE FINGERPRINT, WHICH IS NOT A DETAIL. Two islands sharing an
+  `econ_id` are comparable and two that do not are playing different games, and
+  the same is true of one island before and after its rules change. Without this
+  a deploy that alters the economy bends the existing curve instead of starting a
+  new one, and the discontinuity reads as something the world did.
+
+  So a rules change shortens the chart rather than corrupting it. A short line is
+  an honest answer to "what has happened under these rules"; a long one spliced
+  from two rulebooks is not an answer at all.
   """
   def history(island, limit \\ 240) do
+    case current_rules(island) do
+      nil -> []
+      econ_id -> history(island, econ_id, limit)
+    end
+  end
+
+  defp history(island, econ_id, limit) do
     Sample
-    |> where([s], s.island == ^island)
+    |> where([s], s.island == ^island and s.econ_id == ^econ_id)
     |> order_by([s], desc: s.tick)
     |> limit(^limit)
     |> Repo.all()
     |> Enum.reverse()
+  end
+
+  # The rulebook of this island's most recent sample. Read from the table rather
+  # than from the live board, so a chart of what was recorded is answered by what
+  # was recorded and an island that has gone quiet still draws its own history.
+  defp current_rules(island) do
+    Sample
+    |> where([s], s.island == ^island)
+    |> order_by([s], desc: s.tick)
+    |> limit(1)
+    |> select([s], s.econ_id)
+    |> Repo.one()
   end
 
   @doc "Islands that have any recorded history, sorted."

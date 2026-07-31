@@ -120,6 +120,28 @@ defmodule Biotope do
   def points(_other), do: []
 
   @doc """
+  Flat `[q, r, strength, ...]` to `{q, r, strength}` triples.
+
+  A SEPARATE STRIDE FROM `points/1`, AND THAT IS DELIBERATE ON THE ISLAND'S SIDE
+  TOO. A scent mark is a position and a strength with no list to run parallel to,
+  while creature energies do have one and are sent alongside rather than woven
+  in. Mixing the two conventions is how a reader draws a plausible and completely
+  wrong picture instead of failing, so the island publishes `scent_stride` with
+  the data rather than leaving it to be assumed.
+
+  A trailing partial mark is dropped rather than raising: this is network input,
+  and a truncated frame should cost one smudge on one redraw, not the page.
+  """
+  @spec marks(list()) :: [{integer(), integer(), integer()}]
+  def marks(flat) when is_list(flat) do
+    flat
+    |> Enum.chunk_every(3, 3, :discard)
+    |> Enum.map(fn [q, r, s] -> {q, r, s} end)
+  end
+
+  def marks(_other), do: []
+
+  @doc """
   Axial hex to pixel, pointy-top, centred on the middle of a `size`-wide box.
 
   The board is sized from the fact's own `radius`, so a viewer never has to be

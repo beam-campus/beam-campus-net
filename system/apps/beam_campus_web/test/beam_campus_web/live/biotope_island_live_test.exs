@@ -27,6 +27,18 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "aged_out" => 3,
         "births_refused" => 0,
         "ticks_per_second" => 2,
+        "consumed" => 4321,
+        "plants_eaten" => 1200,
+        "breed_at_mean" => 298,
+        "from_creatures_pct" => 39,
+        "sensor_mean" => 104,
+        "scent_tags" => 26,
+        "scent_spread" => 44,
+        "sensors" => %{
+          "plants" => %{"carriers" => 54, "reach" => 61},
+          "creatures" => %{"carriers" => 0, "reach" => 0},
+          "scent" => %{"carriers" => 0, "reach" => 0}
+        },
         "econ_id" => "17b90de41d26da0e",
         "econ" => %{"metabolism" => 1, "regrowth_per_tick" => 4}
       },
@@ -111,5 +123,97 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
 
     assert html =~ "extinct at tick 4213"
     refute html =~ ">live<"
+  end
+
+  # THE NUMBERS THIS WORLD IS ACTUALLY ABOUT. Predation is most of the energy
+  # here and perception is being selected out, and neither was visible on the
+  # page until the island started publishing them.
+  test "shows what the population turned out to be", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "energy from creatures"
+    assert html =~ "39%"
+    assert html =~ "what they measure"
+    assert html =~ "deaths, by cause"
+    assert html =~ "signatures"
+  end
+
+  # A field at zero carriers has been selected out of this island entirely, which
+  # is a finding rather than a gap and must be drawn as a zero rather than
+  # omitted.
+  test "shows a measurement nobody carries", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "creatures</dt>"
+    assert html =~ "scent</dt>"
+  end
+
+  # A creature is drawn the size of its energy, because the stronger consumes the
+  # weaker on contact and so energy is armour. Two creatures with very different
+  # energies must not come out the same size.
+  test "draws creatures at the size of their energy", %{conn: conn} do
+    Board.put_stats(stats())
+
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 412,
+      "radius" => 3,
+      "creatures" => [0, 0, 1, 0],
+      "energies" => [10, 300],
+      "plants" => [],
+      "scent" => []
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    radii = Regex.scan(~r/<circle[^>]*fill="#F2B142"[^>]*r="([\d.]+)"/, html)
+    radii = radii ++ Regex.scan(~r/<circle[^>]*r="([\d.]+)"[^>]*fill="#F2B142"/, html)
+    assert length(radii) == 2
+    [a, b] = Enum.map(radii, fn [_, r] -> String.to_float(r) end)
+    assert a != b
+  end
+
+  # Scent is the only thing in this world that outlives the moment it was made,
+  # and it was entirely invisible until now.
+  test "draws scent trails", %{conn: conn} do
+    Board.put_stats(stats())
+
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 412,
+      "radius" => 3,
+      "creatures" => [],
+      "energies" => [],
+      "plants" => [],
+      "scent" => [0, 0, 30, 1, 0, 10]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "#8B7CE8"
+    assert html =~ "scent marks"
+  end
+
+  # An island still publishing the older chart has no energies at all. That must
+  # cost accurate sizing and not the page.
+  test "survives a chart with no energies", %{conn: conn} do
+    Board.put_stats(stats())
+
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 412,
+      "radius" => 3,
+      "creatures" => [0, 0, 1, 0],
+      "plants" => [],
+      "scent" => []
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "#F2B142"
   end
 end

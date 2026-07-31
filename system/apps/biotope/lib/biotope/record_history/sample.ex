@@ -8,6 +8,13 @@ defmodule Biotope.RecordHistory.Sample do
   and it is deliberately strict: a fact missing any field is not recorded rather
   than recorded with a zero, because a zero population is a real and alarming
   value that must never be manufactured by a parser.
+
+  THAT STRICTNESS HAS A BITE AND IT HAS ALREADY BITTEN. When the islands were
+  rebuilt, `eaten` became `plants_eaten` and this schema still required the old
+  name, so every arriving fact failed validation and recording stopped dead. No
+  error surfaced anywhere: the writer simply had nothing valid to write, and the
+  chart went flat while the islands were perfectly healthy. A renamed field is a
+  breaking change to this file even though nothing here mentions the wire.
   """
 
   use Ecto.Schema
@@ -16,25 +23,40 @@ defmodule Biotope.RecordHistory.Sample do
   @fields [
     :island,
     :tick,
+    :econ_id,
     :population,
     :plants,
     :energy_total,
     :born,
     :starved,
     :aged_out,
-    :eaten
+    :consumed,
+    :plants_eaten,
+    :from_creatures_pct,
+    :sensor_mean
   ]
 
   schema "biotope_samples" do
     field :island, :string
     field :tick, :integer
+    # WHICH RULES THIS SAMPLE WAS TAKEN UNDER. Two islands sharing a fingerprint
+    # are comparable and two that do not are different games, so a curve is drawn
+    # from samples that share one. Without it a rules change bends an existing
+    # line instead of starting a new one, which is how a deploy becomes a
+    # finding about ecology.
+    field :econ_id, :string
     field :population, :integer
     field :plants, :integer
     field :energy_total, :integer
     field :born, :integer
     field :starved, :integer
     field :aged_out, :integer
-    field :eaten, :integer
+    field :consumed, :integer
+    field :plants_eaten, :integer
+    # Observers' numbers, counted from what happened. Nothing in the island's
+    # physics reads either and no creature is treated differently for them.
+    field :from_creatures_pct, :integer
+    field :sensor_mean, :integer
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

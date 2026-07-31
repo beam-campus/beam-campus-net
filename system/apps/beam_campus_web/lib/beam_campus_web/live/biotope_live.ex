@@ -188,6 +188,10 @@ defmodule BeamCampusWeb.BiotopeLive do
         <.stat label="plants" value={@stats["plants"]} />
         <.stat label="tick" value={@stats["tick"]} />
       </dl>
+
+      <div :if={@stats} class="mt-3">
+        <.share stats={@stats} />
+      </div>
     </.link>
     """
   end
