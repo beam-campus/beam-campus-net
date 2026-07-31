@@ -200,7 +200,8 @@ defmodule BeamCampusWeb.RoboRumbleLive do
       <h2 class="font-mono text-xs uppercase tracking-widest opacity-60">Featured duels</h2>
       <p :if={@duels == []} class="text-sm opacity-60">
         Nothing yet. The rumbler publishes one watchable duel per visit: the longest
-        battle of the row, longest standing in for closest fought.
+        battle that was actually decided. Length alone would always pick a turn-cap
+        standoff, because a stalemate is by definition the longest a fight can run.
       </p>
       <ul class="grid gap-2 sm:grid-cols-2">
         <li :for={{d, i} <- Enum.with_index(@duels)}>
@@ -216,6 +217,9 @@ defmodule BeamCampusWeb.RoboRumbleLive do
             </p>
             <p class="text-xs opacity-60 mt-1">
               {d["turns"]} turns, start {d["start_index"]}, challenger {d["challenger_seat"]}
+            </p>
+            <p :if={d["decided"] == false} class="text-xs opacity-50 mt-1">
+              stalemate: ran out the turn cap
             </p>
           </button>
         </li>

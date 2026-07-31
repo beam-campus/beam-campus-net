@@ -52,7 +52,8 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
       "resident_seed" => 2001,
       "turns" => 243,
       "start_index" => 1,
-      "challenger_seat" => "first"
+      "challenger_seat" => "first",
+      "decided" => true
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/robo-rumble")
@@ -61,5 +62,26 @@ defmodule BeamCampusWeb.RoboRumbleLiveTest do
     assert html =~ "6300"
     assert html =~ "s/2001"
     assert html =~ "243 turns"
+    refute html =~ "ran out the turn cap"
+  end
+
+  # A duel that ran out the turn cap says so BEFORE anyone watches it. The
+  # rumbler prefers decided battles now, but a row where nothing was decided
+  # still features its longest, and two tanks circling for 2000 turns should not
+  # be presented as the fight worth seeing.
+  test "a stalemate duel is labelled", %{conn: conn} do
+    Board.put_duel(%{
+      "challenger_id" => "abcdef0123456789",
+      "resident_arm" => "s",
+      "resident_seed" => 2001,
+      "turns" => 2000,
+      "start_index" => 6,
+      "challenger_seat" => "first",
+      "decided" => false
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/robo-rumble")
+
+    assert html =~ "stalemate: ran out the turn cap"
   end
 end
