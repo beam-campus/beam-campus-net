@@ -24,6 +24,7 @@ defmodule BeamCampus.Umbrella.MixProject do
         applications: [
           beam_campus: :permanent,
           robo_rumbler: :permanent,
+          biotope: :permanent,
           beam_campus_web: :permanent
         ]
       ]

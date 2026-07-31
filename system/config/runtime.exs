@@ -22,6 +22,31 @@ import Config
 # The SEEDS have no default, though. Naming a public realm costs nothing; dialling
 # a production station from every dev clone does. Unset seeds means the site boots
 # normally, connects to nothing, and the workbench page shows its empty state.
+# ── Biotopes (islands on the mesh) ───────────────────────────────────────
+# The site SUBSCRIBES and draws. It never publishes, never runs a world, and
+# takes no dependency on the island's code: the contract is the published fact
+# and its fact_version. The rumble did it the other way, sharing an engine
+# library between the service and the site, and the two ended up pinned to
+# different commits with a fingerprint that drifted and nothing comparing them.
+#
+# The REALM is defaulted because it is public by design: net.beamcampus.biotope,
+# whose tag is sha256 of that name, so it is derived rather than issued and
+# stating it openly is the point rather than a leak. A public web container must
+# never hold the FLEET tag, which routes sentinel sightings and warden facts.
+#
+# The SEEDS have no default. Naming a public realm costs nothing; dialling a
+# production station from every dev clone does. Unset means the site boots
+# normally, connects to nothing, and the page says so.
+config :biotope,
+  realm:
+    System.get_env("BEAM_CAMPUS_BIOTOPE_REALM") ||
+      "7f73d3d9361bb16d4bed2812428ea6e6257a6f50c9de7ac8c581665dc0d01171",
+  namespace: System.get_env("BEAM_CAMPUS_BIOTOPE_NS") || "biotope",
+  seeds:
+    System.get_env("BEAM_CAMPUS_BIOTOPE_SEEDS", "")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+
 config :robo_rumbler,
   realm:
     System.get_env("BEAM_CAMPUS_RUMBLE_REALM") ||

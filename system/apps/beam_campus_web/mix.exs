@@ -61,6 +61,10 @@ defmodule BeamCampusWeb.MixProject do
       # The Robo Rumble spectator: subscribes to the rumbler's mesh facts and
       # regenerates a published duel locally so the workbench can draw it.
       {:robo_rumbler, in_umbrella: true},
+      # The biotope spectator: subscribes to the islands' mesh facts and draws
+      # the last frame that arrived. Unlike the rumble spectator it regenerates
+      # nothing and shares no code with the service it reads.
+      {:biotope, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).
