@@ -185,8 +185,7 @@ defmodule BeamCampusWeb.BiotopeLive do
     ~H"""
     <div class="rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm">
       <p :if={not @configured?}>
-        This site is not configured to read islands. It needs
-        <code>BEAM_CAMPUS_BIOTOPE_SEEDS</code>, which has no default on purpose:
+        This site is not configured to read islands. It needs <code>BEAM_CAMPUS_BIOTOPE_SEEDS</code>, which has no default on purpose:
         naming a public realm costs nothing, dialling a production station from
         every clone does.
       </p>
