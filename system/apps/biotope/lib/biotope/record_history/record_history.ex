@@ -123,8 +123,11 @@ defmodule Biotope.RecordHistory do
 
   defp record_one(name, s) do
     case Board.island(name) do
-      %{stats: %{"tick" => tick} = fact} -> advanced(tick != Map.get(s.seen, name), fact, name, tick, s)
-      _no_stats_yet -> s
+      %{stats: %{"tick" => tick} = fact} ->
+        advanced(tick != Map.get(s.seen, name), fact, name, tick, s)
+
+      _no_stats_yet ->
+        s
     end
   end
 
@@ -144,7 +147,9 @@ defmodule Biotope.RecordHistory do
   # A constraint violation means this tick is already recorded, which is the
   # normal outcome after a restart and not worth a log line. Anything else is.
   defp recorded({:error, %Ecto.Changeset{errors: errors} = cs}, name, tick, s) do
-    Keyword.has_key?(errors, :island) or Logger.warning("[Biotope] sample rejected: #{inspect(cs.errors)}")
+    Keyword.has_key?(errors, :island) or
+      Logger.warning("[Biotope] sample rejected: #{inspect(cs.errors)}")
+
     %{s | seen: Map.put(s.seen, name, tick)}
   end
 
@@ -155,7 +160,10 @@ defmodule Biotope.RecordHistory do
   defp maybe_prune(s) do
     cutoff = DateTime.add(DateTime.utc_now(), -retention_days() * 86_400, :second)
     {deleted, _} = Repo.delete_all(from(x in Sample, where: x.inserted_at < ^cutoff))
-    deleted > 0 && Logger.info("[Biotope] pruned #{deleted} samples older than #{retention_days()}d")
+
+    deleted > 0 &&
+      Logger.info("[Biotope] pruned #{deleted} samples older than #{retention_days()}d")
+
     s
   end
 
@@ -165,7 +173,9 @@ defmodule Biotope.RecordHistory do
   # is every wake for a frozen island, must not tell a page to redraw an
   # unchanged chart.
   defp announce(false), do: :ok
-  defp announce(true), do: Phoenix.PubSub.broadcast(@pubsub, @channel, {:biotope_history, :written})
+
+  defp announce(true),
+    do: Phoenix.PubSub.broadcast(@pubsub, @channel, {:biotope_history, :written})
 
   defp schedule, do: Process.send_after(self(), :sample, sample_ms())
 

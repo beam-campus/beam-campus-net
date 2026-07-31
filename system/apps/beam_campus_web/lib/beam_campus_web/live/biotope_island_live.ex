@@ -79,7 +79,10 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.liveness liveness={@liveness} />
         </div>
 
-        <p :if={is_nil(@row)} class="mt-6 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm">
+        <p
+          :if={is_nil(@row)}
+          class="mt-6 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
+        >
           Nothing has arrived from an island by this name. It may not be running,
           or it may be publishing on a different realm or namespace. Nothing here
           invents a world to fill the space.

@@ -56,6 +56,22 @@ localhost in dev).
   2026-07-22, banning projects that mostly consist of AI-generated code.
   The old push-mirror hop (Codeberg → GitHub) is gone; CI now runs directly on
   the canonical repo.
+- **`mix format` cannot see a file you just created.** `apps/beam_campus_web/.formatter.exs`
+  computes its `inputs` with `Path.wildcard` at load time so it can exclude one
+  file, and Mix caches that list keyed on the config's mtime. A file added since
+  the cache was built is invisible to BOTH `mix format` and
+  `mix format --check-formatted`, so the gate passes locally and CI, which always
+  builds cold, is the first thing to notice. It has cost three CI runs.
+
+  Before pushing new files, do one of:
+
+  ```bash
+  touch apps/*/.formatter.exs && mix format    # invalidates the cache
+  mix format path/to/new_file.ex               # explicit paths always work
+  ```
+
+  Verified by probe: a deliberately mis-formatted new file survives `mix format`
+  untouched, and is fixed by either line above.
 - **mix.exs leads, not the lock** — `mix.lock` is gitignored; deps resolve from
   `mix.exs` (`mix deps.get`, no `--frozen`).
 - **Brand lives in `beam-campus-artwork`** — don't fork the theme; the daisyUI

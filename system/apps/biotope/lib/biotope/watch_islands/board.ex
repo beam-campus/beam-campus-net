@@ -108,7 +108,9 @@ defmodule Biotope.WatchIslands.Board do
   # A known island is always updated, cap or no cap: the cap is about admitting
   # NEW islands, and applying it to updates would freeze the ones already shown.
   defp write(nil, name, key, fact), do: admit(length(islands()) < @max_islands, name, key, fact)
-  defp write(row, name, key, fact), do: store(name, row |> Map.put(key, fact) |> Map.put(:seen_at, now()))
+
+  defp write(row, name, key, fact),
+    do: store(name, row |> Map.put(key, fact) |> Map.put(:seen_at, now()))
 
   defp admit(false, _name, _key, _fact), do: bump(:refused)
 
