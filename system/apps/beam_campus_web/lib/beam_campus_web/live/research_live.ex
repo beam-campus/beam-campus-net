@@ -28,10 +28,12 @@ defmodule BeamCampusWeb.ResearchLive do
       slug: :spartan,
       kicker: "LLM cognition",
       name: "Spartan",
-      question: "What is a society of LLM minds actually a substrate for, and which of its claims survive being made falsifiable?",
+      question:
+        "What is a society of LLM minds actually a substrate for, and which of its claims survive being made falsifiable?",
       shape: "A running research log: pre-register, run, sign the result whichever way it falls.",
       corpus: "hecate-spartan / insights",
-      corpus_url: "https://github.com/hecate-services/hecate-spartan/blob/main/insights/README.md",
+      corpus_url:
+        "https://github.com/hecate-services/hecate-spartan/blob/main/insights/README.md",
       accent: "secondary"
     }
   ]

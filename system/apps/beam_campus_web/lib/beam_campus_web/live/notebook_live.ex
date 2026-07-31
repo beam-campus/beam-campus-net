@@ -136,11 +136,15 @@ defmodule BeamCampusWeb.NotebookLive do
             Provenance
           </p>
           <p class="text-sm text-base-content/70">
-            Drawn from signed
-            <span class="font-mono">{Notebook.corpus_label(@post.corpus)}</span>
+            Drawn from signed <span class="font-mono">{Notebook.corpus_label(@post.corpus)}</span>
             insights <span class="font-mono">{@post.sources |> Enum.map(&"##{&1}") |> Enum.join(", ")}</span>.
             Written against <span class="font-mono">{@post.corpus_ref}</span>.
-            <a href={@corpus_url} target="_blank" rel="noreferrer" class="link link-hover text-primary">
+            <a
+              href={@corpus_url}
+              target="_blank"
+              rel="noreferrer"
+              class="link link-hover text-primary"
+            >
               Read the rigorous version &rarr;
             </a>
           </p>
