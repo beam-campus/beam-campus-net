@@ -70,6 +70,39 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
   # Counts arrive on their own clock and a picture may be switched off entirely,
   # which is what a headless island does. The page must say so rather than draw
   # an empty disc that looks like an island where everything died.
+  # A fleet is redeployed one node at a time, so during a rollout two cards
+  # genuinely show different physics. The econ id cannot say this: world 6
+  # changed the rules and not one constant, so two islands a world apart share
+  # an econ id exactly.
+  test "says which world an island is running, in words", %{conn: conn} do
+    Board.put_stats(%{
+      "island" => "beam01",
+      "tick" => 9,
+      "population" => 3,
+      "world" => 6,
+      "world_line" => "A creature has a lunchbox and a body."
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "world 6"
+    assert html =~ "A creature has a lunchbox and a body."
+  end
+
+  # An island on an older build sends no world number. Naming one would be a
+  # guess, and a guess about which experiment produced a picture is the one
+  # thing this page must never make.
+  test "says nothing about the world when an island does not send one", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam02", "tick" => 9, "population" => 3})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "beam02"
+    # The label itself, not the word: the page's own prose says "world" in
+    # several places and a looser check would pass for the wrong reason.
+    refute html =~ ~s(text-primary">world)
+  end
+
   test "says so when an island sends counts but no picture", %{conn: conn} do
     Board.put_stats(%{
       "island" => "beam02",

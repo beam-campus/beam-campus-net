@@ -176,6 +176,8 @@ defmodule BeamCampusWeb.BiotopeLive do
         <.liveness liveness={@liveness} />
       </div>
 
+      <.ruleset stats={@stats} class="mt-1" />
+
       <div class="mt-3">
         <.caption
           :if={@chart}

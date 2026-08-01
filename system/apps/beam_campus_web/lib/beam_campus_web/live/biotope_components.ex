@@ -491,6 +491,37 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   @doc """
+  Which world an island is running, and one sentence saying what that means.
+
+  THE `econ_id` BESIDE IT ANSWERS A DIFFERENT QUESTION. That says whether two
+  islands are COMPARABLE; this says what either of them IS. Two islands can
+  share every constant and still be running different physics, because the
+  rules live in code and the constants do not.
+
+  A fleet is redeployed one node at a time, so during a rollout the cards
+  genuinely disagree. That is the moment this is for.
+
+  An island running a build from before this existed sends no world number and
+  gets nothing rather than a guess.
+  """
+  attr :stats, :map, required: true
+  attr :class, :string, default: ""
+
+  def ruleset(%{stats: nil} = assigns), do: ~H""
+
+  def ruleset(assigns) do
+    assigns =
+      assign(assigns, number: assigns.stats["world"], line: assigns.stats["world_line"])
+
+    ~H"""
+    <p :if={@number} class={["text-xs leading-snug", @class]}>
+      <span class="font-mono text-primary">world {@number}</span>
+      <span :if={@line} class="opacity-50">{@line}</span>
+    </p>
+    """
+  end
+
+  @doc """
   Which rules an island runs.
 
   Two islands sharing a fingerprint are comparable; two that do not are

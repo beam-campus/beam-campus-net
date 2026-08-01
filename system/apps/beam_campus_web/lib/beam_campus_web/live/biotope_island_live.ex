@@ -85,6 +85,8 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.liveness liveness={@liveness} />
         </div>
 
+        <.ruleset stats={@stats} class="mt-2" />
+
         <p
           :if={is_nil(@row)}
           class="mt-6 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
