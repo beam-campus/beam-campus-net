@@ -42,7 +42,15 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
   end
 
   @impl true
-  def handle_info({:biotope, :changed}, socket), do: {:noreply, load_island(socket)}
+  # ONLY WHEN THIS ISLAND SPEAKS, which this page has always claimed and never
+  # did. The announcement carried no name, so every fact from every island
+  # redrew four hundred circles here: six times a second on a three-island fleet,
+  # for a page showing one of them.
+  def handle_info({:biotope, :changed, name}, %{assigns: %{name: name}} = socket) do
+    {:noreply, load_island(socket)}
+  end
+
+  def handle_info({:biotope, :changed, _other}, socket), do: {:noreply, socket}
   def handle_info({:biotope_history, :written}, socket), do: {:noreply, load_history(socket)}
   def handle_info(_msg, socket), do: {:noreply, socket}
 

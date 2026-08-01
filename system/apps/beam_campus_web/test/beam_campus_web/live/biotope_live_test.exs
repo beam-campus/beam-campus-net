@@ -144,6 +144,31 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     refute html =~ "world number"
   end
 
+  # THE PAGE IS 700 KILOBYTES AND THE FLEET SPEAKS SIX TIMES A SECOND. Every fact
+  # used to redraw three discs of ~2,600 circles, twelve charts and a table, per
+  # viewer. That is what "the site crashes sometimes" was: nothing crashed, the
+  # socket simply could not keep up, dropped, and the client showed its reconnect
+  # banner.
+  #
+  # Asserted as ONE redraw for many facts rather than as a duration, because the
+  # claim is that facts are absorbed and not that any particular millisecond
+  # elapses.
+  test "absorbs a burst of facts into a single redraw", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/biotope")
+
+    for tick <- 1..20 do
+      Board.put_stats(%{"island" => "beam01", "tick" => tick, "population" => tick})
+      send(view.pid, {:biotope, :changed, "beam01"})
+    end
+
+    # Nothing has been drawn from those yet: the page still shows the state it
+    # mounted with, and one timer is in flight for all twenty.
+    refute render(view) =~ ">20<"
+
+    Process.sleep(700)
+    assert render(view) =~ "20"
+  end
+
   # An island on an older build sends no world number. Naming one would be a
   # guess, and a guess about which experiment produced a picture is the one
   # thing this page must never make.

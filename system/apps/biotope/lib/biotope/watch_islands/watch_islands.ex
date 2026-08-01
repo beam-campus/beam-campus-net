@@ -149,12 +149,22 @@ defmodule Biotope.WatchIslands do
   # A fact with no island is filed nowhere and announced to nobody. That is the
   # version gap made visible: an older island publishes without the field, and
   # the honest response is to show nothing rather than to invent a name for it.
-  defp file(:world, fact), do: announce(Board.put_stats(fact))
-  defp file(:chart, fact), do: announce(Board.put_chart(fact))
+  defp file(:world, fact), do: announce(Board.put_stats(fact), fact["island"])
+  defp file(:chart, fact), do: announce(Board.put_chart(fact), fact["island"])
   defp file(nil, _fact), do: :ok
 
-  defp announce(:ignored), do: :ok
-  defp announce(_written), do: Phoenix.PubSub.broadcast(@pubsub, @channel, {:biotope, :changed})
+  # THE ANNOUNCEMENT SAYS WHICH ISLAND SPOKE, and it used to say only that
+  # something had.
+  #
+  # A page showing one island has no way to ignore the other two without it, so
+  # the island page redrew its four hundred circles every time ANY island
+  # published, six times a second on a three-island fleet. Its own moduledoc
+  # claimed it redrew "only when THIS island speaks", which was true of the
+  # intent and false of the code.
+  defp announce(:ignored, _name), do: :ok
+  defp announce(_written, name) do
+    Phoenix.PubSub.broadcast(@pubsub, @channel, {:biotope, :changed, name})
+  end
 
   # ── Topics ──────────────────────────────────────────────────────
 

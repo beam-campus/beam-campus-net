@@ -49,6 +49,10 @@ defmodule BeamCampusWeb.BiotopeLive do
 
   @per_page 6
 
+  # Twice a second. Fast enough that the discs read as alive, slow enough that a
+  # 700 KB document does not have to cross the wire six times a second.
+  @redraw_ms 500
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -56,7 +60,7 @@ defmodule BeamCampusWeb.BiotopeLive do
       RecordHistory.subscribe()
     end
 
-    {:ok, socket |> assign(page: 1) |> load_islands() |> load_history()}
+    {:ok, socket |> assign(page: 1, dirty?: false) |> load_islands() |> load_history()}
   end
 
   @impl true
@@ -65,14 +69,47 @@ defmodule BeamCampusWeb.BiotopeLive do
   end
 
   @impl true
-  # A fact moved a world: redraw the discs and the counts, not the sparklines.
-  def handle_info({:biotope, :changed}, socket), do: {:noreply, load_islands(socket)}
+  # ==========================================================================
+  # COALESCED, BECAUSE THIS PAGE IS 700 KILOBYTES AND THE FLEET SPEAKS SIX TIMES
+  # A SECOND
+  # ==========================================================================
+  #
+  # Every fact from any island used to redraw everything: three discs of about
+  # 2,600 circles each, twelve charts and a table. Three islands publishing a
+  # picture twice a second is six full re-renders a second, of a document that
+  # serves at 711 KB, per viewer.
+  #
+  # That is what "the site crashes sometimes" was. Nothing crashed: no container
+  # restart, no error in any log, and Caddy clean. The socket simply could not
+  # keep up, dropped, and the client showed its reconnect banner. A LiveView that
+  # cannot ship its diff before the next one arrives is indistinguishable from a
+  # broken one.
+  #
+  # So a fact marks the page dirty and a redraw happens at most every
+  # `@redraw_ms`. The discs are still live; they are live at a rate a browser can
+  # actually receive.
+  def handle_info({:biotope, :changed, _name}, socket) do
+    {:noreply, mark_dirty(socket)}
+  end
+
+  def handle_info(:redraw, socket) do
+    {:noreply, socket |> assign(dirty?: false) |> load_islands()}
+  end
 
   # A row was written: redraw the sparklines, which is the only thing that has
   # changed and the only thing that costs a query.
   def handle_info({:biotope_history, :written}, socket), do: {:noreply, load_history(socket)}
 
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # One timer in flight at a time: the first fact after a redraw schedules the
+  # next one and every fact until then is absorbed.
+  defp mark_dirty(%{assigns: %{dirty?: true}} = socket), do: socket
+
+  defp mark_dirty(socket) do
+    Process.send_after(self(), :redraw, @redraw_ms)
+    assign(socket, dirty?: true)
+  end
 
   defp load_islands(socket) do
     names = Biotope.islands()
