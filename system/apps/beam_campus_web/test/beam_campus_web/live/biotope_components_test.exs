@@ -112,6 +112,51 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
     end
   end
 
+  describe "comparing islands" do
+    defp compare(shared) do
+      big = Enum.map(samples(), &%{&1 | population: &1.population * 10})
+
+      render_component(
+        fn assigns ->
+          ~H"""
+          <BiotopeComponents.compare
+            series={@series}
+            get={& &1.population}
+            label="creatures"
+            shared={@shared}
+          />
+          """
+        end,
+        %{series: [{"beam01", samples()}, {"beam02", big}], shared: shared}
+      )
+    end
+
+    # THE WHOLE POINT OF A FLEET PAGE. Left to itself every plot rounds up to its
+    # own ceiling, so an island of 1,200 and an island of 120 draw the identical
+    # picture and putting them side by side changes nothing. Divergence between
+    # seeds is the fleet's pre-registered question and it is only visible when the
+    # axis is the same.
+    test "puts every island on one ceiling, so their heights mean something" do
+      tops =
+        Regex.scan(~r/aria-label="beam\d+: [\d.]+ to ([\d.]+) /, compare(true))
+        |> Enum.map(&List.last/1)
+
+      assert length(tops) == 2
+      assert Enum.uniq(tops) == ["2000"], "the taller island sets the ceiling for both"
+    end
+
+    # TWO ISLANDS WITH DIFFERENT RULES ARE PLAYING DIFFERENT GAMES, and a shared
+    # axis is an invitation to read one against the other. When the fingerprints
+    # disagree the invitation is withdrawn.
+    test "gives each island its own ceiling when they are not comparable" do
+      tops =
+        Regex.scan(~r/aria-label="beam\d+: [\d.]+ to ([\d.]+) /, compare(false))
+        |> Enum.map(&List.last/1)
+
+      assert Enum.uniq(tops) == ["200", "2000"]
+    end
+  end
+
   describe "the disc" do
     test "sizes a creature by its body and not by what it is carrying" do
       # Contests are decided on structure alone, so a fat small creature must

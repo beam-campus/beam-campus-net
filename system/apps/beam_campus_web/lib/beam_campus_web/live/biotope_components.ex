@@ -317,6 +317,10 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :w, :integer, default: 320
   attr :h, :integer, default: 150
   attr :class, :string, default: ""
+  # A CEILING IMPOSED FROM OUTSIDE, so several islands can be read against each
+  # other. Left alone, every plot picks its own and two charts of populations
+  # 1,000 apart draw the same picture. See `compare/1'.
+  attr :top, :any, default: nil
 
   def plot(%{samples: []} = assigns) do
     ~H"""
@@ -353,7 +357,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   defp drawn(assigns) do
-    top = nice(Enum.max(assigns.present))
+    top = assigns.top || nice(Enum.max(assigns.present))
     ticks = Enum.map(assigns.samples, & &1.tick)
     span = %{lo: Enum.min(ticks), hi: Enum.max(ticks), top: top, w: assigns.w, h: assigns.h}
 
@@ -451,6 +455,177 @@ defmodule BeamCampusWeb.BiotopeComponents do
     </figure>
     """
   end
+
+  @doc """
+  ONE MEASURE, EVERY ISLAND, ONE SCALE.
+
+  ## The transposition, and why it is the whole point
+
+  The fleet page used to be island-major: a card per island holding every
+  measure. That reads one island well and compares none of them, because each
+  chart picks its own rounded ceiling, so a population of 1,000 and a population
+  of 1 draw the identical picture. Putting the cards side by side would not have
+  fixed it. **Sharing the axis is what fixes it.**
+
+  Measure-major instead: a row per quantity, a panel per island, one ceiling
+  across the row. The fleet's own pre-registered question is whether seeds
+  diverge, and on a shared axis divergence is the gap between the panels.
+
+  ## The scale is shared ONLY when the islands are comparable
+
+  Two islands with different `econ_id`s are playing different games and their
+  numbers must not be read against each other. When they disagree the row falls
+  back to a ceiling per panel and says so, rather than quietly inviting a
+  comparison the fingerprints forbid.
+
+  ## What it does for a dead island, for free
+
+  An extinct island used to get its own axis running nought to one, which looks
+  exactly like a working chart of a working world. Against the fleet's ceiling it
+  is a flat line along the bottom, which is what being extinct looks like.
+  """
+  attr :series, :list, required: true
+  attr :get, :any, required: true
+  attr :label, :string, required: true
+  attr :role, :string, default: "derived"
+  attr :hint, :string, default: nil
+  attr :suffix, :string, default: ""
+  attr :shared, :boolean, default: true
+  attr :h, :integer, default: 150
+
+  def compare(assigns) do
+    assigns = assign(assigns, top: assigns.shared && ceiling(assigns.series, assigns.get))
+
+    ~H"""
+    <section>
+      <div class="flex items-baseline justify-between gap-2">
+        <h3 class="text-sm font-semibold opacity-80">{@label}</h3>
+        <span :if={@hint} class="text-xs opacity-40">{@hint}</span>
+      </div>
+      <div class={["mt-2 grid gap-4", columns_for(length(@series))]}>
+        <.plot
+          :for={{name, samples} <- @series}
+          samples={samples}
+          get={@get}
+          label={name}
+          role={@role}
+          suffix={@suffix}
+          top={@top}
+          w={320}
+          h={@h}
+        />
+      </div>
+    </section>
+    """
+  end
+
+  # The tallest value anywhere in the row, rounded up the same way a lone plot
+  # rounds its own. `false` when the islands are not comparable, which `plot/1`
+  # reads as "pick your own".
+  defp ceiling(series, get) do
+    values =
+      series
+      |> Enum.flat_map(fn {_name, samples} -> Enum.map(samples, get) end)
+      |> Enum.reject(&is_nil/1)
+
+    values != [] && nice(Enum.max(values))
+  end
+
+  defp columns_for(n) when n <= 1, do: "sm:grid-cols-1"
+  defp columns_for(2), do: "sm:grid-cols-2"
+  defp columns_for(_many), do: "sm:grid-cols-2 lg:grid-cols-3"
+
+  @doc """
+  The fleet in one glance: a row per island, and no scrolling to find out whether
+  something has died.
+
+  A TABLE BECAUSE IT IS A TABLE. Islands down, attributes across, which is what
+  the data is, and it means a screen reader announces "beam03, extinct at tick
+  630" instead of reading a card's worth of prose to get there.
+  """
+  attr :names, :list, required: true
+  attr :rows, :map, required: true
+  attr :liveness, :map, required: true
+
+  def fleet(assigns) do
+    ~H"""
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-xs uppercase tracking-wide opacity-50">
+          <tr class="border-b border-base-content/10">
+            <th class="py-2 pr-4 text-left font-normal">island</th>
+            <th class="py-2 pr-4 text-left font-normal">state</th>
+            <th class="py-2 pr-4 text-right font-normal">world</th>
+            <th class="py-2 pr-4 text-right font-normal">tick</th>
+            <th class="py-2 pr-4 text-right font-normal">creatures</th>
+            <th class="py-2 pr-4 text-right font-normal">generations</th>
+            <th class="py-2 pr-4 text-right font-normal">foundings</th>
+            <th class="py-2 text-right font-normal">meat</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={name <- @names} class="border-b border-base-content/5">
+            <td class="py-2 pr-4">
+              <.link
+                navigate={~p"/research/workbench/biotope/#{name}"}
+                class="link link-hover font-medium"
+              >
+                {name}
+              </.link>
+            </td>
+            <td class="py-2 pr-4"><.liveness liveness={@liveness[name]} /></td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "world")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "tick")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "population")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "depth")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "lineages")}</td>
+            <td class="py-2 text-right font-mono">{cell(@rows[name], "from_creatures_pct")}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  defp cell(nil, _key), do: "–"
+  defp cell(%{stats: nil}, _key), do: "–"
+  defp cell(%{stats: stats}, key), do: number(stats[key])
+  defp cell(_row, _key), do: "–"
+
+  @doc """
+  Every island's board, side by side and the same size.
+
+  THE ONE THING THAT GENUINELY WANTS TO BE PER-ISLAND, and the reason the fleet
+  page is worth loading at all. They compare honestly because nothing here is
+  scaled to its own frame: a body maps to a radius by the same absolute rule on
+  every disc and the ground uses one ramp, so a grazed board really does look
+  grazed beside a rich one.
+  """
+  attr :names, :list, required: true
+  attr :rows, :map, required: true
+  attr :size, :integer, default: 240
+  attr :class, :string, default: ""
+
+  def boards(assigns) do
+    ~H"""
+    <div class={["grid gap-5 sm:grid-cols-2 lg:grid-cols-3", @class]}>
+      <figure :for={name <- @names}>
+        <.disc :if={chart_of(@rows[name])} chart={chart_of(@rows[name])} size={@size} />
+        <p :if={is_nil(chart_of(@rows[name]))} class="rounded bg-base-300 p-4 text-xs opacity-60">
+          Counts but no picture. This island may have its chart turned off, which
+          is what a headless run does.
+        </p>
+        <figcaption class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+          <span class="font-medium">{name}</span>
+          <span class="font-mono opacity-60">{cell(@rows[name], "population")} creatures</span>
+        </figcaption>
+      </figure>
+    </div>
+    """
+  end
+
+  defp chart_of(nil), do: nil
+  defp chart_of(row), do: row[:chart]
 
   @doc """
   The two halves of the energy books, over time, as two charts sharing a clock.

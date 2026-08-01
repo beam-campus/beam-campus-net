@@ -1,6 +1,22 @@
 defmodule BeamCampusWeb.BiotopeLive do
   @moduledoc """
-  Every island this node has heard from, as a card. Click one to go in.
+  The fleet, read across rather than one island at a time. Click a name to go in.
+
+  ## Measure-major, because the point of a fleet is comparison
+
+  This was island-major: a card per island holding every measure. That reads one
+  island well and compares none of them, because each chart picks its own rounded
+  ceiling, so a population of 1,000 and a population of 1 draw the same picture.
+  Side by side would not have fixed it; sharing the axis does.
+
+  So the page is three bands. A table, because whether something has died should
+  not need scrolling. The discs in a row, which is the one thing that genuinely
+  wants to be per-island. Then a row per measure with a panel per island on one
+  scale, which is where divergence between seeds becomes something you can see.
+
+  Per-island depth lives on the island page and is not repeated here. When it was,
+  the index rendered `descent`, the ledger and four charts three times over, and
+  that is what made it too tall to be a fleet view at all.
 
   ## Nothing here computes a world
 
@@ -90,11 +106,15 @@ defmodule BeamCampusWeb.BiotopeLive do
     pages = max(ceil(length(assigns.names) / @per_page), 1)
     page = min(assigns.page, pages)
 
+    shown = Enum.slice(assigns.names, (page - 1) * @per_page, @per_page)
+
     assigns =
       assign(assigns,
         pages: pages,
         page: page,
-        shown: Enum.slice(assigns.names, (page - 1) * @per_page, @per_page)
+        shown: shown,
+        series: Enum.map(shown, &{&1, Map.get(assigns.history, &1, [])}),
+        comparable?: comparable?(shown, assigns.rows)
       )
 
     ~H"""
@@ -120,15 +140,63 @@ defmodule BeamCampusWeb.BiotopeLive do
 
         <.viz_tokens />
 
-        <div class="mt-10 space-y-14">
-          <.card
-            :for={name <- @shown}
-            name={name}
-            row={@rows[name]}
-            liveness={@liveness[name]}
-            samples={Map.get(@history, name, [])}
-          />
+        <div :if={@names != []} class="mt-8">
+          <.fleet names={@shown} rows={@rows} liveness={@liveness} />
+          <.running names={@shown} rows={@rows} />
+          <.ending names={@shown} liveness={@liveness} />
         </div>
+
+        <div :if={@names != []} class="mt-10">
+          <.caption
+            label="the islands now"
+            keys={[{"#2F7D52", "ground"}, {"#C2557A", "died here"}, {"#8B7CE8", "scent"}]}
+          />
+          <.boards names={@shown} rows={@rows} class="mt-2" />
+          <p class="mt-2 text-xs opacity-40">
+            a creature's size is its body, its colour how fast it feeds. Every disc
+            is drawn to the same absolute scale, so they can be read against each
+            other.
+          </p>
+        </div>
+
+        <section :if={@names != []} class="mt-12">
+          <h2 class="text-sm font-semibold opacity-70">Where they have been</h2>
+          <p class="mt-1 text-xs opacity-50">
+            {scale_note(@comparable?)} Plotted against each world's own tick, and
+            every axis starts at zero.
+          </p>
+
+          <div class="mt-4 space-y-8">
+            <.compare
+              series={@series}
+              get={& &1.population}
+              label="creatures"
+              role="creatures"
+              shared={@comparable?}
+            />
+            <.compare
+              series={@series}
+              get={& &1.ground_total}
+              label="energy in the ground"
+              role="ground"
+              shared={@comparable?}
+            />
+            <.compare
+              series={@series}
+              get={& &1.dissipated}
+              label="burnt as heat"
+              hint="the Second Law: this can only rise"
+              shared={@comparable?}
+            />
+            <.compare
+              series={@series}
+              get={& &1.depth}
+              label="generations deep"
+              hint="zero means every creature alive is a founder"
+              shared={@comparable?}
+            />
+          </div>
+        </section>
 
         <nav :if={@pages > 1} class="mt-8 flex items-center justify-center gap-3" aria-label="Pages">
           <.link
@@ -158,116 +226,91 @@ defmodule BeamCampusWeb.BiotopeLive do
     """
   end
 
-  # ── One card ────────────────────────────────────────────────────
+  # ── The fleet, read across ──────────────────────────────────────
 
-  attr :name, :string, required: true
-  attr :row, :map, required: true
-  attr :liveness, :any, required: true
-  attr :samples, :list, required: true
-
-  # A SECTION AND NOT A LINK-WRAPPED BLOCK.
-  #
-  # The whole card used to be one anchor, which was fine while it held nothing
-  # but text and a picture. It cannot stay that way now that every chart carries
-  # an expandable table: a `details` inside an `a` is invalid, and a keyboard
-  # user tabbing through it gets one target that swallows all of them.
-  #
-  # So the heading is the link, the card is a section, and the card grew tall
-  # enough to say something. One per row rather than two: the disc and four
-  # charts do not fit in half a column, and scrolling costs a reader far less
-  # than a chart too small to read.
-  defp card(assigns) do
-    assigns = assign(assigns, chart: assigns.row[:chart], stats: assigns.row[:stats])
-
-    ~H"""
-    <section class="rounded-xl border border-base-content/10 bg-base-200 p-6 shadow-sm sm:p-7">
-      <div class="flex items-baseline justify-between gap-2">
-        <h2 class="text-base font-semibold">
-          <.link navigate={~p"/research/workbench/biotope/#{@name}"} class="link link-hover">
-            {@name}
-          </.link>
-        </h2>
-        <.liveness liveness={@liveness} />
-      </div>
-
-      <.ruleset stats={@stats} class="mt-1" />
-      <.gone liveness={@liveness} stats={@stats} />
-
-      <div class="mt-4 grid gap-5 sm:grid-cols-[minmax(0,260px)_1fr]">
-        <div>
-          <.caption
-            :if={@chart}
-            label="the island now"
-            keys={[{"#2F7D52", "ground"}, {"#C2557A", "died here"}, {"#8B7CE8", "scent"}]}
-          />
-          <.disc :if={@chart} chart={@chart} size={260} class="mt-2" />
-          <p :if={@chart} class="mt-1 text-xs opacity-40">
-            a creature's size is its body, its colour how fast it feeds
-          </p>
-          <p :if={is_nil(@chart)} class="text-sm opacity-60">
-            Counts but no picture. This island may have its chart turned off, which
-            is what a headless run does.
-          </p>
-        </div>
-
-        <div class="space-y-4">
-          <dl :if={@stats} class="grid grid-cols-3 gap-2 text-sm">
-            <.stat label="creatures" value={@stats["population"]} />
-            <.stat label="stayed put" value={pct(@stats["still_pct"])} />
-            <.stat label="tick" value={@stats["tick"]} />
-          </dl>
-
-          <.descent :if={@stats} stats={@stats} />
-          <.share :if={@stats} stats={@stats} />
-        </div>
-      </div>
-
-      <.stocks samples={@samples} w={340} h={140} class="mt-6" />
-
-      <div class="mt-4 grid gap-4 sm:grid-cols-2">
-        <.entropy samples={@samples} w={340} h={140} />
-        <.plot
-          samples={@samples}
-          get={& &1.depth}
-          label="generations deep"
-          hint="zero means every creature alive is a founder"
-          w={340}
-          h={140}
-        />
-      </div>
-
-      <.ledger :if={@stats} stats={@stats} class="mt-4" />
-    </section>
-    """
+  # TWO ISLANDS SHARING A FINGERPRINT ARE COMPARABLE AND TWO THAT DO NOT ARE
+  # PLAYING DIFFERENT GAMES. A shared axis is an invitation to read one against
+  # the other, so it is only offered when the rules agree. During a rollout they
+  # genuinely disagree, which is the moment this matters.
+  defp comparable?(names, rows) do
+    names
+    |> Enum.map(&get_in(rows, [&1, :stats, "econ_id"]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> length() <= 1
   end
 
-  # A DEAD ISLAND'S CHARTS ARE FOUR PICTURES OF NOTHING, and four axes running
-  # zero to one read as instruments that are broken rather than as a world that
-  # is over. beam03 went extinct at tick 630 on the world 9 rollout and its card
-  # was indistinguishable at a glance from an island whose data had stopped
-  # arriving, which is the one confusion this whole page is built to avoid.
-  #
-  # So the ending is stated in words above the charts. The charts stay: the run
-  # up to the ending is the most interesting thing a dead island has, and hiding
-  # it would be hiding the result.
-  attr :liveness, :any, required: true
-  attr :stats, :map, required: true
+  defp scale_note(true),
+    do:
+      "One scale per row, shared by every island, because they are running " <>
+        "identical rules and the whole reason to run more than one is to see " <>
+        "whether they diverge."
 
-  defp gone(%{liveness: {:extinct, tick}} = assigns) do
-    assigns = assign(assigns, tick: tick, burnt: assigns.stats["dissipated"])
+  defp scale_note(false),
+    do:
+      "These islands do NOT share an economy, so each panel is scaled to itself " <>
+        "and their heights must not be read against each other."
+
+  # WHICH WORLD, IN WORDS, ONCE. The table's `world` column carries the number
+  # per island, which is what exposes a rollout mid-flight; this is the sentence
+  # saying what that world IS, and repeating it per island was three copies of
+  # one fact.
+  #
+  # Said only when they all agree. During a rollout they genuinely do not, and a
+  # single sentence would then be describing some of the discs above it and not
+  # the others. The column has already made the disagreement visible; this stays
+  # quiet rather than picking a winner.
+  attr :names, :list, required: true
+  attr :rows, :map, required: true
+
+  defp running(assigns) do
+    lines =
+      assigns.names
+      |> Enum.map(
+        &{get_in(assigns.rows, [&1, :stats, "world"]),
+         get_in(assigns.rows, [&1, :stats, "world_line"])}
+      )
+      |> Enum.reject(fn {number, _line} -> is_nil(number) end)
+      |> Enum.uniq()
+
+    assigns = assign(assigns, agreed: lines)
 
     ~H"""
-    <p class="mt-3 rounded-lg border border-error/30 bg-error/10 p-3 text-sm">
-      <span class="font-semibold text-error">This world ended at tick {@tick}.</span>
-      Every creature died and nothing reseeds a world, so it will not come back.
-      The ground still gathers energy and the clock still runs, which is why the
-      island goes on publishing. World 9 ends this way in about two seeds in five,
-      and that is a result rather than a fault.
+    <p :if={match?([_one], @agreed)} class="mt-3 text-xs leading-snug">
+      <span :for={{number, line} <- @agreed}>
+        <span class="font-mono text-primary">world {number}</span>
+        <span class="opacity-50">{line}</span>
+      </span>
     </p>
     """
   end
 
-  defp gone(assigns), do: ~H""
+  # A DEAD ISLAND IS A FLEET FACT, not a per-card one, and it needs saying once.
+  # The table already reports "extinct at tick N" in its state column, which says
+  # what happened and not what it means: an island whose data stopped arriving
+  # looks much the same at a glance, and that is the one confusion this page
+  # exists to prevent.
+  attr :names, :list, required: true
+  attr :liveness, :map, required: true
+
+  defp ending(assigns) do
+    assigns = assign(assigns, dead: Enum.filter(assigns.names, &extinct?(assigns.liveness[&1])))
+
+    ~H"""
+    <p :if={@dead != []} class="mt-3 rounded-lg border border-error/30 bg-error/10 p-3 text-sm">
+      <span class="font-semibold text-error">
+        {Enum.join(@dead, ", ")} {if length(@dead) == 1, do: "has", else: "have"} ended.
+      </span>
+      Every creature died, and nothing reseeds a world, so it will not come back.
+      The ground still gathers energy and the clock still runs, which is why a dead
+      island goes on publishing. World 9 ends this way in about two seeds in five,
+      which is a result rather than a fault.
+    </p>
+    """
+  end
+
+  defp extinct?({:extinct, _tick}), do: true
+  defp extinct?(_other), do: false
 
   # Configured-and-dark and never-configured need different responses from
   # whoever is reading, so the page says which it is rather than showing one
@@ -293,7 +336,4 @@ defmodule BeamCampusWeb.BiotopeLive do
     </div>
     """
   end
-
-  defp pct(nil), do: "–"
-  defp pct(n), do: "#{n}%"
 end
