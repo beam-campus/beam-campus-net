@@ -140,6 +140,51 @@ defmodule Biotope.RecordHistoryTest do
 
       assert Enum.map(RecordHistory.history("beam09"), & &1.tick) == [100, 160]
     end
+
+    # A TICK THAT GOES BACKWARDS IS A NEW WORLD. Nothing reseeds one, so a
+    # restarted island does not resume, it begins again at tick zero with a fresh
+    # founding. Its old rows and its new ones are two different runs sharing a
+    # name, and every chart here is drawn against the tick, so they superimpose.
+    #
+    # Caught live on the world 9 rollout: beam00's previous run had died, its
+    # last samples sat at ticks 1002 to 1709 with a population of zero, and the
+    # restarted island came back at tick 219 with a thousand creatures. The card
+    # drew a population axis running 0 to 1, which is an accurate picture of a
+    # lie. The econ_id filter cannot catch it, because a restart is the same game
+    # played twice and the fingerprint matches exactly.
+    test "a restarted island drops the run before it, rather than overlaying it" do
+      RecordHistory.subscribe()
+      Biotope.WatchIslands.Board.put_stats(fact("beam10", 1002))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      Biotope.WatchIslands.Board.put_stats(fact("beam10", 1709))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      # The island restarts: a fresh world, counting from the beginning again.
+      Biotope.WatchIslands.Board.put_stats(fact("beam10", 219))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      assert Enum.map(RecordHistory.history("beam10"), & &1.tick) == [219],
+             "the dead run must be gone, not drawn to the right of the live one"
+    end
+
+    test "a restart does not disturb any other island" do
+      RecordHistory.subscribe()
+      Biotope.WatchIslands.Board.put_stats(fact("beam11", 900))
+      Biotope.WatchIslands.Board.put_stats(fact("beam12", 900))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      Biotope.WatchIslands.Board.put_stats(fact("beam11", 5))
+      send(RecordHistory, :sample)
+      assert_receive {:biotope_history, :written}, 1_000
+
+      assert Enum.map(RecordHistory.history("beam11"), & &1.tick) == [5]
+      assert Enum.map(RecordHistory.history("beam12"), & &1.tick) == [900]
+    end
   end
 
   describe "history/2 and the rules a sample was taken under" do

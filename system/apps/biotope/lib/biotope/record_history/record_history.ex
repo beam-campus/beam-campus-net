@@ -163,10 +163,48 @@ defmodule Biotope.RecordHistory do
   defp advanced(false, _fact, _name, _tick, s), do: s
 
   defp advanced(true, fact, name, tick, s) do
+    restarted(name, tick)
+
     fact
     |> Sample.changeset()
     |> Repo.insert()
     |> recorded(name, tick, s)
+  end
+
+  # ==========================================================================
+  # A TICK THAT GOES BACKWARDS IS A NEW WORLD, AND THE OLD ONE'S ROWS MUST GO
+  # ==========================================================================
+  #
+  # Nothing reseeds a world. When an island restarts it does not resume, it
+  # begins again at tick zero with a fresh founding, so its old samples and its
+  # new ones are two different runs that happen to share a name.
+  #
+  # Drawn against the tick, as every chart here is, they SUPERIMPOSE. Caught on
+  # the world 9 rollout: beam00's previous run had died at 50% efficiency, its
+  # last samples sat at ticks 1002 to 1709 with a population of zero, and the
+  # restarted island came back at tick 219 with a thousand creatures. The card
+  # showed a population axis running 0 to 1, which is a true drawing of a lie.
+  #
+  # THE econ_id FILTER CANNOT CATCH THIS. It exists to separate two different
+  # games, and a restart is the same game played twice: the fingerprint matches
+  # exactly, which is precisely why it survives the filter.
+  #
+  # Deleting is safe and is what this table is for. It is a read model, rebuilt
+  # from facts that arrive, and the island is the thing that is actually alive.
+  defp restarted(name, tick) do
+    latest =
+      Repo.one(from(x in Sample, where: x.island == ^name, select: max(x.tick))) || 0
+
+    tick < latest && drop_earlier_run(name, latest, tick)
+  end
+
+  defp drop_earlier_run(name, latest, tick) do
+    {deleted, _} = Repo.delete_all(from(x in Sample, where: x.island == ^name))
+
+    Logger.info(
+      "[Biotope] #{name} restarted: tick went #{latest} -> #{tick}, " <>
+        "dropped #{deleted} samples from the previous run"
+    )
   end
 
   defp recorded({:ok, _row}, name, tick, s) do
