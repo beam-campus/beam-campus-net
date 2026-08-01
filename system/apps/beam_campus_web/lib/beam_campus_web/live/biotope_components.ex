@@ -180,7 +180,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
     >
       <polygon
-        points={rim(@size, @cell)}
+        points={rim(@size, @cell, @chart["radius"] || 20)}
         fill="none"
         stroke="currentColor"
         stroke-width="1"
@@ -686,18 +686,29 @@ defmodule BeamCampusWeb.BiotopeComponents do
     end
   end
 
-  # THE BOARD IS A HEXAGON, so a circular rim misdescribes it: a full population
-  # visibly fills a hex sitting inside a round outline, which reads as though the
-  # corners were somehow uninhabitable. Pointy-top, matching the cells.
-  defp rim(size, cell) do
+  # THE BOARD IS A HEXAGON, so a circular rim misdescribed it: a full population
+  # visibly filled a hex sitting inside a round outline, which read as though the
+  # corners were somehow uninhabitable.
+  #
+  # AND IT IS ROTATED THIRTY DEGREES FROM THE CELLS, which is the part I got
+  # wrong first time. The cells are pointy-top, but a hexagonal ARRANGEMENT of
+  # pointy-top cells is not itself pointy-top: the outermost centres sit at
+  # 0, 60, 120, 180, 240 and 300 degrees, so the board has corners left and right
+  # and flat edges top and bottom. Drawing the rim like a cell puts its vertices
+  # where the board's edges are.
+  #
+  # The corner distance is exact rather than eyeballed. Every outermost cell
+  # centre lies sqrt(3) * radius cells from the middle, and one more cell of
+  # slack keeps the outermost circles inside the line rather than straddling it.
+  defp rim(size, cell, radius) do
     centre = size / 2
-    radius = centre - cell
+    reach = :math.sqrt(3) * radius * cell + cell
 
     0..5
     |> Enum.map_join(" ", fn i ->
-      angle = :math.pi() / 3 * i - :math.pi() / 6
-      x = centre + radius * :math.cos(angle)
-      y = centre + radius * :math.sin(angle)
+      angle = :math.pi() / 3 * i
+      x = centre + reach * :math.cos(angle)
+      y = centre + reach * :math.sin(angle)
       "#{Float.round(x, 1)},#{Float.round(y, 1)}"
     end)
   end
