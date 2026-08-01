@@ -198,7 +198,9 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
       # rendering in between to agree or disagree with. Four per creature:
       # x, y, radius, colour.
       [_, json] = Regex.run(~r/data-creatures="([^"]*)"/, html)
-      [_x1, _y1, big, _c1, _x2, _y2, small, _c2] = Jason.decode!(json)
+      # Five per creature: id, x, y, radius, colour. The id is what lets a
+      # viewer animate between frames rather than redraw them.
+      [_id1, _x1, _y1, big, _c1, _id2, _x2, _y2, small, _c2] = Jason.decode!(json)
 
       assert big > small, "the creature with the larger BODY must draw larger"
     end
@@ -245,6 +247,37 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
       # Every packed value is an integer. A float would cost more to carry than
       # the precision is worth on a canvas drawing to whole pixels.
       assert Enum.all?(pull.("creatures") ++ pull.("trails"), &is_integer/1)
+    end
+
+    # A MARK HAS TO BE RECOGNISABLE ACROSS TWO FRAMES or it cannot be animated,
+    # only redrawn. Births and deaths reshuffle the list every tick and the mean
+    # creature lives about two of them, so matching by position would slide marks
+    # across the board that never moved.
+    test "carries who each creature is, so a frame can be animated from the last" do
+      chart = %{
+        "radius" => 2,
+        "creatures" => [0, 0, 1, 1],
+        "ids" => [17, 4001],
+        "structures" => [100, 100],
+        "uptakes" => [10, 10],
+        "ground" => [],
+        "scent" => []
+      }
+
+      html =
+        render_component(
+          fn assigns ->
+            ~H"""
+            <BiotopeComponents.disc id="d" chart={@chart} size={200} />
+            """
+          end,
+          %{chart: chart}
+        )
+
+      [_, json] = Regex.run(~r/data-creatures="([^"]*)"/, html)
+      [first | _] = Jason.decode!(json)
+      assert first == 17
+      assert Enum.at(Jason.decode!(json), 5) == 4001
     end
   end
 end

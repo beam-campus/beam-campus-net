@@ -213,14 +213,47 @@ defmodule BeamCampusWeb.BiotopeComponents do
         export default {
           mounted() {
             this.ctx = this.el.getContext("2d")
+            this.was = new Map()
+            this.now = new Map()
+            // How long a step takes to play out. Matches the page's redraw
+            // interval, so a tween finishes exactly as the next frame lands.
+            this.span = 500
             this.fit()
             this.read()
-            this.paint()
+            this.paint(1)
           },
 
+          // A FACT ARRIVES TWICE A SECOND AND A CREATURE MOVES ONE CELL, so
+          // without this the board is a slideshow: everything teleports, and
+          // nothing about which way anything was going survives the jump.
+          //
+          // Keeping the previous positions BY ID is what makes it possible at
+          // all. Matching by position in the list would slide marks across the
+          // board that never moved, because births and deaths reshuffle it every
+          // tick and the mean creature here lives about two of them.
           updated() {
+            this.was = this.now || new Map()
             this.read()
-            this.paint()
+            this.now = new Map()
+            for (let i = 0; i < this.creatures.length; i += 5) {
+              this.now.set(this.creatures[i], [this.creatures[i + 1], this.creatures[i + 2]])
+            }
+            this.started = performance.now()
+            this.animate()
+          },
+
+          animate() {
+            cancelAnimationFrame(this.frame)
+            const step = () => {
+              const ease = Math.min(1, (performance.now() - this.started) / this.span)
+              this.paint(ease)
+              if (ease < 1) this.frame = requestAnimationFrame(step)
+            }
+            this.frame = requestAnimationFrame(step)
+          },
+
+          destroyed() {
+            cancelAnimationFrame(this.frame)
           },
 
           // RETINA, or the whole thing looks soft. A canvas has real pixels
@@ -242,7 +275,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
             this.creatures = nums(this.el, "creatures")
           },
 
-          paint() {
+          paint(ease) {
             const c = this.ctx
             c.clearRect(0, 0, this.size, this.size)
 
@@ -272,13 +305,39 @@ defmodule BeamCampusWeb.BiotopeComponents do
             // the field they stand on, which was the one thing a single shared
             // primitive could never do.
             c.globalAlpha = 1
-            for (let i = 0; i < this.creatures.length; i += 4) {
-              const colour = css(this.creatures[i + 3])
+            for (let i = 0; i < this.creatures.length; i += 5) {
+              const id = this.creatures[i]
+              const colour = css(this.creatures[i + 4])
+              const r = this.creatures[i + 3]
+              const to = [this.creatures[i + 1], this.creatures[i + 2]]
+              const from = this.was.get(id)
+
+              // A STREAK IS THE TWEEN PATH DRAWN, so movement and its history
+              // are one thing rather than two. Only for a mark that was here
+              // last frame: something just born has no past and must not be
+              // given one.
+              if (from && ease < 1) {
+                c.globalAlpha = 0.35 * (1 - ease)
+                c.strokeStyle = colour
+                c.lineWidth = Math.max(1, r * 0.8)
+                c.lineCap = "round"
+                c.beginPath()
+                c.moveTo(from[0], from[1])
+                c.lineTo(from[0] + (to[0] - from[0]) * ease, from[1] + (to[1] - from[1]) * ease)
+                c.stroke()
+              }
+
+              const x = from ? from[0] + (to[0] - from[0]) * ease : to[0]
+              const y = from ? from[1] + (to[1] - from[1]) * ease : to[1]
+
+              // Something newly born fades in rather than appearing, which is
+              // the difference between a world and a slideshow.
+              c.globalAlpha = from ? 1 : ease
               c.shadowColor = colour
-              c.shadowBlur = Math.max(2, this.creatures[i + 2])
+              c.shadowBlur = Math.max(2, r)
               c.fillStyle = colour
               c.beginPath()
-              c.arc(this.creatures[i], this.creatures[i + 1], this.creatures[i + 2], 0, 6.284)
+              c.arc(x, y, r, 0, 6.284)
               c.fill()
             }
             c.shadowBlur = 0
@@ -1487,12 +1546,17 @@ defmodule BeamCampusWeb.BiotopeComponents do
     points = Biotope.points(chart["creatures"])
     frames = pad(chart["structures"] || chart["energies"] || [], length(points), 0)
     rates = pad(chart["uptakes"] || [], length(points), nil)
+    # WHO EACH MARK IS. Without it a viewer can draw a frame and cannot animate
+    # between two, because births and deaths reshuffle the list every tick. An
+    # island on an older build sends none, and then the index is the best
+    # identity available and the drawing simply does not move.
+    ids = pad(chart["ids"] || [], length(points), 0)
 
-    [points, frames, rates]
+    [ids, points, frames, rates]
     |> Enum.zip()
-    |> Enum.map(fn {point, frame, rate} ->
+    |> Enum.map(fn {id, point, frame, rate} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {x, y, radius_for(cell, frame), feeding_rgb(rate, ceiling)}
+      {id, x, y, radius_for(cell, frame), feeding_rgb(rate, ceiling)}
     end)
   end
 

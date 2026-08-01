@@ -197,7 +197,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     # Packed as x, y, radius, colour. The stores are deliberately the opposite
     # way round: every contest here is decided on structure alone, so the lean
     # large creature must draw larger than the fat small one.
-    [_x1, _y1, small, _c1, _x2, _y2, large, _c2] = packed(html, "creatures")
+    [_id1, _x1, _y1, small, _c1, _id2, _x2, _y2, large, _c2] = packed(html, "creatures")
     assert large > small
   end
 
@@ -299,7 +299,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     # Same body, opposite feeding rates, so the only thing that may differ is
     # the colour. Pale is gentle and deep is voracious, so the greedy one is
     # darker, which as a packed 0xRRGGBB integer means smaller.
-    [_x1, _y1, _r1, gentle, _x2, _y2, _r2, greedy] = packed(html, "creatures")
+    [_id1, _x1, _y1, _r1, gentle, _id2, _x2, _y2, _r2, greedy] = packed(html, "creatures")
     assert greedy < gentle
   end
 

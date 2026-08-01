@@ -68,7 +68,8 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "<canvas"
     [_, creatures] = Regex.run(~r/data-creatures="([^"]*)"/, html)
     [_, ground] = Regex.run(~r/data-ground="([^"]*)"/, html)
-    assert length(Jason.decode!(creatures)) == 8
+    # Five values per creature: id, x, y, radius, colour.
+    assert length(Jason.decode!(creatures)) == 10
     assert [_x, _y, 0x2F7D52, _alpha] = Jason.decode!(ground)
   end
 
