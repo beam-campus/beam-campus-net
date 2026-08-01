@@ -130,6 +130,22 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.capable stats={@stats} />
           <.deaths stats={@stats} />
           <.churn stats={@stats} />
+          <.shape
+            bars={@stats["sensor_hist"]}
+            label="sensors carried"
+            hint="creatures at each count"
+          />
+          <.shape
+            bars={@stats["hidden_hist"]}
+            label="hidden nodes"
+            hint="creatures at each count"
+          />
+          <.shape
+            bars={@stats["uptake_hist"]}
+            label="how fast they feed"
+            hint="gentle to voracious"
+            ramp={true}
+          />
         </div>
 
         <p :if={@stats && (@stats["births_refused"] || 0) > 0} class="mt-3 text-xs text-warning">

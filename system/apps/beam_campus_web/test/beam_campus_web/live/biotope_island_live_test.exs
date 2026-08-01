@@ -40,6 +40,9 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "sensor_mean" => 104,
         "scent_tags" => 26,
         "scent_spread" => 44,
+        "sensor_hist" => [40, 20, 10, 5, 2, 1, 0, 0, 0],
+        "hidden_hist" => [70, 6, 2, 0, 0, 0, 0],
+        "uptake_hist" => [3, 9, 21, 18, 12, 8, 5, 2],
         "sensors_gained" => 812,
         "sensors_lost" => 799,
         "sensors" => %{
@@ -305,5 +308,42 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
     assert html =~ "#F2B142"
+  end
+
+  # A MEAN CANNOT BE SKIMMED PAST WHEN IT IS A DISTRIBUTION. "0.01 sensors per
+  # creature" reads as nearly none without saying whether that is one creature in
+  # a hundred carrying one or something else, and the difference is between an
+  # apparatus being selected away and one being maintained rarely.
+  test "shows the shape of the population, not only its average", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "sensors carried"
+    assert html =~ "hidden nodes"
+    assert html =~ "how fast they feed"
+  end
+
+  # EVERY CHART NEEDS A CAPTION AND A COLOUR KEY. A line, a bar and a haze of
+  # dots are legible once you know what they count and opaque until then, and a
+  # reader made to infer it from a paragraph somewhere else will infer it wrong.
+  test "captions its charts and says what the colours mean", %{conn: conn} do
+    Board.put_stats(stats())
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "what they became"
+    assert html =~ "creatures"
+    assert html =~ "ground"
+  end
+
+  # An island that has sent counts but no distribution yet must say so rather
+  # than drawing an empty box that reads as a population sitting at zero.
+  test "says when there is no shape to draw yet", %{conn: conn} do
+    Board.put_stats(stats(%{"hidden_hist" => [], "sensor_hist" => nil}))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
+
+    assert html =~ "nothing yet"
   end
 end

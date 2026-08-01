@@ -177,14 +177,30 @@ defmodule BeamCampusWeb.BiotopeLive do
       </div>
 
       <div class="mt-3">
-        <.disc :if={@chart} chart={@chart} size={240} />
+        <.caption
+          :if={@chart}
+          label="the island now"
+          keys={[{"#2F7D52", "ground"}, {"#C9A227", "died here"}, {"#8B7CE8", "scent"}]}
+        />
+        <.disc :if={@chart} chart={@chart} size={240} class="mt-2" />
+        <p :if={@chart} class="mt-1 text-xs opacity-40">
+          a creature's size is its energy, its colour how fast it feeds
+        </p>
         <p :if={is_nil(@chart)} class="text-sm opacity-60">
           Counts but no picture. This island may have its chart turned off, which
           is what a headless run does.
         </p>
       </div>
 
-      <.sparkline samples={@samples} w={240} h={36} class="mt-2" />
+      <div class="mt-2 grid grid-cols-2 gap-3">
+        <.sparkline samples={@samples} w={120} h={64} />
+        <.shape
+          :if={@stats}
+          bars={@stats["hidden_hist"]}
+          label="brains"
+          hint="creatures with 0, 1, 2… hidden nodes"
+        />
+      </div>
 
       <dl :if={@stats} class="mt-3 grid grid-cols-3 gap-2 text-sm">
         <.stat label="creatures" value={@stats["population"]} />

@@ -150,6 +150,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :chart, :map, required: true
   attr :size, :integer, default: 320
   attr :ceiling, :integer, default: 400
+  attr :class, :string, default: ""
 
   # The energy at which a creature is drawn at full size. Above it they stop
   # growing, because past a point the only question is who is larger.
@@ -173,7 +174,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     ~H"""
     <svg
       viewBox={"0 0 #{@size} #{@size}"}
-      class="w-full h-auto rounded bg-black/40"
+      class={["w-full h-auto rounded bg-black/40", @class]}
       role="img"
       aria-label={"#{length(@creatures)} creatures coloured by how fast they feed, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
     >
@@ -217,10 +218,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :w, :integer, default: 640
   attr :h, :integer, default: 120
   attr :class, :string, default: ""
+  attr :label, :string, default: "over time"
 
   def sparkline(%{samples: []} = assigns) do
     ~H"""
-    <p class={["text-xs opacity-40", @class]}>no history yet</p>
+    <div class={@class}>
+      <.caption label={@label} keys={[{"#F2B142", "creatures"}, {"#2F7D52", "ground"}]} />
+      <p class="mt-2 text-xs opacity-40">no history yet</p>
+    </div>
     """
   end
 
@@ -232,15 +237,18 @@ defmodule BeamCampusWeb.BiotopeComponents do
       )
 
     ~H"""
-    <svg
-      viewBox={"0 0 #{@w} #{@h}"}
-      class={["w-full h-auto rounded bg-black/40", @class]}
-      role="img"
-      aria-label={"Population and energy in the ground over #{length(@samples)} samples"}
-    >
-      <polyline points={@ground} fill="none" stroke="#2F7D52" stroke-width="1.5" opacity="0.8" />
-      <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
-    </svg>
+    <div class={@class}>
+      <.caption label={@label} keys={[{"#F2B142", "creatures"}, {"#2F7D52", "ground"}]} />
+      <svg
+        viewBox={"0 0 #{@w} #{@h}"}
+        class="mt-2 w-full h-auto rounded bg-black/40"
+        role="img"
+        aria-label={"Population and energy in the ground over #{length(@samples)} samples"}
+      >
+        <polyline points={@ground} fill="none" stroke="#2F7D52" stroke-width="1.5" opacity="0.8" />
+        <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
+      </svg>
+    </div>
     """
   end
 
@@ -264,7 +272,10 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   def trends(%{samples: []} = assigns) do
     ~H"""
-    <p class={["text-xs opacity-40", @class]}>no history yet</p>
+    <div class={@class}>
+      <.caption label="what they became" keys={[{"#F2B142", "meat"}, {"#6C9BD5", "sensors"}]} />
+      <p class="mt-2 text-xs opacity-40">no history yet</p>
+    </div>
     """
   end
 
@@ -276,15 +287,18 @@ defmodule BeamCampusWeb.BiotopeComponents do
       )
 
     ~H"""
-    <svg
-      viewBox={"0 0 #{@w} #{@h}"}
-      class={["w-full h-auto rounded bg-black/40", @class]}
-      role="img"
-      aria-label={"Share of energy from creatures, and sensors carried, over #{length(@samples)} samples"}
-    >
-      <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
-      <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
-    </svg>
+    <div class={@class}>
+      <.caption label="what they became" keys={[{"#F2B142", "meat"}, {"#6C9BD5", "sensors"}]} />
+      <svg
+        viewBox={"0 0 #{@w} #{@h}"}
+        class="mt-2 w-full h-auto rounded bg-black/40"
+        role="img"
+        aria-label={"Share of energy from creatures, and sensors carried, over #{length(@samples)} samples"}
+      >
+        <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
+        <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
+      </svg>
+    </div>
     """
   end
 
@@ -383,6 +397,82 @@ defmodule BeamCampusWeb.BiotopeComponents do
         <.stat label="sensors gained" value={@stats["sensors_gained"]} />
         <.stat label="sensors lost" value={@stats["sensors_lost"]} />
       </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  A caption for a chart, and what its colours mean.
+
+  EVERY CHART HERE NEEDS ONE. A line, a bar and a haze of dots are all perfectly
+  legible once you know what they are counting and completely opaque until then,
+  and a reader who has to infer it from a paragraph somewhere else will infer it
+  wrong. The colour swatches carry more than the words do: they are the only
+  thing that says WHICH line is the population.
+  """
+  attr :label, :string, required: true
+  attr :keys, :list, default: []
+
+  def caption(assigns) do
+    ~H"""
+    <div class="flex items-baseline justify-between gap-2">
+      <h3 class="text-xs uppercase tracking-wide opacity-50">{@label}</h3>
+      <span :if={@keys != []} class="flex shrink-0 items-center gap-2 text-xs opacity-60">
+        <span :for={{colour, name} <- @keys} class="flex items-center gap-1">
+          <span class="inline-block h-1.5 w-1.5 rounded-full" style={"background: #{colour}"}></span>
+          {name}
+        </span>
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
+  How many creatures sit at each value: the SHAPE of a population, not its
+  average.
+
+  A mean of 0.01 sensors per creature reads as "nearly none" without saying
+  whether that is one creature in a hundred carrying one or something else
+  entirely, and the difference matters. One is an apparatus being selected away;
+  the other is one being maintained rarely. **A chart pinned wholly at the first
+  bar says the first, and cannot be skimmed past.**
+
+  Scaled to its own tallest bar, because the question a shape answers is where
+  the population sits and not how large it is, which the creature count already
+  gives.
+  """
+  attr :bars, :list, required: true
+  attr :label, :string, required: true
+  attr :hint, :string, default: nil
+  attr :colour, :string, default: "#6C9BD5"
+  attr :ramp, :boolean, default: false
+
+  def shape(%{bars: bars} = assigns) when bars in [nil, []] do
+    ~H"""
+    <p class="text-xs opacity-40">{@label}: nothing yet</p>
+    """
+  end
+
+  def shape(assigns) do
+    assigns = assign(assigns, columns: columns(assigns.bars))
+
+    ~H"""
+    <div>
+      <.caption label={@label} />
+      <p :if={@hint} class="text-xs opacity-40">{@hint}</p>
+      <div
+        class="mt-2 flex h-16 items-end gap-px"
+        role="img"
+        aria-label={"#{@label}: #{Enum.join(@bars, ", ")}"}
+      >
+        <div
+          :for={{count, share, index} <- @columns}
+          class="flex-1 rounded-t"
+          style={"height: #{max(share, 2)}%; background: #{bar_colour(@ramp, index, length(@bars), @colour)}"}
+          title={"#{count} at #{index}"}
+        >
+        </div>
+      </div>
     </div>
     """
   end
@@ -723,6 +813,25 @@ defmodule BeamCampusWeb.BiotopeComponents do
       "#{Float.round(x, 1)},#{Float.round(y, 1)}"
     end)
   end
+
+  # Scaled to the tallest bar rather than to the population, because the question
+  # is where the creatures sit and not how many there are.
+  defp columns(bars) do
+    tallest = max(Enum.max(bars, fn -> 0 end), 1)
+
+    bars
+    |> Enum.with_index()
+    |> Enum.map(fn {count, index} -> {count, round(count * 100 / tallest), index} end)
+  end
+
+  # A feeding-rate chart colours its own buckets on the same pale-to-deep ramp
+  # the creatures use, so the axis needs no labelling: the bar IS the colour of
+  # the creatures it counts.
+  defp bar_colour(true, index, count, _flat) do
+    feeding_colour(round(index * 400 / max(count - 1, 1)), 400)
+  end
+
+  defp bar_colour(false, _index, _count, flat), do: flat
 
   defp pct(nil), do: "–"
   defp pct(n), do: "#{n}%"
