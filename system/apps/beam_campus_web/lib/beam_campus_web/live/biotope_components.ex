@@ -621,26 +621,27 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   defp radius_for(cell, _energy), do: cell * 0.35
 
-  # EACH BIT GROUP DRIVES ONE CHANNEL, which is the whole reason this is not a
-  # hue. Mapping the byte onto a colour wheel would put tags 127 and 128 side by
-  # side though they differ in every single component, and split kin one flip
-  # apart across half the spectrum. Here a single mutation moves exactly one
-  # channel by one step, so how alike two creatures look is how related they
-  # actually are.
+  # ONE COLOUR, AND THE CONFETTI WAS THE DATA.
   #
-  # Kept bright: the disc is dark, and a lineage that happened to inherit a low
-  # byte should not be invisible.
-  defp lineage_colour(tag) when is_integer(tag) and tag >= 0 do
-    r = 90 + Bitwise.band(tag, 0x07) * 22
-    g = 90 + Bitwise.band(Bitwise.bsr(tag, 3), 0x07) * 22
-    b = 90 + Bitwise.band(Bitwise.bsr(tag, 6), 0x03) * 50
-    "rgb(#{r},#{g},#{b})"
-  end
-
-  # An island still publishing the older chart sends no signatures. Amber is what
-  # every creature used to be, so an unlabelled one keeps that rather than
-  # pretending to a lineage it did not declare.
-  defp lineage_colour(_absent), do: "#F2B142"
+  # Creatures were coloured by their heritable scent signature, one bit group per
+  # channel, so that kin would share a colour and strangers would not. The
+  # mapping was right and the picture was unreadable: every creature came out a
+  # different pastel and the disc looked like sprinkles.
+  #
+  # It was not a rendering bug. It was FAITHFUL. At the mutation rate the islands
+  # run, signatures scramble across most of the 256 available within a few
+  # hundred births, and the measured spread sits at 44-49 against a baseline of
+  # 50 for entirely unrelated signatures. **There are no families.** A colouring
+  # that showed families would have been inventing them.
+  #
+  # So colour stops carrying that, because a picture whose honest content is "no
+  # structure" is better served by not spending its most salient channel on it.
+  # Size still carries energy, which does vary and does matter.
+  #
+  # This comes back the moment signatures mean something, and whether they ever
+  # do is a question about the mutation rate, which is PHYSICS. It must not be
+  # lowered to make a picture prettier.
+  defp lineage_colour(_tag), do: "#F2B142"
 
   # Faint on purpose. A trail is evidence that something passed, and at full
   # strength it would read as a wall.

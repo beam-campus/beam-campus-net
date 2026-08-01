@@ -100,10 +100,10 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
           A creature's SIZE is its energy, because the stronger consumes the
-          weaker on contact and so energy is armour. Its COLOUR is its lineage:
-          creatures carry a heritable scent signature and read a trail by how
-          unlike themselves it smells, so kin share a colour and long-separated
-          families do not. The green surface is the ground itself, brighter where
+          weaker on contact and so energy is armour. They share one colour: they
+          were drawn by lineage, and the measured signature spread says there are
+          no lineages to draw, so the picture stopped claiming otherwise. The
+          green surface is the ground itself, brighter where
           more energy has gathered and dark where something has grazed it bare.
           GOLD MEANS SOMETHING DIED THERE: sunlight stops at the ceiling, so only
           a corpse can carry a cell that high. The violet haze is scent, ground

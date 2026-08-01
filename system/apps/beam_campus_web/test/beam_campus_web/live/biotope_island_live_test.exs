@@ -252,11 +252,16 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     assert html =~ "799"
   end
 
-  # KIN SHARE A COLOUR AND STRANGERS DO NOT. Each bit group drives one channel,
-  # so a single mutation moves one channel by one step and how alike two
-  # creatures look is how related they are. Two signatures eight bits apart must
-  # not come out the same colour.
-  test "colours creatures by lineage", %{conn: conn} do
+  # THE CONFETTI WAS THE DATA, so colour stopped carrying lineage. Creatures were
+  # tinted by their heritable signature, one bit group per channel, and the
+  # mapping was correct: kin really did share a colour. The picture was still
+  # unreadable, because at the mutation rate these islands run there are no kin.
+  # Signature spread measures 44-49 against a baseline of 50 for entirely
+  # unrelated tags, so a colouring that showed families was inventing them.
+  #
+  # Two creatures with OPPOSITE signatures must now come out the same, and this
+  # asserts it rather than leaving it to be noticed.
+  test "does not colour creatures by lineage, because there are none", %{conn: conn} do
     Board.put_stats(stats())
 
     Board.put_chart(%{
@@ -272,8 +277,8 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    colours = Regex.scan(~r/fill="(rgb\([^)]+\))"/, html) |> Enum.map(&List.last/1)
-    assert length(Enum.uniq(colours)) == 2
+    refute html =~ "rgb("
+    assert html =~ "#F2B142"
   end
 
   # An island still publishing the older chart sends no signatures at all. Amber
