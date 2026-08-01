@@ -24,7 +24,7 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
         "econ_id" => "0badc0ffee123456",
         "population" => population,
         "energy_total" => 5000,
-        "ground_total" => 42000,
+        "ground_total" => 42_000,
         "born" => 200,
         "starved" => 150,
         "aged_out" => 3,

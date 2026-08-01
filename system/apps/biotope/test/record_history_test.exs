@@ -23,7 +23,7 @@ defmodule Biotope.RecordHistoryTest do
         "econ_id" => "17b90de41d26da0e",
         "population" => 78,
         "energy_total" => 5882,
-        "ground_total" => 42000,
+        "ground_total" => 42_000,
         "born" => 249,
         "starved" => 171,
         "aged_out" => 0,

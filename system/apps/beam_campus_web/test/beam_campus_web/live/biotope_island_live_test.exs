@@ -20,7 +20,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
         "island" => "beam01",
         "tick" => 412,
         "population" => 78,
-        "ground_total" => 42000,
+        "ground_total" => 42_000,
         "still_pct" => 61,
         "ground_spread" => 17,
         "movers" => 70,
