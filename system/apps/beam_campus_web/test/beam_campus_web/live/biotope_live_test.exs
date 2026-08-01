@@ -89,6 +89,33 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "A creature has a lunchbox and a body."
   end
 
+  # MOST PEOPLE LAND HERE, so the terms have to be explained here. Half of them
+  # this project made up and the other half mean something narrower than they do
+  # in ordinary use, and a `title` attribute is invisible on a touch screen.
+  #
+  # `founder lines` is the one that actively misleads: it reads as a count of
+  # KINDS and it is a count of ANCESTORS. Two creatures in one line can be far
+  # less alike than two in different ones, and a line can never split, so it is
+  # not a species by any definition and must not be labelled as one.
+  test "explains its terms on the page people land on", %{conn: conn} do
+    Board.put_stats(%{
+      "island" => "beam01",
+      "tick" => 9,
+      "population" => 3,
+      "depth" => 2,
+      "lineages" => 1,
+      "from_creatures_pct" => 21
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "founder lines"
+    assert html =~ "Ancestry, not kind"
+    refute html =~ "species"
+
+    for term <- ["tick", "generations", "meat"], do: assert(html =~ term)
+  end
+
   # An island on an older build sends no world number. Naming one would be a
   # guess, and a guess about which experiment produced a picture is the one
   # thing this page must never make.

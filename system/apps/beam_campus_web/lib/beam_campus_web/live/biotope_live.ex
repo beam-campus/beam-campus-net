@@ -128,6 +128,13 @@ defmodule BeamCampusWeb.BiotopeLive do
             put and living off what gathers where you stand is a way of living,
             not a kind of thing. They do have brains, and so far evolution has
             thrown them away.
+            <span class="mt-2 block">
+              Every island runs the SAME physics and differs only in the random
+              draw it started from, so whether they drift apart is the question
+              this fleet exists to ask. Nothing here is a simulation of anything:
+              the rules are about energy, and every role you can see was counted
+              afterwards rather than assigned.
+            </span>
           </:subtitle>
         </.header>
 
@@ -142,6 +149,7 @@ defmodule BeamCampusWeb.BiotopeLive do
 
         <div :if={@names != []} class="mt-8">
           <.fleet names={@shown} rows={@rows} liveness={@liveness} />
+          <.legend />
           <.running names={@shown} rows={@rows} />
           <.ending names={@shown} liveness={@liveness} />
         </div>

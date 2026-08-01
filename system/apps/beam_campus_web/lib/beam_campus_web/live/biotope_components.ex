@@ -572,6 +572,61 @@ defmodule BeamCampusWeb.BiotopeComponents do
   defp columns_for(_many), do: "sm:grid-cols-2 lg:grid-cols-3"
 
   @doc """
+  What the columns mean, in words, on the page most people land on.
+
+  ALWAYS VISIBLE AND NOT A TOOLTIP. Half of these are terms this project made up
+  and the other half mean something narrower here than they do in ordinary use.
+  A `title` attribute is invisible on a touch screen and invisible to anyone who
+  does not think to hover, which makes it a poor place for the only explanation
+  of a number.
+
+  `founder lines` gets the longest entry because it is the one that actively
+  misleads. It reads as a count of KINDS and it is a count of ANCESTORS, and the
+  two come apart almost immediately: after a few hundred generations two
+  creatures in one line are far more different from each other than any two lines
+  were at the start.
+  """
+  def legend(assigns) do
+    ~H"""
+    <dl class="mt-4 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+      <div>
+        <dt class="font-medium opacity-70">tick</dt>
+        <dd class="opacity-50">
+          The world's own clock, not ours. One tick is one step of the physics, and
+          these islands run about two a second.
+        </dd>
+      </div>
+      <div>
+        <dt class="font-medium opacity-70">generations</dt>
+        <dd class="opacity-50">
+          How many births separate the oldest living creature from the founding.
+          Zero would mean every creature alive is one of the originals, so the
+          world has selected nothing yet.
+        </dd>
+      </div>
+      <div>
+        <dt class="font-medium opacity-70">founder lines</dt>
+        <dd class="opacity-50">
+          How many of the forty starting creatures still have living descendants. <span class="opacity-90">Ancestry, not kind</span>: two creatures in one
+          line can be far less alike than two in different ones, a line can never
+          split, and the number can only fall. Reaching one is what an asexual
+          population does, not a fault.
+        </dd>
+      </div>
+      <div>
+        <dt class="font-medium opacity-70">meat</dt>
+        <dd class="opacity-50">
+          The share of what the living have eaten that came from other creatures
+          rather than from the ground. Counted afterwards from where the energy
+          actually came from; nothing in the rules names a predator, and there is
+          no carnivore flag to set.
+        </dd>
+      </div>
+    </dl>
+    """
+  end
+
+  @doc """
   The fleet in one glance: a row per island, and no scrolling to find out whether
   something has died.
 
@@ -595,7 +650,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
             <th class="py-2 pr-4 text-right font-normal">tick</th>
             <th class="py-2 pr-4 text-right font-normal">creatures</th>
             <th class="py-2 pr-4 text-right font-normal">generations</th>
-            <th class="py-2 pr-4 text-right font-normal">foundings</th>
+            <th class="py-2 pr-4 text-right font-normal">founder lines</th>
             <th class="py-2 text-right font-normal">meat</th>
           </tr>
         </thead>
@@ -819,7 +874,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           else: "the oldest living line is #{@depth} births from the founding"}
       </p>
       <dl class="mt-2 grid grid-cols-2 gap-3 text-sm">
-        <.stat label="foundings left" value={@lines} />
+        <.stat label="founder lines" value={@lines} />
         <.stat label="largest body" value={@stats["structure_max"]} />
       </dl>
     </div>
