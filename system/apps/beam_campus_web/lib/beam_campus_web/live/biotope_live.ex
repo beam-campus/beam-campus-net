@@ -149,6 +149,7 @@ defmodule BeamCampusWeb.BiotopeLive do
 
         <div :if={@names != []} class="mt-8">
           <.fleet names={@shown} rows={@rows} liveness={@liveness} />
+          <.runs names={@shown} rows={@rows} />
           <.legend />
           <.running names={@shown} rows={@rows} />
           <.ending names={@shown} liveness={@liveness} />
@@ -292,6 +293,39 @@ defmodule BeamCampusWeb.BiotopeLive do
     </p>
     """
   end
+
+  # A TICK THAT DROPS BACK TO NOTHING IS A NEW WORLD, NOT A GLITCH.
+  #
+  # A world that ends stays ended: nothing reseeds it and its history is not
+  # continued. The island then begins ANOTHER one, after leaving the corpse on
+  # show for a couple of minutes, because extinction is a result and an island
+  # that restarted instantly would hide it.
+  #
+  # Without this line the only visible sign is the clock going backwards, which
+  # reads as the page being broken. Said only for islands past their first world,
+  # so a fleet that has never lost one says nothing.
+  attr :names, :list, required: true
+  attr :rows, :map, required: true
+
+  defp runs(assigns) do
+    assigns = assign(assigns, again: Enum.filter(assigns.names, &begun_again?(assigns.rows[&1])))
+
+    ~H"""
+    <div :if={@again != []} class="mt-3 space-y-1 text-xs opacity-60">
+      <p :for={name <- @again}>
+        <span class="font-medium">{name}</span>
+        is on world number {get_in(@rows, [name, :stats, "run"])} since it was
+        deployed{ended(get_in(@rows, [name, :stats, "previous_end"]))}. A world that
+        ends stays ended, so the island began a new one rather than reviving it.
+      </p>
+    </div>
+    """
+  end
+
+  defp begun_again?(row), do: (get_in(row, [:stats, "run"]) || 1) > 1
+
+  defp ended(nil), do: ""
+  defp ended(tick), do: ", the previous having ended at tick #{tick}"
 
   # A DEAD ISLAND IS A FLEET FACT, not a per-card one, and it needs saying once.
   # The table already reports "extinct at tick N" in its state column, which says

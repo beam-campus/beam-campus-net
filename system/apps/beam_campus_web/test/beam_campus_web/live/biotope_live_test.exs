@@ -116,6 +116,34 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     for term <- ["tick", "generations", "meat"], do: assert(html =~ term)
   end
 
+  # A TICK THAT DROPS BACK TO NOTHING IS A NEW WORLD, NOT A GLITCH. Without this
+  # the only visible sign that an island began again is the clock running
+  # backwards, which reads as the page being broken.
+  test "says so when an island has begun a new world", %{conn: conn} do
+    Board.put_stats(%{
+      "island" => "beam03",
+      "tick" => 12,
+      "population" => 40,
+      "run" => 3,
+      "previous_end" => 630
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "world number 3"
+    assert html =~ "ended at tick 630"
+    assert html =~ "stays ended"
+  end
+
+  # A fleet that has never lost a world says nothing about runs at all.
+  test "stays quiet about runs on a first world", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam01", "tick" => 9, "population" => 3, "run" => 1})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    refute html =~ "world number"
+  end
+
   # An island on an older build sends no world number. Naming one would be a
   # guess, and a guess about which experiment produced a picture is the one
   # thing this page must never make.
