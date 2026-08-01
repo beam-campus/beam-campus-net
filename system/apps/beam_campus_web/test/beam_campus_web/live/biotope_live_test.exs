@@ -61,10 +61,15 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "beam01"
     assert html =~ "412"
     assert html =~ "78"
-    # Two creatures and one plant, drawn as circles.
-    assert html =~ "<svg"
-    assert html =~ "#F2B142"
-    assert html =~ "#2F7D52"
+
+    # The board is a canvas fed by packed numbers. Two creatures at four values
+    # each, one ground cell at four, and the green is an integer now rather than
+    # a colour string, because markup is the wrong carrier for a particle field.
+    assert html =~ "<canvas"
+    [_, creatures] = Regex.run(~r/data-creatures="([^"]*)"/, html)
+    [_, ground] = Regex.run(~r/data-ground="([^"]*)"/, html)
+    assert length(Jason.decode!(creatures)) == 8
+    assert [_x, _y, 0x2F7D52, _alpha] = Jason.decode!(ground)
   end
 
   # Counts arrive on their own clock and a picture may be switched off entirely,

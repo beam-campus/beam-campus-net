@@ -187,18 +187,64 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
         render_component(
           fn assigns ->
             ~H"""
-            <BiotopeComponents.disc chart={@chart} size={200} />
+            <BiotopeComponents.disc id="d" chart={@chart} size={200} />
             """
           end,
           %{chart: chart}
         )
 
-      radii =
-        Regex.scan(~r/<circle[^>]*\sr="([\d.]+)"/, html)
-        |> Enum.map(fn [_, r] -> String.to_float(r) end)
+      # THE BOARD IS A CANVAS, so this reads the numbers the server packed rather
+      # than parsing markup: exactly the values the browser is given, with no
+      # rendering in between to agree or disagree with. Four per creature:
+      # x, y, radius, colour.
+      [_, json] = Regex.run(~r/data-creatures="([^"]*)"/, html)
+      [_x1, _y1, big, _c1, _x2, _y2, small, _c2] = Jason.decode!(json)
 
-      [big, small] = Enum.take(radii, 2)
       assert big > small, "the creature with the larger BODY must draw larger"
+    end
+
+    # 5,781 svg circles were 85% of a 711 KB page and were rebuilt on every fact.
+    # Nothing was wrong with LiveView's diffing: on a board where every mark moves
+    # every tick almost nothing is unchanged, so the diff was nearly the whole
+    # page. Markup is simply the wrong carrier for a particle field.
+    test "carries the board as numbers rather than as markup" do
+      chart = %{
+        "radius" => 2,
+        "creatures" => [0, 0],
+        "structures" => [100],
+        "uptakes" => [10],
+        "ground" => [0, 0, 40, 1, 0, 900],
+        "scent" => [0, 0, 20]
+      }
+
+      html =
+        render_component(
+          fn assigns ->
+            ~H"""
+            <BiotopeComponents.disc id="d" chart={@chart} size={200} />
+            """
+          end,
+          %{chart: chart}
+        )
+
+      refute html =~ "<circle"
+      assert html =~ "<canvas"
+
+      pull = fn key ->
+        [_, json] = Regex.run(~r/data-#{key}="([^"]*)"/, html)
+        Jason.decode!(json)
+      end
+
+      # Ground is x, y, colour, alpha per cell, and a cell above the ceiling is a
+      # grave: rose rather than green, because only a corpse can carry a cell
+      # that high.
+      [_x, _y, ordinary, _a, _x2, _y2, grave, _a2] = pull.("ground")
+      assert ordinary == 0x2F7D52
+      assert grave == 0xC2557A
+
+      # Every packed value is an integer. A float would cost more to carry than
+      # the precision is worth on a canvas drawing to whole pixels.
+      assert Enum.all?(pull.("creatures") ++ pull.("trails"), &is_integer/1)
     end
   end
 end

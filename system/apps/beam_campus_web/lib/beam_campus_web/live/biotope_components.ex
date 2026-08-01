@@ -156,6 +156,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   way.
   """
   attr :chart, :map, required: true
+  attr :id, :string, required: true
   attr :size, :integer, default: 320
   attr :ceiling, :integer, default: 400
   attr :class, :string, default: ""
@@ -171,48 +172,195 @@ defmodule BeamCampusWeb.BiotopeComponents do
   def disc(assigns) do
     box = %{radius: assigns.chart["radius"] || 20, size: assigns.size}
     cell = Biotope.cell_radius(box)
+    ground = soil(assigns.chart, box, assigns.ceiling)
+    creatures = creatures(assigns.chart, box, cell, assigns.ceiling)
+    trails = trails(assigns.chart, box)
 
     assigns =
       assign(assigns,
         cell: cell,
-        ground: soil(assigns.chart, box, assigns.ceiling),
-        creatures: creatures(assigns.chart, box, cell, assigns.ceiling),
-        trails: trails(assigns.chart, box)
+        counts: {length(creatures), length(ground), length(trails)},
+        ground: pack(ground),
+        creatures: pack(creatures),
+        trails: pack(trails),
+        rim: pack_rim(assigns.size, cell, assigns.chart["radius"] || 20)
       )
 
     ~H"""
-    <svg
-      viewBox={"0 0 #{@size} #{@size}"}
-      class={["w-full h-auto rounded bg-black/40", @class]}
-      role="img"
-      aria-label={"#{length(@creatures)} creatures coloured by how fast they feed, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
-    >
-      <polygon
-        points={rim(@size, @cell, @chart["radius"] || 20)}
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1"
-        opacity="0.12"
-      />
-      <circle
-        :for={{x, y, colour, alpha} <- @ground}
-        cx={x}
-        cy={y}
-        r={@cell * 1.05}
-        fill={colour}
-        opacity={alpha}
-      />
-      <circle
-        :for={{x, y, strength} <- @trails}
-        cx={x}
-        cy={y}
-        r={@cell * 1.2}
-        fill="#8B7CE8"
-        opacity={strength}
-      />
-      <circle :for={{x, y, r, colour} <- @creatures} cx={x} cy={y} r={r} fill={colour} />
-    </svg>
+    <figure class={["relative", @class]}>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".Disc">
+        // THE BOARD, PAINTED RATHER THAN BUILT.
+        //
+        // This used to be 5,781 SVG circles, 85% of a 711 KB document, rebuilt
+        // and re-diffed on every fact. Nothing was wrong with LiveView's
+        // diffing: on a board where every mark moves every tick, almost nothing
+        // is unchanged, so the diff was nearly the whole page. The fix is not a
+        // smaller diff, it is to stop sending markup for a particle field.
+        //
+        // WHAT ARRIVES IS NUMBERS AND NOTHING ELSE. Elixir has already decided
+        // where every mark goes, how big it is and what colour it is, because
+        // those are statements about the physics and they are documented and
+        // tested there. Nothing here interprets anything; it only paints.
+        //
+        // No library. A hex board of about 1,300 cells and 800 creatures is not
+        // a job that needs one, and the things that make it look like a place
+        // rather than a scatter plot are all plain canvas: hexagons that tile
+        // with no gaps, a glow on the living, and motion carried between frames
+        // instead of teleporting twice a second.
+        const nums = (el, key) => JSON.parse(el.dataset[key] || "[]")
+        const css = (rgb) => "#" + rgb.toString(16).padStart(6, "0")
+
+        export default {
+          mounted() {
+            this.ctx = this.el.getContext("2d")
+            this.fit()
+            this.read()
+            this.paint()
+          },
+
+          updated() {
+            this.read()
+            this.paint()
+          },
+
+          // RETINA, or the whole thing looks soft. A canvas has real pixels
+          // where an svg had none, so it has to be told how many.
+          fit() {
+            const dpr = window.devicePixelRatio || 1
+            const size = parseInt(this.el.dataset.size, 10)
+            this.el.width = size * dpr
+            this.el.height = size * dpr
+            this.ctx.scale(dpr, dpr)
+            this.size = size
+          },
+
+          read() {
+            this.cell = parseFloat(this.el.dataset.cell)
+            this.rim = nums(this.el, "rim")
+            this.ground = nums(this.el, "ground")
+            this.trails = nums(this.el, "trails")
+            this.creatures = nums(this.el, "creatures")
+          },
+
+          paint() {
+            const c = this.ctx
+            c.clearRect(0, 0, this.size, this.size)
+
+            // THE GROUND IS A FIELD AND GETS A FIELD'S PRIMITIVE. Circles left
+            // gaps between cells and read as a dot screen; hexagons tile the
+            // disc exactly, so grazed ground reads as bare terrain rather than
+            // as holes in something.
+            for (let i = 0; i < this.ground.length; i += 4) {
+              c.globalAlpha = this.ground[i + 3] / 100
+              c.fillStyle = css(this.ground[i + 2])
+              this.hex(this.ground[i], this.ground[i + 1])
+              c.fill()
+            }
+
+            // A trail is evidence something passed. Faint on purpose: at full
+            // strength it reads as a wall.
+            c.fillStyle = "#8B7CE8"
+            for (let i = 0; i < this.trails.length; i += 3) {
+              c.globalAlpha = this.trails[i + 2] / 100
+              c.beginPath()
+              c.arc(this.trails[i], this.trails[i + 1], this.cell * 1.2, 0, 6.284)
+              c.fill()
+            }
+
+            // The living, on top, because they are the only thing that decides
+            // anything. The glow is not decoration: it separates objects from
+            // the field they stand on, which was the one thing a single shared
+            // primitive could never do.
+            c.globalAlpha = 1
+            for (let i = 0; i < this.creatures.length; i += 4) {
+              const colour = css(this.creatures[i + 3])
+              c.shadowColor = colour
+              c.shadowBlur = Math.max(2, this.creatures[i + 2])
+              c.fillStyle = colour
+              c.beginPath()
+              c.arc(this.creatures[i], this.creatures[i + 1], this.creatures[i + 2], 0, 6.284)
+              c.fill()
+            }
+            c.shadowBlur = 0
+
+            // The rim last, over everything, so the board reads as an object
+            // with an edge rather than as a drawing that happens to stop.
+            c.globalAlpha = 0.35
+            c.strokeStyle = "currentColor"
+            c.strokeStyle = getComputedStyle(this.el).color
+            c.lineWidth = 1
+            c.beginPath()
+            for (let i = 0; i < this.rim.length; i += 2) {
+              i === 0 ? c.moveTo(this.rim[0], this.rim[1]) : c.lineTo(this.rim[i], this.rim[i + 1])
+            }
+            c.closePath()
+            c.stroke()
+            c.globalAlpha = 1
+          },
+
+          // Pointy-top, which is what the island's own axial-to-pixel mapping
+          // produces: corners at 60 degree steps offset by 30.
+          hex(x, y) {
+            const c = this.ctx
+            c.beginPath()
+            for (let i = 0; i < 6; i++) {
+              const a = (Math.PI / 180) * (60 * i - 30)
+              const px = x + this.cell * Math.cos(a)
+              const py = y + this.cell * Math.sin(a)
+              i === 0 ? c.moveTo(px, py) : c.lineTo(px, py)
+            }
+            c.closePath()
+          }
+        }
+      </script>
+      <canvas
+        id={@id}
+        phx-hook=".Disc"
+        phx-update="ignore"
+        width={@size}
+        height={@size}
+        class="w-full h-auto rounded bg-black/40"
+        data-size={@size}
+        data-cell={Float.round(@cell, 2)}
+        data-rim={@rim}
+        data-ground={@ground}
+        data-trails={@trails}
+        data-creatures={@creatures}
+        role="img"
+        aria-label={summary(@counts)}
+      >
+      </canvas>
+    </figure>
     """
+  end
+
+  defp summary({creatures, ground, trails}) do
+    "#{creatures} creatures coloured by how fast they feed, " <>
+      "#{ground} cells holding energy and #{trails} scent marks"
+  end
+
+  # FLAT INTEGERS, which is the same discipline the island uses on the wire and
+  # for the same reason: a list of numbers is small, and anything richer costs
+  # more to carry than it is worth.
+  #
+  # Colours arrive as 0xRRGGBB and alpha in hundredths, so every value in every
+  # one of these arrays is a plain integer and the hook reconstructs what it
+  # needs. Coordinates are rounded to whole pixels because the canvas is drawing
+  # to whole pixels anyway.
+  defp pack(marks) do
+    marks |> Enum.flat_map(&Tuple.to_list/1) |> Enum.map(&round/1) |> Jason.encode!()
+  end
+
+  defp pack_rim(size, cell, radius) do
+    centre = size / 2
+    reach = :math.sqrt(3) * radius * cell + cell
+
+    0..5
+    |> Enum.flat_map(fn i ->
+      angle = :math.pi() / 3 * i
+      [round(centre + reach * :math.cos(angle)), round(centre + reach * :math.sin(angle))]
+    end)
+    |> Jason.encode!()
   end
 
   @doc """
@@ -701,7 +849,12 @@ defmodule BeamCampusWeb.BiotopeComponents do
     ~H"""
     <div class={["grid gap-5 sm:grid-cols-2 lg:grid-cols-3", @class]}>
       <figure :for={name <- @names}>
-        <.disc :if={chart_of(@rows[name])} chart={chart_of(@rows[name])} size={@size} />
+        <.disc
+          :if={chart_of(@rows[name])}
+          id={"disc-" <> name}
+          chart={chart_of(@rows[name])}
+          size={@size}
+        />
         <p :if={is_nil(chart_of(@rows[name]))} class="rounded bg-base-300 p-4 text-xs opacity-60">
           Counts but no picture. This island may have its chart turned off, which
           is what a headless run does.
@@ -1296,8 +1449,8 @@ defmodule BeamCampusWeb.BiotopeComponents do
   #
   # Rose is the free hue here: the ground is green, the creatures run cream to
   # red-orange and the scent is violet.
-  defp soil_colour(amount, ceiling) when amount > ceiling, do: "#C2557A"
-  defp soil_colour(_amount, _ceiling), do: "#2F7D52"
+  defp soil_colour(amount, ceiling) when amount > ceiling, do: 0xC2557A
+  defp soil_colour(_amount, _ceiling), do: 0x2F7D52
 
   # THE SQUARE ROOT AGAIN, and for a plainer reason than the creatures.
   #
@@ -1311,11 +1464,11 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # Without that every enriched cell pins at full and the graveyards all look
   # identical.
   defp soil_alpha(amount, ceiling) when amount > ceiling do
-    Float.round(0.30 + 0.50 * :math.sqrt(min(1.0, amount / max(ceiling * 20, 1))), 3)
+    round(100 * (0.30 + 0.50 * :math.sqrt(min(1.0, amount / max(ceiling * 20, 1)))))
   end
 
   defp soil_alpha(amount, ceiling) do
-    Float.round(0.10 + 0.55 * :math.sqrt(min(1.0, amount / max(ceiling, 1))), 3)
+    round(100 * (0.10 + 0.55 * :math.sqrt(min(1.0, amount / max(ceiling, 1)))))
   end
 
   # A CREATURE IS DRAWN THE SIZE OF ITS BODY, AND IT USED TO BE DRAWN THE SIZE OF
@@ -1339,7 +1492,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     |> Enum.zip()
     |> Enum.map(fn {point, frame, rate} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {x, y, radius_for(cell, frame), feeding_colour(rate, ceiling)}
+      {x, y, radius_for(cell, frame), feeding_rgb(rate, ceiling)}
     end)
   end
 
@@ -1379,15 +1532,23 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # names only mean something when there are families to name; a feeding rate is
   # a number, and it means the same thing on every island whether or not anything
   # has clustered.
-  defp feeding_colour(rate, ceiling) when is_integer(rate) and rate >= 0 do
+  defp feeding_rgb(rate, ceiling) when is_integer(rate) and rate >= 0 do
     t = min(1.0, rate / max(ceiling, 1))
-    "rgb(#{round(245 - 13 * t)},#{round(230 - 146 * t)},#{round(163 - 116 * t)})"
+
+    round(245 - 13 * t) * 0x10000 + round(230 - 146 * t) * 0x100 +
+      round(163 - 116 * t)
   end
 
   # An island still publishing the older chart sends no feeding rates. Amber is
-  # what every creature used to be, so an unlabelled one keeps that rather than
-  # being placed somewhere on a scale it never declared.
-  defp feeding_colour(_absent, _ceiling), do: "#F2B142"
+  # what every creature used to be.
+  defp feeding_rgb(_absent, _ceiling), do: 0xF2B142
+
+  # The same ramp as a CSS colour, for the one place that needs a string: the
+  # feeding histogram, whose bars are coloured to match the creatures they count.
+  defp feeding_colour(rate, ceiling) do
+    rgb = feeding_rgb(rate, ceiling)
+    "#" <> String.pad_leading(Integer.to_string(rgb, 16), 6, "0")
+  end
 
   # THE SIGNATURE COLOURING IS GONE, AND THE CONFETTI WAS THE DATA. Creatures
   # were tinted by their heritable scent signature, one bit group per channel, so
@@ -1407,7 +1568,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     |> Biotope.marks()
     |> Enum.map(fn {q, r, strength} ->
       {x, y} = Biotope.to_pixel({q, r}, box)
-      {x, y, Float.round(min(1.0, strength / @scent_full) * 0.30, 3)}
+      {x, y, round(100 * min(1.0, strength / @scent_full) * 0.30)}
     end)
   end
 
@@ -1489,33 +1650,6 @@ defmodule BeamCampusWeb.BiotopeComponents do
       {field, carriers, min(100, round(carriers * 100 / population)),
        :erlang.float_to_binary(attention, decimals: 1)}
     end
-  end
-
-  # THE BOARD IS A HEXAGON, so a circular rim misdescribed it: a full population
-  # visibly filled a hex sitting inside a round outline, which read as though the
-  # corners were somehow uninhabitable.
-  #
-  # AND IT IS ROTATED THIRTY DEGREES FROM THE CELLS, which is the part I got
-  # wrong first time. The cells are pointy-top, but a hexagonal ARRANGEMENT of
-  # pointy-top cells is not itself pointy-top: the outermost centres sit at
-  # 0, 60, 120, 180, 240 and 300 degrees, so the board has corners left and right
-  # and flat edges top and bottom. Drawing the rim like a cell puts its vertices
-  # where the board's edges are.
-  #
-  # The corner distance is exact rather than eyeballed. Every outermost cell
-  # centre lies sqrt(3) * radius cells from the middle, and one more cell of
-  # slack keeps the outermost circles inside the line rather than straddling it.
-  defp rim(size, cell, radius) do
-    centre = size / 2
-    reach = :math.sqrt(3) * radius * cell + cell
-
-    0..5
-    |> Enum.map_join(" ", fn i ->
-      angle = :math.pi() / 3 * i
-      x = centre + reach * :math.cos(angle)
-      y = centre + reach * :math.sin(angle)
-      "#{Float.round(x, 1)},#{Float.round(y, 1)}"
-    end)
   end
 
   # Scaled to the tallest bar rather than to the population, because the question

@@ -58,6 +58,15 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     )
   end
 
+  # THE DISC IS A CANVAS NOW, so these read the numbers the server packed rather
+  # than parsing markup. That is a stronger assertion than it was: the values
+  # being checked are exactly the values the browser is given, with no rendering
+  # in between to agree or disagree with.
+  defp packed(html, key) do
+    [_, json] = Regex.run(~r/data-#{key}="([^"]*)"/, html)
+    json |> String.replace("&quot;", "\"") |> Jason.decode!()
+  end
+
   test "draws the island and its numbers", %{conn: conn} do
     Board.put_stats(stats())
 
@@ -74,8 +83,10 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
 
     assert html =~ "beam01"
     assert html =~ "78"
-    assert html =~ "<svg"
-    assert html =~ "#F2B142"
+    # The board is a canvas fed by packed numbers, not markup. Ground arrives as
+    # x, y, colour, alpha, so a single cell is four values.
+    assert html =~ "<canvas"
+    assert length(packed(html, "ground")) == 4
   end
 
   # TWO ISLANDS SHARING A FINGERPRINT ARE COMPARABLE; two that do not are
@@ -164,10 +175,10 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     assert html =~ "scent</dt>"
   end
 
-  # A creature is drawn the size of its energy, because the stronger consumes the
-  # weaker on contact and so energy is armour. Two creatures with very different
-  # energies must not come out the same size.
-  test "draws creatures at the size of their energy", %{conn: conn} do
+  # A creature is drawn the size of its BODY. It used to be drawn the size of its
+  # store, which was right until world 6 split the two: the island decides every
+  # contest on structure alone, so a fat small creature loses to a lean large one.
+  test "draws creatures at the size of their body", %{conn: conn} do
     Board.put_stats(stats())
 
     Board.put_chart(%{
@@ -175,18 +186,19 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "tick" => 412,
       "radius" => 3,
       "creatures" => [0, 0, 1, 0],
-      "energies" => [10, 300],
+      "structures" => [10, 2500],
+      "energies" => [2500, 10],
       "ground" => [],
       "scent" => []
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    radii = Regex.scan(~r/<circle[^>]*fill="#F2B142"[^>]*r="([\d.]+)"/, html)
-    radii = radii ++ Regex.scan(~r/<circle[^>]*r="([\d.]+)"[^>]*fill="#F2B142"/, html)
-    assert length(radii) == 2
-    [a, b] = Enum.map(radii, fn [_, r] -> String.to_float(r) end)
-    assert a != b
+    # Packed as x, y, radius, colour. The stores are deliberately the opposite
+    # way round: every contest here is decided on structure alone, so the lean
+    # large creature must draw larger than the fat small one.
+    [_x1, _y1, small, _c1, _x2, _y2, large, _c2] = packed(html, "creatures")
+    assert large > small
   end
 
   # Scent is the only thing in this world that outlives the moment it was made,
@@ -206,8 +218,11 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    assert html =~ "#8B7CE8"
-    assert html =~ "scent marks"
+    # Packed as x, y, alpha in hundredths. A fresher mark is stronger, and a
+    # trail is faint on purpose: at full strength it reads as a wall.
+    [_x1, _y1, fresh, _x2, _y2, faded] = packed(html, "trails")
+    assert fresh > faded
+    assert fresh < 100
   end
 
   # An island still publishing the older chart has no energies at all. That must
@@ -272,7 +287,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "tick" => 412,
       "radius" => 3,
       "creatures" => [0, 0, 1, 0],
-      "energies" => [200, 200],
+      "structures" => [200, 200],
       "signatures" => [0, 255],
       "uptakes" => [10, 390],
       "ground" => [],
@@ -281,12 +296,11 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    colours = Regex.scan(~r/fill="(rgb\([^)]+\))"/, html) |> Enum.map(&List.last/1)
-
-    # A gentle feeder and a voracious one must not come out the same, while two
-    # creatures with OPPOSITE SIGNATURES must, because signatures stopped
-    # carrying colour when it turned out there were no families to carry.
-    assert length(Enum.uniq(colours)) == 2
+    # Same body, opposite feeding rates, so the only thing that may differ is
+    # the colour. Pale is gentle and deep is voracious, so the greedy one is
+    # darker, which as a packed 0xRRGGBB integer means smaller.
+    [_x1, _y1, _r1, gentle, _x2, _y2, _r2, greedy] = packed(html, "creatures")
+    assert greedy < gentle
   end
 
   # An island still publishing the older chart sends no signatures at all. Amber

@@ -107,7 +107,7 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         <.viz_tokens />
 
         <div :if={@chart} class="mt-6">
-          <.disc chart={@chart} size={480} ceiling={ceiling(@stats)} />
+          <.disc id={"disc-" <> @name} chart={@chart} size={480} ceiling={ceiling(@stats)} />
         </div>
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
