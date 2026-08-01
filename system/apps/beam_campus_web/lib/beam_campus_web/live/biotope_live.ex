@@ -120,7 +120,7 @@ defmodule BeamCampusWeb.BiotopeLive do
 
         <.viz_tokens />
 
-        <div class="mt-8 space-y-8">
+        <div class="mt-10 space-y-14">
           <.card
             :for={name <- @shown}
             name={name}
@@ -180,9 +180,9 @@ defmodule BeamCampusWeb.BiotopeLive do
     assigns = assign(assigns, chart: assigns.row[:chart], stats: assigns.row[:stats])
 
     ~H"""
-    <section class="rounded-lg border border-base-content/10 bg-base-200 p-5">
+    <section class="rounded-xl border border-base-content/10 bg-base-200 p-6 shadow-sm sm:p-7">
       <div class="flex items-baseline justify-between gap-2">
-        <h2 class="font-semibold">
+        <h2 class="text-base font-semibold">
           <.link navigate={~p"/research/workbench/biotope/#{@name}"} class="link link-hover">
             {@name}
           </.link>
@@ -191,6 +191,7 @@ defmodule BeamCampusWeb.BiotopeLive do
       </div>
 
       <.ruleset stats={@stats} class="mt-1" />
+      <.gone liveness={@liveness} stats={@stats} />
 
       <div class="mt-4 grid gap-5 sm:grid-cols-[minmax(0,260px)_1fr]">
         <div>
@@ -239,6 +240,34 @@ defmodule BeamCampusWeb.BiotopeLive do
     </section>
     """
   end
+
+  # A DEAD ISLAND'S CHARTS ARE FOUR PICTURES OF NOTHING, and four axes running
+  # zero to one read as instruments that are broken rather than as a world that
+  # is over. beam03 went extinct at tick 630 on the world 9 rollout and its card
+  # was indistinguishable at a glance from an island whose data had stopped
+  # arriving, which is the one confusion this whole page is built to avoid.
+  #
+  # So the ending is stated in words above the charts. The charts stay: the run
+  # up to the ending is the most interesting thing a dead island has, and hiding
+  # it would be hiding the result.
+  attr :liveness, :any, required: true
+  attr :stats, :map, required: true
+
+  defp gone(%{liveness: {:extinct, tick}} = assigns) do
+    assigns = assign(assigns, tick: tick, burnt: assigns.stats["dissipated"])
+
+    ~H"""
+    <p class="mt-3 rounded-lg border border-error/30 bg-error/10 p-3 text-sm">
+      <span class="font-semibold text-error">This world ended at tick {@tick}.</span>
+      Every creature died and nothing reseeds a world, so it will not come back.
+      The ground still gathers energy and the clock still runs, which is why the
+      island goes on publishing. World 9 ends this way in about two seeds in five,
+      and that is a result rather than a fault.
+    </p>
+    """
+  end
+
+  defp gone(assigns), do: ~H""
 
   # Configured-and-dark and never-configured need different responses from
   # whoever is reading, so the page says which it is rather than showing one
