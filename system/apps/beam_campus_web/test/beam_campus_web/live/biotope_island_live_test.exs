@@ -324,17 +324,20 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     assert html =~ "how fast they feed"
   end
 
-  # EVERY CHART NEEDS A CAPTION AND A COLOUR KEY. A line, a bar and a haze of
-  # dots are legible once you know what they count and opaque until then, and a
-  # reader made to infer it from a paragraph somewhere else will infer it wrong.
-  test "captions its charts and says what the colours mean", %{conn: conn} do
+  # EVERY CHART NAMES THE ONE QUANTITY IT DRAWS. It used to need a colour key as
+  # well, because two quantities shared a canvas and only the swatches said which
+  # line was which. They no longer share one: a chart holds a single series and
+  # its own title names it, which is why there is no legend on any of them.
+  test "names the quantity on every chart", %{conn: conn} do
     Board.put_stats(stats())
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    assert html =~ "what they became"
     assert html =~ "creatures"
-    assert html =~ "ground"
+    assert html =~ "energy in the ground"
+    assert html =~ "energy from creatures"
+    assert html =~ "sensors per creature"
+    assert html =~ "burnt as heat"
   end
 
   # An island that has sent counts but no distribution yet must say so rather

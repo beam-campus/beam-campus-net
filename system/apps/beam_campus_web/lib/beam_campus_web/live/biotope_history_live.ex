@@ -72,6 +72,7 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         </.header>
 
         <.switch current={:history} />
+        <.viz_tokens />
 
         <p
           :if={@islands == []}
@@ -118,7 +119,8 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         </span>
       </div>
 
-      <.sparkline samples={@samples} w={640} h={120} class="mt-2" />
+      <.stocks samples={@samples} w={340} h={140} class="mt-2" />
+      <.entropy samples={@samples} w={340} h={140} class="mt-4 sm:max-w-[50%]" />
 
       <dl class="mt-2 flex flex-wrap gap-6 text-sm">
         <.stat label="creatures" value={@last.population} />

@@ -118,7 +118,9 @@ defmodule BeamCampusWeb.BiotopeLive do
           <.dark configured?={@configured?} watching?={@watching?} />
         </div>
 
-        <div class="mt-8 grid gap-6 sm:grid-cols-2">
+        <.viz_tokens />
+
+        <div class="mt-8 space-y-8">
           <.card
             :for={name <- @shown}
             name={name}
@@ -163,57 +165,78 @@ defmodule BeamCampusWeb.BiotopeLive do
   attr :liveness, :any, required: true
   attr :samples, :list, required: true
 
+  # A SECTION AND NOT A LINK-WRAPPED BLOCK.
+  #
+  # The whole card used to be one anchor, which was fine while it held nothing
+  # but text and a picture. It cannot stay that way now that every chart carries
+  # an expandable table: a `details` inside an `a` is invalid, and a keyboard
+  # user tabbing through it gets one target that swallows all of them.
+  #
+  # So the heading is the link, the card is a section, and the card grew tall
+  # enough to say something. One per row rather than two: the disc and four
+  # charts do not fit in half a column, and scrolling costs a reader far less
+  # than a chart too small to read.
   defp card(assigns) do
     assigns = assign(assigns, chart: assigns.row[:chart], stats: assigns.row[:stats])
 
     ~H"""
-    <.link
-      navigate={~p"/research/workbench/biotope/#{@name}"}
-      class="block rounded-lg border border-base-content/10 bg-base-200 p-4 transition hover:border-primary/40"
-    >
+    <section class="rounded-lg border border-base-content/10 bg-base-200 p-5">
       <div class="flex items-baseline justify-between gap-2">
-        <h2 class="font-semibold">{@name}</h2>
+        <h2 class="font-semibold">
+          <.link navigate={~p"/research/workbench/biotope/#{@name}"} class="link link-hover">
+            {@name}
+          </.link>
+        </h2>
         <.liveness liveness={@liveness} />
       </div>
 
       <.ruleset stats={@stats} class="mt-1" />
 
-      <div class="mt-3">
-        <.caption
-          :if={@chart}
-          label="the island now"
-          keys={[{"#2F7D52", "ground"}, {"#C9A227", "died here"}, {"#8B7CE8", "scent"}]}
+      <div class="mt-4 grid gap-5 sm:grid-cols-[minmax(0,260px)_1fr]">
+        <div>
+          <.caption
+            :if={@chart}
+            label="the island now"
+            keys={[{"#2F7D52", "ground"}, {"#C2557A", "died here"}, {"#8B7CE8", "scent"}]}
+          />
+          <.disc :if={@chart} chart={@chart} size={260} class="mt-2" />
+          <p :if={@chart} class="mt-1 text-xs opacity-40">
+            a creature's size is its body, its colour how fast it feeds
+          </p>
+          <p :if={is_nil(@chart)} class="text-sm opacity-60">
+            Counts but no picture. This island may have its chart turned off, which
+            is what a headless run does.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <dl :if={@stats} class="grid grid-cols-3 gap-2 text-sm">
+            <.stat label="creatures" value={@stats["population"]} />
+            <.stat label="stayed put" value={pct(@stats["still_pct"])} />
+            <.stat label="tick" value={@stats["tick"]} />
+          </dl>
+
+          <.descent :if={@stats} stats={@stats} />
+          <.share :if={@stats} stats={@stats} />
+        </div>
+      </div>
+
+      <.stocks samples={@samples} w={340} h={140} class="mt-6" />
+
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <.entropy samples={@samples} w={340} h={140} />
+        <.plot
+          samples={@samples}
+          get={& &1.depth}
+          label="generations deep"
+          hint="zero means every creature alive is a founder"
+          w={340}
+          h={140}
         />
-        <.disc :if={@chart} chart={@chart} size={240} class="mt-2" />
-        <p :if={@chart} class="mt-1 text-xs opacity-40">
-          a creature's size is its energy, its colour how fast it feeds
-        </p>
-        <p :if={is_nil(@chart)} class="text-sm opacity-60">
-          Counts but no picture. This island may have its chart turned off, which
-          is what a headless run does.
-        </p>
       </div>
 
-      <div class="mt-2 grid grid-cols-2 gap-3">
-        <.sparkline samples={@samples} w={120} h={64} />
-        <.shape
-          :if={@stats}
-          bars={@stats["hidden_hist"]}
-          label="brains"
-          hint="creatures with 0, 1, 2… hidden nodes"
-        />
-      </div>
-
-      <dl :if={@stats} class="mt-3 grid grid-cols-3 gap-2 text-sm">
-        <.stat label="creatures" value={@stats["population"]} />
-        <.stat label="stayed put" value={pct(@stats["still_pct"])} />
-        <.stat label="tick" value={@stats["tick"]} />
-      </dl>
-
-      <div :if={@stats} class="mt-3">
-        <.share stats={@stats} />
-      </div>
-    </.link>
+      <.ledger :if={@stats} stats={@stats} class="mt-4" />
+    </section>
     """
   end
 

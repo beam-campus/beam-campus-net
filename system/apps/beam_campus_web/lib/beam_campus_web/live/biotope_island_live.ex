@@ -96,19 +96,21 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           invents a world to fill the space.
         </p>
 
+        <.viz_tokens />
+
         <div :if={@chart} class="mt-6">
           <.disc chart={@chart} size={480} ceiling={ceiling(@stats)} />
         </div>
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
-          A creature's SIZE is its energy, because the stronger consumes the
-          weaker on contact and so energy is armour. Its COLOUR is how fast it
-          feeds: pale is gentle and deep is voracious. Feed slower than the ground
-          comes back and a cell sustains you for good; feed harder and you strip
-          it, your income collapses to the bare floor, and you move or starve.
-          The green surface is the ground itself, brighter where
+          A creature's SIZE is its body, because every contest here is decided on
+          structure alone: a fat small creature loses to a lean large one. Its
+          COLOUR is how fast it feeds: pale is gentle and deep is voracious. Feed
+          slower than the ground comes back and a cell sustains you for good; feed
+          harder and you strip it, your income collapses to the bare floor, and you
+          move or starve. The green surface is the ground itself, brighter where
           more energy has gathered and dark where something has grazed it bare.
-          GOLD MEANS SOMETHING DIED THERE: sunlight stops at the ceiling, so only
+          ROSE MEANS SOMETHING DIED THERE: sunlight stops at the ceiling, so only
           a corpse can carry a cell that high. The violet haze is scent, ground
           walked over recently, fading tick by tick.
         </p>
@@ -125,6 +127,8 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         </dl>
 
         <div :if={@stats} class="mt-6 grid gap-6 sm:grid-cols-2">
+          <.descent stats={@stats} />
+          <.ledger stats={@stats} />
           <.sessile stats={@stats} />
           <.share stats={@stats} />
           <.census stats={@stats} />
@@ -160,26 +164,45 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         <section :if={@stats} class="mt-8">
           <h2 class="text-sm font-semibold opacity-70">Where it has been</h2>
           <p class="mt-1 text-xs opacity-50">
-            Amber is the population, green the energy still lying in the ground. Each is scaled to its
-            own maximum: they are different quantities, and one axis would say
-            something false about their relative size. Plotted against the world's
-            own tick.
+            Grazing pressure against regrowth. Two charts rather than two lines on
+            one: they count different things, so a crossing point between them
+            would mean nothing. Both are plotted against the world's own tick, and
+            both axes start at zero.
           </p>
-          <.sparkline samples={@samples} w={720} h={160} class="mt-3" />
+          <.stocks samples={@samples} w={340} h={160} class="mt-3" />
           <p :if={@samples != []} class="mt-2 text-xs opacity-50">
             {length(@samples)} samples, ticks {List.first(@samples).tick} to {List.last(@samples).tick}.
             A line that stops is an island that stopped: a row is written only when
             its tick advances.
           </p>
 
+          <h2 class="mt-8 text-sm font-semibold opacity-70">Whether it can still change</h2>
+          <p class="mt-1 text-xs opacity-50">
+            The entropy account and the depth of descent. The first is every unit
+            ever spent on living, as heat, and it is the only quantity here that
+            cannot fall. The second is how many births separate the oldest living
+            creature from the founding: at zero, every creature alive IS a founder
+            and the world has selected nothing.
+          </p>
+          <div class="mt-3 grid gap-4 sm:grid-cols-2">
+            <.entropy samples={@samples} w={340} h={160} />
+            <.plot
+              samples={@samples}
+              get={& &1.depth}
+              label="generations deep"
+              hint="zero means nothing but founders"
+              w={340}
+              h={160}
+            />
+          </div>
+
           <h2 class="mt-8 text-sm font-semibold opacity-70">What they became</h2>
           <p class="mt-1 text-xs opacity-50">
-            Amber is the share of eaten energy that came from other creatures;
-            blue is how much measuring a creature carries. Neither is a rule.
-            There is no herbivore field and no carnivore flag anywhere in the
-            island: both are counted afterwards from what actually happened.
+            Neither is a rule. There is no herbivore field and no carnivore flag
+            anywhere in the island: both are counted afterwards from what actually
+            happened.
           </p>
-          <.trends samples={@samples} w={720} h={140} class="mt-3" />
+          <.becoming samples={@samples} w={340} h={160} class="mt-3" />
           <p class="mt-2 text-xs opacity-50">
             Only samples sharing this island's current rules are drawn. Change the
             economy and the line starts again rather than bending, because an

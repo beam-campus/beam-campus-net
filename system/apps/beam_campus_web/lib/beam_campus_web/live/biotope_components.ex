@@ -13,6 +13,12 @@ defmodule BeamCampusWeb.BiotopeComponents do
   use Phoenix.Component
   use Phoenix.VerifiedRoutes, endpoint: BeamCampusWeb.Endpoint, router: BeamCampusWeb.Router
 
+  # ROOM FOR THE AXES, which is the whole reason these charts have margins at
+  # all. The left gutter holds the y labels and the bottom band holds the ticks;
+  # sizing a plot without them is how a chart ends up with its own little scroll
+  # bar or with the numbers clipped off.
+  @pad %{left: 46, right: 12, top: 10, bottom: 20}
+
   @doc """
   The faces of this feature, and the way back up.
 
@@ -134,12 +140,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
   everything because they are the past and should not obscure the present.
   Creatures go on top because they are the only thing that decides anything.
 
-  A CREATURE IS DRAWN THE SIZE OF ITS ENERGY, which is not decoration. In this
-  world the stronger consumes the weaker on contact, so energy IS armour and how
-  big a dot is is the most informative thing about it. Drawn against an absolute
-  scale rather than the largest in the frame: a creature twice the size of
-  another must always look twice the size, or a frame in which everything is
-  starving would silently rescale itself to look ordinary.
+  A CREATURE IS DRAWN THE SIZE OF ITS BODY, which is not decoration: the island
+  decides every contest on structure alone, so the body is what says who wins one.
+  It used to be drawn the size of its STORE, which was right until world 6 split
+  the two and wrong for three worlds after.
+
+  Drawn against an absolute scale rather than the largest in the frame, so a
+  board where everything has shrunk looks shrunken instead of quietly rescaling
+  itself to look ordinary. Area carries the quantity, not radius.
 
   AND THE COLOUR OF HOW FAST IT FEEDS. Pale is gentle and deep is voracious.
   Feeding slower than the ground comes back holds a cell indefinitely; feeding
@@ -152,9 +160,10 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :ceiling, :integer, default: 400
   attr :class, :string, default: ""
 
-  # The energy at which a creature is drawn at full size. Above it they stop
-  # growing, because past a point the only question is who is larger.
-  @energy_full 300
+  # The body at which a creature is drawn at full size, well above the 400 a
+  # founder starts with, because world 9's populations build past 4,000 and the
+  # whole story there is the range between them.
+  @frame_full 2500
   # A mark at the island's ceiling. Anything fresher is simply as strong as
   # ground gets.
   @scent_full 30
@@ -207,97 +216,401 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   @doc """
-  Population and the energy lying in the ground, over time.
+  The colours every chart on these pages draws from, as CSS custom properties.
 
-  Each series is scaled to its OWN maximum, because they are different
-  quantities in different units and one axis would say something false about
-  their relative size. What the pair is for is the shape: grazing pressure
-  against regrowth.
+  ## Three slots, and three is the limit rather than a preference
+
+  Both modes were checked with the data-viz validator rather than by eye. Six
+  hues, one per quantity, FAILED the normal-vision floor in light mode and both
+  the colourblind and normal-vision floors in dark: the magenta and the red sat
+  7.8 apart against a floor of 15, which is two lines a reader with ordinary
+  colour vision cannot tell apart. Three passes every check in both modes, worst
+  colourblind pair 9.2 light and 9.4 dark against a target of 8.
+
+  So colour carries identity only for the two things the DISC also shows, the
+  ground and the creatures, and every derived quantity shares one accent. Each
+  chart is titled and holds one series, so the title carries the identity and the
+  colour reinforces it. That is also why there is no legend on any of them: a
+  legend for one series repeats its own title.
+
+  ## Two modes, both selected
+
+  The dark values are the same three hues stepped for a dark surface, not an
+  automatic flip. Declared under the media query AND the theme attribute, because
+  this site's toggle writes `data-theme` and that must beat the operating system
+  in both directions.
+
+  One light-mode step, the green, sits at 2.74:1 against the light surface where
+  3:1 is the bar. That obligates relief rather than a different colour: every
+  plot below carries visible axis labels, a direct endpoint value, and a table.
   """
-  attr :samples, :list, required: true
-  attr :w, :integer, default: 640
-  attr :h, :integer, default: 120
-  attr :class, :string, default: ""
-  attr :label, :string, default: "over time"
-
-  def sparkline(%{samples: []} = assigns) do
+  def viz_tokens(assigns) do
     ~H"""
-    <div class={@class}>
-      <.caption label={@label} keys={[{"#F2B142", "creatures"}, {"#2F7D52", "ground"}]} />
-      <p class="mt-2 text-xs opacity-40">no history yet</p>
-    </div>
+    <style>
+      .viz {
+        --viz-grid: rgba(11,11,11,0.14);
+        --viz-ink: #52514e;
+        --viz-ground: #1baf7a;
+        --viz-creatures: #eb6834;
+        --viz-derived: #2a78d6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:where(:not([data-theme="light"])) .viz {
+          --viz-grid: rgba(255,255,255,0.16);
+          --viz-ink: #c3c2b7;
+          --viz-ground: #199e70;
+          --viz-creatures: #d95926;
+          --viz-derived: #3987e5;
+        }
+      }
+      :root[data-theme="dark"] .viz {
+        --viz-grid: rgba(255,255,255,0.16);
+        --viz-ink: #c3c2b7;
+        --viz-ground: #199e70;
+        --viz-creatures: #d95926;
+        --viz-derived: #3987e5;
+      }
+    </style>
     """
   end
 
-  def sparkline(assigns) do
+  @doc """
+  One quantity against the world's own clock, with both axes labelled.
+
+  ## Why one series and never two
+
+  This replaced a pair of charts that each drew two quantities on one canvas,
+  every series scaled to its own maximum and no axis drawn at all. That is a
+  dual-axis chart with the axes left off: where the two lines cross is decided by
+  the ratio of two maxima nobody chose and nobody could see, so the picture
+  invented a relationship that is not in the data. A population of 900 and a
+  population of 9 drew identically.
+
+  Two quantities in different units get two charts, side by side, sharing the
+  tick along the bottom. That is the only honest way to put them together.
+
+  ## The axes
+
+  Y runs from zero to a rounded number above the data, so a line's height means
+  something absolute and two islands can be read against each other. **Zero is
+  always on the axis**: a population chart cropped to its own range turns a
+  wobble of three creatures into a mountain range.
+
+  X is the world's own tick, never wall clock. An island runs at whatever pace it
+  was configured for, so the two drift apart, and a chart against wall clock
+  stretches or compresses depending on how fast the world happened to be running.
+
+  ## A gap is drawn as a gap
+
+  A sample with nothing for this quantity breaks the line rather than being
+  bridged. That happens for real during a rollout: fact version 5 added the
+  entropy and descent fields, so an island not yet upgraded records a row with
+  those columns empty, and joining across it would draw a straight line through
+  time the island never reported.
+  """
+  attr :samples, :list, required: true
+  attr :get, :any, required: true
+  attr :label, :string, required: true
+  attr :role, :string, default: "derived"
+  attr :hint, :string, default: nil
+  attr :suffix, :string, default: ""
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
+  attr :class, :string, default: ""
+
+  def plot(%{samples: []} = assigns) do
+    ~H"""
+    <figure class={["viz", @class]}>
+      <.caption label={@label} />
+      <p class="mt-2 text-xs opacity-40">no history yet</p>
+    </figure>
+    """
+  end
+
+  def plot(assigns) do
+    values = Enum.map(assigns.samples, assigns.get)
+    present = Enum.reject(values, &is_nil/1)
+
+    assigns
+    |> assign(values: values, present: present)
+    |> drawn()
+  end
+
+  # NOT PUBLISHED BY THIS ISLAND is a different answer from NOTHING HAPPENED, and
+  # a chart that cannot tell them apart will be read as the second. An island on
+  # an older fact version genuinely has no entropy column, and drawing a flat line
+  # at zero would claim its entropy is nothing, which is a statement about physics
+  # rather than about a rollout.
+  defp drawn(%{present: []} = assigns) do
+    ~H"""
+    <figure class={["viz", @class]}>
+      <.caption label={@label} />
+      <p class="mt-2 text-xs opacity-40">
+        this island does not publish it yet
+      </p>
+    </figure>
+    """
+  end
+
+  defp drawn(assigns) do
+    top = nice(Enum.max(assigns.present))
+    ticks = Enum.map(assigns.samples, & &1.tick)
+    span = %{lo: Enum.min(ticks), hi: Enum.max(ticks), top: top, w: assigns.w, h: assigns.h}
+
     assigns =
       assign(assigns,
-        population: polyline(assigns.samples, & &1.population, assigns.w, assigns.h),
-        ground: polyline(assigns.samples, & &1.ground_total, assigns.w, assigns.h)
+        top: top,
+        span: span,
+        line: line(assigns.samples, assigns.values, span),
+        last: List.last(assigns.present),
+        low: Enum.min(assigns.present),
+        first_tick: span.lo,
+        last_tick: span.hi,
+        mid_tick: div(span.lo + span.hi, 2),
+        plot_left: @pad.left,
+        plot_right: assigns.w - @pad.right,
+        plot_top: @pad.top,
+        plot_bottom: assigns.h - @pad.bottom
       )
 
     ~H"""
-    <div class={@class}>
-      <.caption label={@label} keys={[{"#F2B142", "creatures"}, {"#2F7D52", "ground"}]} />
+    <figure class={["viz", @class]}>
+      <.caption label={@label} />
+      <p :if={@hint} class="text-xs opacity-40">{@hint}</p>
       <svg
         viewBox={"0 0 #{@w} #{@h}"}
-        class="mt-2 w-full h-auto rounded bg-black/40"
+        class="mt-2 h-auto w-full"
         role="img"
-        aria-label={"Population and energy in the ground over #{length(@samples)} samples"}
+        aria-label={"#{@label}: #{@low}#{@suffix} to #{@top}#{@suffix} over ticks #{@first_tick} to #{@last_tick}, ending at #{@last}#{@suffix}"}
       >
-        <polyline points={@ground} fill="none" stroke="#2F7D52" stroke-width="1.5" opacity="0.8" />
-        <polyline points={@population} fill="none" stroke="#F2B142" stroke-width="1.5" />
+        <g stroke="var(--viz-grid)" stroke-width="1">
+          <line
+            :for={f <- [0, 0.5, 1]}
+            x1={@plot_left}
+            x2={@plot_right}
+            y1={@plot_bottom - f * (@plot_bottom - @plot_top)}
+            y2={@plot_bottom - f * (@plot_bottom - @plot_top)}
+          />
+          <line x1={@plot_left} x2={@plot_left} y1={@plot_top} y2={@plot_bottom} />
+        </g>
+
+        <g fill="var(--viz-ink)" font-size="10" style="font-variant-numeric: tabular-nums">
+          <text
+            :for={f <- [0, 0.5, 1]}
+            x={@plot_left - 6}
+            y={@plot_bottom - f * (@plot_bottom - @plot_top) + 3}
+            text-anchor="end"
+          >
+            {short(axis_value(@top, f))}
+          </text>
+          <text x={@plot_left} y={@h - 6} text-anchor="start">{short(@first_tick)}</text>
+          <text x={(@plot_left + @plot_right) / 2} y={@h - 6} text-anchor="middle">
+            {short(@mid_tick)}
+          </text>
+          <text x={@plot_right} y={@h - 6} text-anchor="end">{short(@last_tick)}</text>
+        </g>
+
+        <path
+          d={@line}
+          fill="none"
+          stroke={"var(--viz-#{@role})"}
+          stroke-width="2"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
       </svg>
+
+      <figcaption class="mt-1 flex items-baseline justify-between gap-2 text-xs">
+        <span class="opacity-50">tick</span>
+        <span class="font-mono opacity-80">now {short(@last)}{@suffix}</span>
+      </figcaption>
+
+      <details class="mt-1 text-xs">
+        <summary class="cursor-pointer opacity-40">values</summary>
+        <table class="mt-1 w-full">
+          <tbody class="font-mono">
+            <tr>
+              <td class="opacity-50">lowest</td>
+              <td class="text-right">{@low}{@suffix}</td>
+            </tr>
+            <tr>
+              <td class="opacity-50">highest</td>
+              <td class="text-right">{@top}{@suffix}</td>
+            </tr>
+            <tr>
+              <td class="opacity-50">latest</td>
+              <td class="text-right">{@last}{@suffix}</td>
+            </tr>
+            <tr>
+              <td class="opacity-50">ticks</td>
+              <td class="text-right">{@first_tick} to {@last_tick}</td>
+            </tr>
+          </tbody>
+        </table>
+      </details>
+    </figure>
+    """
+  end
+
+  @doc """
+  The two halves of the energy books, over time, as two charts sharing a clock.
+
+  Grazing pressure against regrowth, which is what the pair was always for. They
+  are drawn apart rather than together because they are counts of different
+  things: one is creatures and one is units of energy, and a crossing point
+  between them would mean nothing at all.
+  """
+  attr :samples, :list, required: true
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
+  attr :class, :string, default: ""
+
+  def stocks(assigns) do
+    ~H"""
+    <div class={["grid gap-4 sm:grid-cols-2", @class]}>
+      <.plot
+        samples={@samples}
+        get={& &1.population}
+        label="creatures"
+        role="creatures"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={& &1.ground_total}
+        label="energy in the ground"
+        role="ground"
+        w={@w}
+        h={@h}
+      />
     </div>
     """
   end
 
   @doc """
-  What the population BECAME, over time.
+  What the population BECAME, as two charts rather than two lines.
 
-  Two evolved quantities rather than two counts. Amber is the share of eaten
-  energy that came from other creatures; blue is how much measuring a creature
-  carries. Neither is a rule and neither is read by the island's physics: they
-  are counted from what happened.
-
-  Each is scaled to its own maximum, because they are different quantities in
-  different units and one axis would say something false about their relative
-  size. What the pair is for is the SHAPE: whether a world that eats itself is
-  also a world that stops bothering to look.
+  Neither is a rule and neither is read by the island's physics. There is no
+  herbivore field and no carnivore flag anywhere: the share of energy taken from
+  other creatures is counted afterwards from where it actually came from.
   """
   attr :samples, :list, required: true
-  attr :w, :integer, default: 640
-  attr :h, :integer, default: 120
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
   attr :class, :string, default: ""
 
-  def trends(%{samples: []} = assigns) do
+  def becoming(assigns) do
     ~H"""
-    <div class={@class}>
-      <.caption label="what they became" keys={[{"#F2B142", "meat"}, {"#6C9BD5", "sensors"}]} />
-      <p class="mt-2 text-xs opacity-40">no history yet</p>
+    <div class={["grid gap-4 sm:grid-cols-2", @class]}>
+      <.plot
+        samples={@samples}
+        get={& &1.from_creatures_pct}
+        label="energy from creatures"
+        hint="counted afterwards, never declared"
+        suffix="%"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={&((&1.sensor_mean || 0) / 100)}
+        label="sensors per creature"
+        hint="what they pay to measure with"
+        w={@w}
+        h={@h}
+      />
     </div>
     """
   end
 
-  def trends(assigns) do
-    assigns =
-      assign(assigns,
-        meat: polyline(assigns.samples, & &1.from_creatures_pct, assigns.w, assigns.h),
-        sensors: polyline(assigns.samples, & &1.sensor_mean, assigns.w, assigns.h)
-      )
+  @doc """
+  The entropy account, which is the one line here that cannot fall.
 
+  Every unit ever spent on living leaves as heat, and at one temperature that IS
+  this world's entropy. So the Second Law is not an assertion on this page, it is
+  the shape of this line: it rises and never returns.
+
+  It is also the third term of the books. Energy is in the ground, in a creature,
+  or already burnt, and the three together change only by what the sun adds.
+  """
+  attr :samples, :list, required: true
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
+  attr :class, :string, default: ""
+
+  def entropy(assigns) do
+    ~H"""
+    <.plot
+      samples={@samples}
+      get={& &1.dissipated}
+      label="burnt as heat"
+      hint="the Second Law: this can only rise"
+      w={@w}
+      h={@h}
+      class={@class}
+    />
+    """
+  end
+
+  @doc """
+  Where every unit of energy in this world currently is.
+
+  Three terms and they are exhaustive: in the ground, inside something alive, or
+  already spent. The first two are the world as it stands and the third is
+  everything it has ever done, which is why the third is so much the largest.
+  """
+  attr :stats, :map, required: true
+  attr :class, :string, default: ""
+
+  def ledger(assigns) do
     ~H"""
     <div class={@class}>
-      <.caption label="what they became" keys={[{"#F2B142", "meat"}, {"#6C9BD5", "sensors"}]} />
-      <svg
-        viewBox={"0 0 #{@w} #{@h}"}
-        class="mt-2 w-full h-auto rounded bg-black/40"
-        role="img"
-        aria-label={"Share of energy from creatures, and sensors carried, over #{length(@samples)} samples"}
-      >
-        <polyline points={@sensors} fill="none" stroke="#6C9BD5" stroke-width="1.5" opacity="0.9" />
-        <polyline points={@meat} fill="none" stroke="#F2B142" stroke-width="1.5" />
-      </svg>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">where the energy is</h3>
+      <p class="mt-1 text-xs opacity-40">
+        exhaustive: in the ground, in something alive, or already burnt
+      </p>
+      <dl class="mt-2 grid grid-cols-3 gap-3 text-sm">
+        <.stat label="in the ground" value={@stats["ground_total"]} />
+        <.stat label="in creatures" value={@stats["energy_total"]} />
+        <.stat label="burnt" value={@stats["dissipated"]} />
+      </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  Whether this population can still change, which is not the same as how it is
+  doing.
+
+  THE NUMBER WORLD 8 WAS MISSING. It ended with creatures carrying four hundred
+  times what they were founded with, and it ended because nothing had been born
+  since tick 15. Every other number on this page described that population
+  perfectly and not one of them could tell it from a living one.
+
+  Zero generations means every creature alive is a founder, so the world has
+  selected nothing: it filtered its founding once and stopped.
+  """
+  attr :stats, :map, required: true
+
+  def descent(assigns) do
+    assigns = assign(assigns, depth: assigns.stats["depth"], lines: assigns.stats["lineages"])
+
+    ~H"""
+    <div :if={@depth}>
+      <h3 class="text-xs uppercase tracking-wide opacity-50">descent</h3>
+      <p class="mt-1 font-mono text-lg leading-none">
+        {@depth} <span class="text-xs opacity-60">generations deep</span>
+      </p>
+      <p class="mt-1 text-xs opacity-50">
+        {if @depth == 0,
+          do: "every creature alive is a founder: nothing has been selected yet",
+          else: "the oldest living line is #{@depth} births from the founding"}
+      </p>
+      <dl class="mt-2 grid grid-cols-2 gap-3 text-sm">
+        <.stat label="foundings left" value={@lines} />
+        <.stat label="largest body" value={@stats["structure_max"]} />
+      </dl>
     </div>
     """
   end
@@ -703,28 +1016,60 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # ceiling, so no amount of sunlight reaches this; only a corpse does. Worth its
   # own colour, because "places became different because things died there" is
   # the one claim this rendering can settle at a glance.
-  defp soil_colour(amount, ceiling) when amount > ceiling, do: "#C9A227"
+  #
+  # ROSE RATHER THAN GOLD, and the old gold was a real mistake. It was #C9A227
+  # against creatures at #F2B142, two ambers a page apart in hue, and the only
+  # reason nobody noticed is that this branch had NEVER ONCE FIRED: it needs a
+  # cell above 400 and the richest cell on the board held about 18. World 9 makes
+  # it fire constantly, with 86 percent of all ground energy sitting in a tenth of
+  # the cells, so a colour that was safely invisible is about to be everywhere.
+  #
+  # Rose is the free hue here: the ground is green, the creatures run cream to
+  # red-orange and the scent is violet.
+  defp soil_colour(amount, ceiling) when amount > ceiling, do: "#C2557A"
   defp soil_colour(_amount, _ceiling), do: "#2F7D52"
 
-  defp soil_alpha(amount, ceiling) do
-    full = max(ceiling, 1)
-    Float.round(0.12 + 0.48 * min(1.0, amount / full), 3)
+  # THE SQUARE ROOT AGAIN, and for a plainer reason than the creatures.
+  #
+  # Grazing is the story this surface tells, and grazing happens down at the
+  # bottom of the range: a cell at 40 and a cell at 4 are a fed creature and a
+  # starved one, and on a straight ramp they differed by four percent of an alpha
+  # channel. A root spends the visible range where the population actually lives.
+  #
+  # A corpse cell is scaled against a much higher mark than the ceiling, because
+  # a body returns its whole store and world 9's bodies carry tens of thousands.
+  # Without that every enriched cell pins at full and the graveyards all look
+  # identical.
+  defp soil_alpha(amount, ceiling) when amount > ceiling do
+    Float.round(0.30 + 0.50 * :math.sqrt(min(1.0, amount / max(ceiling * 20, 1))), 3)
   end
 
-  # Energies run PARALLEL to creatures rather than interleaved, so they are
-  # zipped here. Padded rather than assumed equal: a truncated frame, or an
-  # island still publishing the older chart with no energies at all, should cost
-  # accurate sizing and not the page.
+  defp soil_alpha(amount, ceiling) do
+    Float.round(0.10 + 0.55 * :math.sqrt(min(1.0, amount / max(ceiling, 1))), 3)
+  end
+
+  # A CREATURE IS DRAWN THE SIZE OF ITS BODY, AND IT USED TO BE DRAWN THE SIZE OF
+  # ITS LUNCHBOX.
+  #
+  # The old rule sized a dot by `energy` and explained that energy is armour
+  # because the stronger consumes the weaker. That was true until world 6 split
+  # the store from the structure, and the island has decided contests on
+  # STRUCTURE ALONE ever since: "a fat small creature loses to a lean large one",
+  # in its own words. So the picture was drawing the one quantity that does not
+  # decide anything, and world 9 makes it worse, because a standing spread of
+  # BODY sizes is the thing that world's whole result rests on.
+  #
+  # Structures have been on the wire the entire time and nothing read them.
   defp creatures(chart, box, cell, ceiling) do
     points = Biotope.points(chart["creatures"])
-    energies = pad(chart["energies"] || [], length(points), 0)
+    frames = pad(chart["structures"] || chart["energies"] || [], length(points), 0)
     rates = pad(chart["uptakes"] || [], length(points), nil)
 
-    [points, energies, rates]
+    [points, frames, rates]
     |> Enum.zip()
-    |> Enum.map(fn {point, energy, rate} ->
+    |> Enum.map(fn {point, frame, rate} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {x, y, radius_for(cell, energy), feeding_colour(rate, ceiling)}
+      {x, y, radius_for(cell, frame), feeding_colour(rate, ceiling)}
     end)
   end
 
@@ -732,13 +1077,24 @@ defmodule BeamCampusWeb.BiotopeComponents do
     values ++ List.duplicate(filler, max(0, wanted - length(values)))
   end
 
-  # A floor as well as a scale, because a creature about to starve is still
-  # there and a dot of radius zero is a creature the picture has lost.
-  defp radius_for(cell, energy) when is_integer(energy) and energy > 0 do
-    cell * (0.35 + 0.65 * min(1.0, energy / @energy_full))
+  # THE RADIUS GOES AS THE SQUARE ROOT, so the AREA is proportional to the body
+  # and not the radius. A circle is read by how much of it there is; making the
+  # radius proportional squares the quantity, so a creature twice the size of
+  # another looked four times it.
+  #
+  # It also keeps the spread visible. World 9 runs founders at 400 and its
+  # largest bodies past 4,000, and a linear scale would saturate everything above
+  # the founding into one flat maximum, hiding exactly the range that matters.
+  #
+  # A floor as well as a scale, because a creature about to starve is still there
+  # and a dot of radius zero is a creature the picture has lost. Absolute rather
+  # than relative to the frame: a board where everything has shrunk must LOOK
+  # shrunken rather than quietly rescaling itself to look ordinary.
+  defp radius_for(cell, frame) when is_integer(frame) and frame > 0 do
+    cell * (0.25 + 0.75 * :math.sqrt(min(1.0, frame / @frame_full)))
   end
 
-  defp radius_for(cell, _energy), do: cell * 0.35
+  defp radius_for(cell, _frame), do: cell * 0.25
 
   # COLOURED BY HOW FAST IT FEEDS, which is a quantity rather than a label.
   #
@@ -785,24 +1141,71 @@ defmodule BeamCampusWeb.BiotopeComponents do
     end)
   end
 
+  # A PATH RATHER THAN A POLYLINE, because a polyline cannot have a hole in it.
+  # A sample with nothing for this quantity starts a new segment instead of being
+  # joined across, so a gap in what an island reported is drawn as a gap.
+  #
   # NOT called `path`: Phoenix.VerifiedRoutes imports path/2, and shadowing it
-  # fails at compile time inside ~p with a message about a path string that
-  # names neither this function nor the collision.
-  defp polyline([], _get, _w, _h), do: ""
+  # fails at compile time inside ~p with a message about a path string that names
+  # neither this function nor the collision.
+  # `M` starts a segment and `L` continues one, so a missing value simply resets
+  # to `M` and the next drawn point begins a new stroke rather than being joined
+  # back across the hole.
+  defp line(samples, values, span) do
+    samples
+    |> Enum.zip(values)
+    |> Enum.reduce({[], false}, fn
+      {_sample, nil}, {acc, _drawing} ->
+        {acc, false}
 
-  defp polyline(samples, get, w, h) do
-    values = Enum.map(samples, get)
-    top = max(Enum.max(values), 1)
-    span = max(length(values) - 1, 1)
-
-    values
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {v, i} ->
-      x = i / span * w
-      y = h - v / top * (h - 4) - 2
-      "#{Float.round(x, 1)},#{Float.round(y, 1)}"
+      {sample, value}, {acc, drawing} ->
+        {[((drawing && "L") || "M") <> at(sample, value, span) | acc], true}
     end)
+    |> elem(0)
+    |> Enum.reverse()
+    |> Enum.join(" ")
   end
+
+  defp at(sample, value, span) do
+    width = span.w - @pad.left - @pad.right
+    height = span.h - @pad.top - @pad.bottom
+    across = max(span.hi - span.lo, 1)
+    x = @pad.left + (sample.tick - span.lo) / across * width
+    y = span.h - @pad.bottom - min(1.0, value / max(span.top, 1)) * height
+    "#{Float.round(x, 1)},#{Float.round(y, 1)}"
+  end
+
+  # A ROUND NUMBER ABOVE THE DATA, so the top of the axis is a value a reader can
+  # hold in their head and two islands drawn on 1,000 can be compared at a glance.
+  # An axis topped at 806 because that is what the maximum happened to be makes
+  # every chart a different chart.
+  defp nice(max) when max <= 0, do: 1
+
+  defp nice(max) do
+    power = :math.pow(10, floor(:math.log10(max * 1.0)))
+    step = Enum.find([1, 2, 2.5, 5, 10], &(max <= &1 * power)) * power
+    whole_or_fraction(step)
+  end
+
+  # SENSORS PER CREATURE RUNS AT 0.22, so rounding every axis top to a whole
+  # number would put that chart's ceiling at 1 and flatten the only line on it.
+  # Anything from ten up is a count and stays whole.
+  defp whole_or_fraction(step) when step >= 10, do: round(step)
+  defp whole_or_fraction(step), do: Float.round(step, 2)
+
+  defp axis_value(top, fraction) when is_integer(top), do: round(top * fraction)
+  defp axis_value(top, fraction), do: Float.round(top * fraction, 2)
+
+  # THOUSANDS AND MILLIONS, because the entropy account runs to tens of millions
+  # within an hour and a y axis reading 27920812 is an axis nobody reads.
+  defp short(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 2)
+
+  defp short(n) when is_integer(n) and abs(n) >= 1_000_000,
+    do: "#{Float.round(n / 1_000_000, 1)}M"
+
+  defp short(n) when is_integer(n) and abs(n) >= 10_000, do: "#{Float.round(n / 1000, 1)}k"
+  defp short(n) when is_integer(n), do: Integer.to_string(n)
+  defp short(other), do: to_string(other)
 
   # Ordered as the island orders its fields, so two islands read the same way.
   defp census_rows(stats) do

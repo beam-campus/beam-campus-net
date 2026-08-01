@@ -56,7 +56,9 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
 
     assert html =~ "beam01"
     assert html =~ "beam02"
-    assert html =~ "<polyline"
+    # A PATH RATHER THAN A POLYLINE, because a polyline cannot have a hole in it
+    # and a sample an island did not report must draw as a gap.
+    assert html =~ "<path"
     # The window is described by the world's own clock, not this node's.
     assert html =~ "ticks 100 to 200"
     # The legend reports the latest sample, not the first.

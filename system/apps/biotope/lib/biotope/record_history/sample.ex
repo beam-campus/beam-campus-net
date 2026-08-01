@@ -23,7 +23,7 @@ defmodule Biotope.RecordHistory.Sample do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @fields [
+  @required [
     :island,
     :tick,
     :econ_id,
@@ -40,6 +40,21 @@ defmodule Biotope.RecordHistory.Sample do
     :still_pct,
     :ground_spread
   ]
+
+  # ARRIVED WITH FACT VERSION 5, SO THEY ARE OPTIONAL AND MUST STAY OPTIONAL.
+  #
+  # A fleet is deployed one node at a time, so during any rollout some islands
+  # send version 4 and some send 5. Requiring these would do exactly what the
+  # moduledoc above describes happening twice already: every fact from an island
+  # not yet upgraded fails validation, recording stops dead, and the only symptom
+  # is a chart going flat while the islands are perfectly healthy.
+  #
+  # A missing value is recorded as NULL and drawn as a gap, which is the truth. A
+  # zero is not: it would put an island's entropy at nothing, and entropy at
+  # nothing is a claim about physics rather than about a rollout.
+  @optional [:dissipated, :structure_total, :depth, :lineages]
+
+  @fields @required ++ @optional
 
   schema "biotope_samples" do
     field :island, :string
@@ -70,6 +85,19 @@ defmodule Biotope.RecordHistory.Sample do
     # made by things dying on it.
     field :still_pct, :integer
     field :ground_spread, :integer
+    # THE ONE QUANTITY THAT CANNOT FALL. Every unit ever spent on living, as
+    # heat, which at one temperature IS this world's entropy. It is also the
+    # third term of the books: ground plus creatures plus this changes only by
+    # what the sun adds, and the first two were recorded without it.
+    field :dissipated, :integer
+    # What the population is BUILT of, as against what it is carrying. A contest
+    # is decided on structure alone.
+    field :structure_total, :integer
+    # WHETHER THE POPULATION CAN STILL CHANGE, which nothing above can answer.
+    # `depth` is generations in the deepest living line, so zero means every
+    # creature alive is a founder and the world has selected nothing.
+    field :depth, :integer
+    field :lineages, :integer
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
@@ -83,7 +111,7 @@ defmodule Biotope.RecordHistory.Sample do
   def changeset(fact) when is_map(fact) do
     %__MODULE__{}
     |> cast(atomise(fact), @fields)
-    |> validate_required(@fields)
+    |> validate_required(@required)
     |> validate_number(:population, greater_than_or_equal_to: 0)
     |> validate_number(:tick, greater_than_or_equal_to: 0)
     |> unique_constraint([:island, :tick])
