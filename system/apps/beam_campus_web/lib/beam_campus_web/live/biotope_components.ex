@@ -246,6 +246,30 @@ defmodule BeamCampusWeb.BiotopeComponents do
   """
   def viz_tokens(assigns) do
     ~H"""
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".KeepOpen">
+      // A DISCLOSURE THAT SURVIVES A PATCH.
+      //
+      // `details/summary' keeps its open state in the DOM, and the server never
+      // knows it was opened, so every re-render sends markup without `open' and
+      // morphdom faithfully closes it again. On these pages a fact arrives twice
+      // a second, so a pane opened by hand shut before it could be read.
+      //
+      // The state therefore lives here, keyed by element id, and is put back
+      // after every update. It is deliberately NOT server state: which panes a
+      // reader has open is not something the island should be told, and pushing
+      // it up would put a round trip in the way of a triangle.
+      const open = new Map()
+
+      export default {
+        mounted() {
+          this.el.open = open.get(this.el.id) === true
+          this.el.addEventListener("toggle", () => open.set(this.el.id, this.el.open))
+        },
+        updated() {
+          this.el.open = open.get(this.el.id) === true
+        }
+      }
+    </script>
     <style>
       .viz {
         --viz-grid: rgba(11,11,11,0.14);
@@ -317,6 +341,11 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :w, :integer, default: 320
   attr :h, :integer, default: 150
   attr :class, :string, default: ""
+  # A STABLE ID, because the disclosure below has to be recognisable across a
+  # patch to be put back open. Derived from the label when not given, which is
+  # unique on a page holding one plot per measure; `compare/1' passes its own,
+  # since there every panel is labelled with an island and the measure is the row.
+  attr :id, :string, default: nil
   # A CEILING IMPOSED FROM OUTSIDE, so several islands can be read against each
   # other. Left alone, every plot picks its own and two charts of populations
   # 1,000 apart draw the same picture. See `compare/1'.
@@ -336,7 +365,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     present = Enum.reject(values, &is_nil/1)
 
     assigns
-    |> assign(values: values, present: present)
+    |> assign(values: values, present: present, id: assigns.id || slug(assigns.label))
     |> drawn()
   end
 
@@ -429,7 +458,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
         <span class="font-mono opacity-80">now {short(@last)}{@suffix}</span>
       </figcaption>
 
-      <details class="mt-1 text-xs">
+      <details id={"vals-" <> @id} phx-hook=".KeepOpen" class="mt-1 text-xs">
         <summary class="cursor-pointer opacity-40">values</summary>
         <table class="mt-1 w-full">
           <tbody class="font-mono">
@@ -508,6 +537,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           samples={samples}
           get={@get}
           label={name}
+          id={slug(@label) <> "-" <> slug(name)}
           role={@role}
           suffix={@suffix}
           top={@top}
@@ -529,6 +559,12 @@ defmodule BeamCampusWeb.BiotopeComponents do
       |> Enum.reject(&is_nil/1)
 
     values != [] && nice(Enum.max(values))
+  end
+
+  # An id a browser can hold on to. Labels are prose, and prose with spaces in it
+  # is not a DOM id.
+  defp slug(text) do
+    text |> String.downcase() |> String.replace(~r/[^a-z0-9]+/, "-") |> String.trim("-")
   end
 
   defp columns_for(n) when n <= 1, do: "sm:grid-cols-1"
@@ -1021,10 +1057,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
   def econ(%{stats: nil} = assigns), do: ~H""
 
   def econ(assigns) do
-    assigns = assign(assigns, id: assigns.stats["econ_id"], econ: assigns.stats["econ"] || %{})
+    assigns =
+      assign(assigns,
+        id: assigns.stats["econ_id"] || "unknown",
+        econ: assigns.stats["econ"] || %{}
+      )
 
     ~H"""
-    <details class="mt-3 text-xs">
+    <details id={"rules-" <> @id} phx-hook=".KeepOpen" class="mt-3 text-xs">
       <summary class="cursor-pointer opacity-60">
         rules <code class="font-mono">{@id}</code>
       </summary>

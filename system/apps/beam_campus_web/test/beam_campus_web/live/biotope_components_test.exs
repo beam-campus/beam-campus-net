@@ -155,6 +155,18 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
 
       assert Enum.uniq(tops) == ["200", "2000"]
     end
+
+    # THE HOOK THAT KEEPS A PANE OPEN IS KEYED ON THE ID, so two panels sharing
+    # one would toggle together and a duplicate id is invalid markup besides.
+    # Every panel on the fleet page is labelled with its island and the measure
+    # is the row, so the id has to carry both.
+    test "gives every panel a distinct id for its disclosure" do
+      ids = Regex.scan(~r/id="(vals-[^"]*)"/, compare(true)) |> Enum.map(&List.last/1)
+
+      assert length(ids) == 2
+      assert Enum.uniq(ids) == ids
+      assert Enum.all?(ids, &String.contains?(&1, "creatures"))
+    end
   end
 
   describe "the disc" do
