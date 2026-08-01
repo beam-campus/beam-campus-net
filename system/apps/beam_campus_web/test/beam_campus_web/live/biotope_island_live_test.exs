@@ -252,16 +252,16 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
     assert html =~ "799"
   end
 
-  # THE CONFETTI WAS THE DATA, so colour stopped carrying lineage. Creatures were
-  # tinted by their heritable signature, one bit group per channel, and the
-  # mapping was correct: kin really did share a colour. The picture was still
-  # unreadable, because at the mutation rate these islands run there are no kin.
-  # Signature spread measures 44-49 against a baseline of 50 for entirely
-  # unrelated tags, so a colouring that showed families was inventing them.
+  # PALE IS GENTLE AND DEEP IS VORACIOUS, and this is a quantity rather than a
+  # label. Feeding slower than the ground returns holds a cell indefinitely;
+  # feeding harder strips it and forces a move, so the colour is the
+  # prudent-to-greedy axis read straight off a scale.
   #
-  # Two creatures with OPPOSITE signatures must now come out the same, and this
-  # asserts it rather than leaving it to be noticed.
-  test "does not colour creatures by lineage, because there are none", %{conn: conn} do
+  # It replaced a signature colouring that was correct and unreadable: kin did
+  # share a colour, but at the mutation rate these islands run there are no kin,
+  # so it drew every creature differently and showed nothing. A name means
+  # something only when there are families to name.
+  test "colours creatures by how fast they feed", %{conn: conn} do
     Board.put_stats(stats())
 
     Board.put_chart(%{
@@ -271,14 +271,19 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
       "creatures" => [0, 0, 1, 0],
       "energies" => [200, 200],
       "signatures" => [0, 255],
+      "uptakes" => [10, 390],
       "ground" => [],
       "scent" => []
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
 
-    refute html =~ "rgb("
-    assert html =~ "#F2B142"
+    colours = Regex.scan(~r/fill="(rgb\([^)]+\))"/, html) |> Enum.map(&List.last/1)
+
+    # A gentle feeder and a voracious one must not come out the same, while two
+    # creatures with OPPOSITE SIGNATURES must, because signatures stopped
+    # carrying colour when it turned out there were no families to carry.
+    assert length(Enum.uniq(colours)) == 2
   end
 
   # An island still publishing the older chart sends no signatures at all. Amber

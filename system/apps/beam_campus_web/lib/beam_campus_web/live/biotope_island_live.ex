@@ -100,10 +100,11 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">
           A creature's SIZE is its energy, because the stronger consumes the
-          weaker on contact and so energy is armour. They share one colour: they
-          were drawn by lineage, and the measured signature spread says there are
-          no lineages to draw, so the picture stopped claiming otherwise. The
-          green surface is the ground itself, brighter where
+          weaker on contact and so energy is armour. Its COLOUR is how fast it
+          feeds: pale is gentle and deep is voracious. Feed slower than the ground
+          comes back and a cell sustains you for good; feed harder and you strip
+          it, your income collapses to the bare floor, and you move or starve.
+          The green surface is the ground itself, brighter where
           more energy has gathered and dark where something has grazed it bare.
           GOLD MEANS SOMETHING DIED THERE: sunlight stops at the ceiling, so only
           a corpse can carry a cell that high. The violet haze is scent, ground

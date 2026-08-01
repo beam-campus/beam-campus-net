@@ -141,13 +141,11 @@ defmodule BeamCampusWeb.BiotopeComponents do
   another must always look twice the size, or a frame in which everything is
   starving would silently rescale itself to look ordinary.
 
-  AND THE COLOUR OF ITS LINEAGE. A creature carries a heritable eight-bit scent
-  signature, and reads a trail by how unlike itself it smells, so relatedness is
-  already what the signature is. Colouring by it turns the disc into a family
-  map: kin share a colour, long-separated lineages do not, and whether the
-  population is one family or several becomes something you see rather than a
-  number you read. When migration exists, a foreigner will simply be the wrong
-  colour, with no further machinery.
+  AND THE COLOUR OF HOW FAST IT FEEDS. Pale is gentle and deep is voracious.
+  Feeding slower than the ground comes back holds a cell indefinitely; feeding
+  harder strips it and forces a move. So the colour is the prudent-to-greedy
+  axis, and a patch of one shade is a patch of creatures making a living the same
+  way.
   """
   attr :chart, :map, required: true
   attr :size, :integer, default: 320
@@ -168,7 +166,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       assign(assigns,
         cell: cell,
         ground: soil(assigns.chart, box, assigns.ceiling),
-        creatures: creatures(assigns.chart, box, cell),
+        creatures: creatures(assigns.chart, box, cell, assigns.ceiling),
         trails: trails(assigns.chart, box)
       )
 
@@ -177,7 +175,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
       viewBox={"0 0 #{@size} #{@size}"}
       class="w-full h-auto rounded bg-black/40"
       role="img"
-      aria-label={"#{length(@creatures)} creatures coloured by lineage, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
+      aria-label={"#{length(@creatures)} creatures coloured by how fast they feed, #{length(@ground)} cells holding energy and #{length(@trails)} scent marks"}
     >
       <polygon
         points={rim(@size, @cell, @chart["radius"] || 20)}
@@ -596,16 +594,16 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # zipped here. Padded rather than assumed equal: a truncated frame, or an
   # island still publishing the older chart with no energies at all, should cost
   # accurate sizing and not the page.
-  defp creatures(chart, box, cell) do
+  defp creatures(chart, box, cell, ceiling) do
     points = Biotope.points(chart["creatures"])
     energies = pad(chart["energies"] || [], length(points), 0)
-    signatures = pad(chart["signatures"] || [], length(points), nil)
+    rates = pad(chart["uptakes"] || [], length(points), nil)
 
-    [points, energies, signatures]
+    [points, energies, rates]
     |> Enum.zip()
-    |> Enum.map(fn {point, energy, tag} ->
+    |> Enum.map(fn {point, energy, rate} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {x, y, radius_for(cell, energy), lineage_colour(tag)}
+      {x, y, radius_for(cell, energy), feeding_colour(rate, ceiling)}
     end)
   end
 
@@ -621,27 +619,39 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   defp radius_for(cell, _energy), do: cell * 0.35
 
-  # ONE COLOUR, AND THE CONFETTI WAS THE DATA.
+  # COLOURED BY HOW FAST IT FEEDS, which is a quantity rather than a label.
   #
-  # Creatures were coloured by their heritable scent signature, one bit group per
-  # channel, so that kin would share a colour and strangers would not. The
-  # mapping was right and the picture was unreadable: every creature came out a
-  # different pastel and the disc looked like sprinkles.
+  # PALE IS GENTLE AND DEEP IS VORACIOUS. Feed slower than the ground comes back
+  # and a cell holds a standing stock you can draw on for good; feed harder and
+  # you strip it, your income collapses to the bare floor, and you move or
+  # starve. So the colour is the prudent-to-greedy axis, read straight off a
+  # scale, and a patch of one shade is a patch of creatures making a living the
+  # same way.
   #
-  # It was not a rendering bug. It was FAITHFUL. At the mutation rate the islands
-  # run, signatures scramble across most of the 256 available within a few
-  # hundred births, and the measured spread sits at 44-49 against a baseline of
-  # 50 for entirely unrelated signatures. **There are no families.** A colouring
-  # that showed families would have been inventing them.
+  # This is what the signature colouring could not be. A signature is a name, and
+  # names only mean something when there are families to name; a feeding rate is
+  # a number, and it means the same thing on every island whether or not anything
+  # has clustered.
+  defp feeding_colour(rate, ceiling) when is_integer(rate) and rate >= 0 do
+    t = min(1.0, rate / max(ceiling, 1))
+    "rgb(#{round(245 - 13 * t)},#{round(230 - 146 * t)},#{round(163 - 116 * t)})"
+  end
+
+  # An island still publishing the older chart sends no feeding rates. Amber is
+  # what every creature used to be, so an unlabelled one keeps that rather than
+  # being placed somewhere on a scale it never declared.
+  defp feeding_colour(_absent, _ceiling), do: "#F2B142"
+
+  # THE SIGNATURE COLOURING IS GONE, AND THE CONFETTI WAS THE DATA. Creatures
+  # were tinted by their heritable scent signature, one bit group per channel, so
+  # kin shared a colour. The mapping was right and the picture was unreadable:
+  # at the mutation rate these islands run, signatures scramble across most of
+  # the 256 available within a few hundred births and the measured spread sits at
+  # 44-49 against a baseline of 50 for wholly unrelated tags. There are no
+  # families, so a colouring that showed families was inventing them.
   #
-  # So colour stops carrying that, because a picture whose honest content is "no
-  # structure" is better served by not spending its most salient channel on it.
-  # Size still carries energy, which does vary and does matter.
-  #
-  # This comes back the moment signatures mean something, and whether they ever
-  # do is a question about the mutation rate, which is PHYSICS. It must not be
-  # lowered to make a picture prettier.
-  defp lineage_colour(_tag), do: "#F2B142"
+  # A name only means something when there are families to name. A feeding rate
+  # is a number and means the same thing everywhere, which is why it took over.
 
   # Faint on purpose. A trail is evidence that something passed, and at full
   # strength it would read as a wall.

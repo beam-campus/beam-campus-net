@@ -103,8 +103,11 @@ defmodule BeamCampusWeb.BiotopeLive do
         <.header>
           Biotopes
           <:subtitle>
-            Open populations on the mesh. Plants grow, creatures forage, breed and
-            starve. Nothing here has a brain yet.
+            Open populations on the mesh. Energy gathers in the ground, creatures
+            feed, breed, starve and eat each other. There are no plants: staying
+            put and living off what gathers where you stand is a way of living,
+            not a kind of thing. They do have brains, and so far evolution has
+            thrown them away.
           </:subtitle>
         </.header>
 
