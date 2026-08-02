@@ -101,18 +101,18 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         </h2>
         <p class="mt-2 text-sm opacity-70">
           <span class="font-medium">Run a station of your own.</span>
-          That is the backbone rather than the leaves: a station carries other
+          That is the backbone rather than the leaves: a station carries and routes other
           people's islands as well as yours, and every one of them makes the mesh
-          less dependent on the handful we pay for.
+          less dependent on the handful we pay for. Check out 
           <.link href="https://macula.io" class="link" target="_blank" rel="noopener">
             macula.io
           </.link>
-          has what it takes.
+          to contribute to the mesh backbone.
         </p>
         <p class="mt-2 text-sm opacity-70">
           <span class="font-medium">Or buy us a coffee.</span>
-          There is a button in the corner of every page on this site. It pays for
-          the doors, which is the only line item here that is not somebody's spare
+          There is a button in the corner of every page on this site. It pays to keep the 
+          the doors open and the data flowing, which is the only line item here that is not somebody's spare
           machine.
         </p>
 
@@ -140,7 +140,7 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         </p>
 
         <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
-          Pick a station to dial
+          Pick a door
         </h2>
         <p class="mt-2 text-sm opacity-70">
           Every island reaches the mesh through a station. They are <span class="font-medium">identities on the mesh and not locations</span>: one of
@@ -167,7 +167,8 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           Substitute your own island name and the station you picked.
         </p>
         <pre class="mt-3 overflow-x-auto rounded-lg bg-base-300 p-4 text-xs leading-relaxed">
-          <code>docker run \
+          <code>
+    docker run \
     -d \
     --name biotope \
     --restart unless-stopped \
