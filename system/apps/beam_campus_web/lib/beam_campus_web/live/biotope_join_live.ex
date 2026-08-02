@@ -103,9 +103,9 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           <span class="font-medium">Run a station of your own.</span>
           That is the backbone rather than the leaves: a station carries and routes other
           people's islands as well as yours, and every one of them makes the mesh
-          less dependent on the handful we pay for. Check out
-          <.link href="https://macula.io" class="link" target="_blank" rel="noopener">
-            macula.io/relay
+          less dependent on the handful we pay for.
+          <.link href="https://macula.io/relay" class="link" target="_blank" rel="noopener">
+            Become part of the mesh
           </.link>
           to contribute to the mesh backbone.
         </p>
