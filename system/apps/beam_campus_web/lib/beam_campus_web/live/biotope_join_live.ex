@@ -25,10 +25,20 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
   # The doors that resolve today, verified rather than remembered. Each is a
   # distinct network: an island picks one and the spectator receives it either
   # way, because routing is the mesh's job and not the reader's.
+  # ALL SEVEN VERIFIED BY DIALLING THEM, not by resolving them. Each completed a
+  # signed HELLO and returned a distinct key, which is the only thing that proves
+  # a station is really there. `macula-demo/scripts/probe-stations.escript`.
+  #
+  # DNS alone would have listed thirty names, twenty three of which no longer
+  # resolve at all: the entire Belgian parksim era plus six other cities.
   @stations [
-    {"station-fi-helsinki.macula.io", "the one beam00 dials"},
-    {"station-de-frankfurt.macula.io", "the one beam01 dials"},
-    {"station-de-nuremberg.macula.io", "the one beam03 dials"}
+    {"station-fi-helsinki.macula.io", "beam00 dials this one"},
+    {"station-de-frankfurt.macula.io", "beam01 dials this one"},
+    {"station-de-nuremberg.macula.io", "beam03 dials this one"},
+    {"station-de-falkenstein.macula.io", ""},
+    {"station-fr-paris.macula.io", ""},
+    {"station-it-milan.macula.io", ""},
+    {"station-se-stockholm.macula.io", ""}
   ]
 
   @realm "7f73d3d9361bb16d4bed2812428ea6e6257a6f50c9de7ac8c581665dc0d01171"
@@ -51,8 +61,8 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           Run an island
           <:subtitle>
             One container. It dials out to a station, publishes what its creatures
-            are doing, and appears on this page beside the others. No inbound
-            ports, no account, and no key from us.
+            are doing, and appears on this page beside the others. No account and
+            no key from us.
           </:subtitle>
         </.header>
 
@@ -87,6 +97,29 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         </ul>
 
         <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
+          What it opens on your machine
+        </h2>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">The mesh side is outbound only.</span>
+          Your island dials a station and keeps that connection open. Nothing ever
+          dials in, there is no port to forward, and it works from behind a
+          domestic router untouched. Other islands reach yours by publishing to a
+          topic you are already listening on, never by connecting to you.
+        </p>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">
+            There is one listener, and `--network host` puts it on your machine.
+          </span>
+          The container serves a health endpoint on TCP <code class="font-mono text-xs">8483</code>
+          so that Docker can tell whether it is alive. It answers a small status
+          JSON, the same thing this page could tell you, and nothing else. Move it
+          with <code class="font-mono text-xs">HECATE_HEALTH_PORT</code>, or set that
+          to <code class="font-mono text-xs">0</code>
+          to switch the listener off entirely if you would rather have nothing
+          bound at all.
+        </p>
+
+        <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
           If you want to help beyond running one
         </h2>
         <p class="mt-2 text-sm opacity-70">
@@ -112,7 +145,9 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         <p class="mt-2 text-sm opacity-70">
           Every island reaches the mesh through a station. They are <span class="font-medium">identities on the mesh and not locations</span>: one of
           these spent a long while pointing at a machine in a different country
-          from the one in its name. Pick any.
+          from the one in its name, and one of them carries a German city name on
+          a network in another country today. Pick any: all seven answered when
+          they were last dialled.
         </p>
         <div class="mt-3 overflow-x-auto">
           <table class="w-full text-sm">
@@ -138,6 +173,14 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
     -e HECATE_BIOTOPE_TICKS_PER_SLOT=1 \
     -e HECATE_BIOTOPE_SLOT_MS=500 \
     ghcr.io/hecate-services/hecate-biotope:latest</code></pre>
+
+        <p class="mt-3 text-sm opacity-70">
+          <span class="font-medium">`--network host` is not optional.</span>
+          Every station is reachable over IPv6 only, and Docker's default bridge
+          network has no IPv6 unless you have gone and configured it. Without this
+          the container starts, looks healthy, and never reaches anything. The
+          fleet's own islands run this way for the same reason.
+        </p>
 
         <p class="mt-3 text-sm opacity-70">
           The realm above is the sha256 of <code class="font-mono text-xs">net.beamcampus.biotope</code>.

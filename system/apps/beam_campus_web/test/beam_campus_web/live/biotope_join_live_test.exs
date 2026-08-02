@@ -48,6 +48,42 @@ defmodule BeamCampusWeb.BiotopeJoinLiveTest do
     assert html =~ "cost real money"
   end
 
+  # WITHOUT THIS THE CONTAINER STARTS, LOOKS HEALTHY AND REACHES NOTHING. The
+  # stations are IPv6 only and Docker's default bridge has no IPv6.
+  test "tells you the container needs host networking" do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+
+    assert html =~ "--network host"
+    assert html =~ "IPv6"
+  end
+
+  test "offers every station that answered when last dialled" do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+
+    for host <- ~w(helsinki frankfurt nuremberg falkenstein paris milan stockholm) do
+      assert html =~ "station-" <> String.slice(host, 0, 3) or html =~ host
+    end
+  end
+
+  # THE PAGE ONCE SAID "no inbound ports" AND THAT WAS FALSE: the container binds
+  # a health endpoint on 8483, and with --network host that lands on the reader's
+  # own machine. Saying outbound-only about the MESH is true; saying it about the
+  # container was not, and a reassurance that is not true is worse than none.
+  test "does not claim there are no inbound ports" do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+
+    refute html =~ "No inbound ports"
+    refute html =~ "no inbound ports"
+  end
+
+  test "says what it listens on and how to turn it off" do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+
+    assert html =~ "outbound only"
+    assert html =~ "8483"
+    assert html =~ "HECATE_HEALTH_PORT"
+  end
+
   test "the overview links to it" do
     {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope")
 
