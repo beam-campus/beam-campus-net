@@ -167,6 +167,7 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           Substitute your own island name and the station you picked.
         </p>
         <pre class="mt-3 overflow-x-auto rounded-lg bg-base-300 p-4 text-xs leading-relaxed"><code>docker run -d --name biotope --restart unless-stopped \
+    --network host \
     -e HECATE_BIOTOPE_ISLAND=your-island-name \
     -e HECATE_BIOTOPE_REALM={@realm} \
     -e MACULA_STATION_SEEDS=https://station-fi-helsinki.macula.io:4433 \

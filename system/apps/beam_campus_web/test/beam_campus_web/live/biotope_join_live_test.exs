@@ -50,11 +50,42 @@ defmodule BeamCampusWeb.BiotopeJoinLiveTest do
 
   # WITHOUT THIS THE CONTAINER STARTS, LOOKS HEALTHY AND REACHES NOTHING. The
   # stations are IPv6 only and Docker's default bridge has no IPv6.
-  test "tells you the container needs host networking" do
+  # ASSERTED INSIDE THE COMMAND, not anywhere on the page. The first version of
+  # this checked `html =~ "--network host"` and passed while the flag was missing
+  # from the command entirely, because the paragraph explaining the flag
+  # satisfied it. A silent edit failure and a test that could not see it.
+  test "the runnable command actually carries host networking" do
     {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
 
-    assert html =~ "--network host"
+    assert command(html) =~ "--network host"
     assert html =~ "IPv6"
+  end
+
+  # And the command has to be one runnable thing: every line but the last
+  # continued, and nothing lost to HEEx.
+  test "the command is a single runnable invocation" do
+    lines = command(html_of()) |> String.split("\n", trim: true)
+
+    assert hd(lines) =~ "docker run"
+    assert List.last(lines) =~ "ghcr.io/hecate-services/hecate-biotope"
+
+    for line <- Enum.drop(lines, -1) do
+      assert String.ends_with?(String.trim_trailing(line), "\\"),
+             "continuation missing on: #{line}"
+    end
+  end
+
+  defp html_of do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+    html
+  end
+
+  # THE PRE BLOCK ONLY, matched as `<pre …><code>`. Splitting on bare `<code>`
+  # caught the first inline one in the prose instead, which is the same mistake
+  # in a smaller place: a selector that matches something, just not the thing.
+  defp command(html) do
+    [[_, block]] = Regex.scan(~r{<pre[^>]*><code>(.*?)</code></pre>}s, html)
+    block |> String.replace("&amp;", "&") |> String.replace("&quot;", "\"")
   end
 
   test "offers every station that answered when last dialled" do
