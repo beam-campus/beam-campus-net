@@ -76,7 +76,7 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           </li>
           <li>
             What is published is about <span class="font-medium">the creatures</span>, plus
-            the island name you choose and which station you dial. Not about you.
+            the island name you choose and which station you dial. Nothing about you.
           </li>
           <li>
             Islands will eventually exchange migrants, so a population that did not
@@ -84,17 +84,37 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
             every island says whether it would accept one.
           </li>
           <li>
-            It is research. <span class="font-medium">Worlds die</span>, often within
+            This is research. <span class="font-medium">Worlds die</span>, often within
             the hour, and that is a result rather than a fault. Yours may end while
             you are watching it.
           </li>
           <li>
             There is no funding and no company. Running an island costs you a
-            little electricity; <span class="font-medium">the doors cost real money</span>,
+            little electricity; <span class="font-medium">but the stations (they form the mesh) cost real money</span>,
             because a station is a machine somebody rents every month so that
             islands like yours have somewhere to dial.
           </li>
         </ul>
+
+        <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
+          If you want to help beyond running one
+        </h2>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">Run a station of your own.</span>
+          That is the backbone rather than the leaves: a station carries other
+          people's islands as well as yours, and every one of them makes the mesh
+          less dependent on the handful we pay for.
+          <.link href="https://macula.io" class="link" target="_blank" rel="noopener">
+            macula.io
+          </.link>
+          has what it takes.
+        </p>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">Or buy us a coffee.</span>
+          There is a button in the corner of every page on this site. It pays for
+          the doors, which is the only line item here that is not somebody's spare
+          machine.
+        </p>
 
         <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
           What it opens on your machine
@@ -120,27 +140,7 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         </p>
 
         <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
-          If you want to help beyond running one
-        </h2>
-        <p class="mt-2 text-sm opacity-70">
-          <span class="font-medium">Run a station of your own.</span>
-          That is the backbone rather than the leaves: a station carries other
-          people's islands as well as yours, and every one of them makes the mesh
-          less dependent on the handful we pay for.
-          <.link href="https://macula.io" class="link" target="_blank" rel="noopener">
-            macula.io
-          </.link>
-          has what it takes.
-        </p>
-        <p class="mt-2 text-sm opacity-70">
-          <span class="font-medium">Or buy us a coffee.</span>
-          There is a button in the corner of every page on this site. It pays for
-          the doors, which is the only line item here that is not somebody's spare
-          machine.
-        </p>
-
-        <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
-          Pick a door
+          Pick a station to dial
         </h2>
         <p class="mt-2 text-sm opacity-70">
           Every island reaches the mesh through a station. They are <span class="font-medium">identities on the mesh and not locations</span>: one of
