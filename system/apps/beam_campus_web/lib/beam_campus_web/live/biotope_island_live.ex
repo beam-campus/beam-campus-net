@@ -90,8 +90,18 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
 
         <div class="mt-4 flex flex-wrap items-baseline justify-between gap-3">
           <h1 class="text-lg font-semibold leading-8">{@name}</h1>
-          <.liveness liveness={@liveness} />
+          <div class="flex items-center gap-3">
+            <.door stats={@stats} />
+            <.liveness liveness={@liveness} />
+          </div>
         </div>
+        <p :if={@stats && @stats["station_host"]} class="mt-1 text-xs opacity-50">
+          This island reaches the mesh through <span class="font-mono opacity-80">{@stats["station_host"]}</span>, and its
+          two neighbours dial two other stations. All three publish to one topic and
+          this page receives them on a single subscription: which station carried
+          which is the mesh's business, not the reader's. The name is an identity on
+          the mesh and not a place.
+        </p>
 
         <.ruleset stats={@stats} class="mt-2" />
 

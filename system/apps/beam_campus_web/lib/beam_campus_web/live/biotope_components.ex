@@ -821,6 +821,19 @@ defmodule BeamCampusWeb.BiotopeComponents do
         </dd>
       </div>
       <div>
+        <dt class="font-medium opacity-70">door</dt>
+        <dd class="opacity-50">
+          The station this island reaches the mesh through, and whether that link
+          is up. The three islands dial <span class="opacity-90">three different stations</span>
+          and publish to one topic, and this page receives all of them on a single
+          subscription without knowing which carried which, because routing is the
+          mesh's job and not the reader's. The names are mesh identities and <span class="opacity-90">not locations</span>: stations are virtual, there
+          are hundreds of these names over a handful of machines, and one of them
+          spent a long while pointing at a box in a different country from the one
+          in its name.
+        </dd>
+      </div>
+      <div>
         <dt class="font-medium opacity-70">meat</dt>
         <dd class="opacity-50">
           The share of what the living have eaten that came from other creatures
@@ -853,6 +866,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           <tr class="border-b border-base-content/10">
             <th class="py-2 pr-4 text-left font-normal">island</th>
             <th class="py-2 pr-4 text-left font-normal">state</th>
+            <th class="py-2 pr-4 text-left font-normal">door</th>
             <th class="py-2 pr-4 text-right font-normal">world</th>
             <th class="py-2 pr-4 text-right font-normal">tick</th>
             <th class="py-2 pr-4 text-right font-normal">creatures</th>
@@ -872,6 +886,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
               </.link>
             </td>
             <td class="py-2 pr-4"><.liveness liveness={@liveness[name]} /></td>
+            <td class="py-2 pr-4"><.door stats={stats(@rows[name])} /></td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "world")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "tick")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "population")}</td>
@@ -889,6 +904,66 @@ defmodule BeamCampusWeb.BiotopeComponents do
   defp cell(%{stats: nil}, _key), do: "–"
   defp cell(%{stats: stats}, key), do: number(stats[key])
   defp cell(_row, _key), do: "–"
+
+  defp stats(%{stats: stats}) when is_map(stats), do: stats
+  defp stats(_row), do: nil
+
+  @doc """
+  Which station this island reaches the mesh through.
+
+  THE POINT OF THREE ISLANDS IS THREE DOORS. They publish to one topic on one
+  realm and a reader receives all of them on a single subscription, without
+  knowing or caring which station carried which, because routing is the mesh's
+  job and not the reader's. That is the whole architectural claim and it was
+  invisible on this page until the islands started saying so.
+
+  A NAME IS NOT A PLACE AND THIS RENDERS NO CITY. `station-de-frankfurt` was for
+  a long time physically the Nuremberg box, left misnamed because renaming
+  breaks seeds, and it resolves onto a different network again today. Stations
+  are virtual: hundreds of these names over a handful of machines. What is shown
+  is the identity on the mesh, and the `de-frankfurt` in it is part of a name
+  rather than a claim about Germany.
+
+  ABSENT IS NOT DOWN. An island that cannot read its own link publishes no door
+  at all, and that shows as a dash rather than as an outage: it means the island
+  cannot see, not that nobody answered. An island on a version older than fact 9
+  reads the same way, which is what a rollout looks like.
+  """
+  attr :stats, :map, default: nil
+
+  def door(assigns) do
+    ~H"""
+    <span :if={is_nil(@stats) or is_nil(@stats["station_host"])} class="opacity-40">
+      –
+    </span>
+    <span :if={@stats && @stats["station_host"]} class="inline-flex items-center gap-1.5">
+      <span
+        class={[
+          "inline-block h-1.5 w-1.5 rounded-full",
+          @stats["station_connected"] && "bg-success",
+          !@stats["station_connected"] && "bg-error"
+        ]}
+        aria-hidden="true"
+      />
+      <span
+        class="font-mono text-xs"
+        title={"key #{String.slice(to_string(@stats["station_id"]), 0, 16)}…"}
+      >
+        {short_station(@stats["station_host"])}
+      </span>
+      <span class="sr-only">
+        {if @stats["station_connected"], do: "connected", else: "not connected"}
+      </span>
+    </span>
+    """
+  end
+
+  # The mesh identity without the zone that every one of them shares. Dropping
+  # `.macula.io` is shortening a name, not translating it into a location.
+  defp short_station(host) when is_binary(host),
+    do: String.replace_suffix(host, ".macula.io", "")
+
+  defp short_station(host), do: to_string(host)
 
   @doc """
   Every island's board, side by side and the same size.

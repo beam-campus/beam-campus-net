@@ -280,4 +280,79 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
       assert Enum.at(Jason.decode!(json), 5) == 4001
     end
   end
+
+  # Which station an island reaches the mesh through.
+  describe "door" do
+    defp door_html(stats) do
+      assigns = %{stats: stats}
+
+      rendered_to_string(~H"""
+      <BiotopeComponents.door stats={@stats} />
+      """)
+    end
+
+    test "names the station and marks the link up" do
+      html =
+        door_html(%{
+          "station_host" => "station-fi-helsinki.macula.io",
+          "station_connected" => true,
+          "station_id" => "aa11bb22cc33dd44ee55"
+        })
+
+      assert html =~ "station-fi-helsinki"
+      assert html =~ "bg-success"
+      assert html =~ "connected"
+    end
+
+    # THE ZONE IS DROPPED, THE NAME IS NOT TRANSLATED. Every station shares
+    # `.macula.io`, so it carries no information; the rest is the identity and
+    # must survive intact. A renderer that turned `station-de-frankfurt` into
+    # "Frankfurt" would be asserting a country, and that exact name spent a long
+    # time pointing at a box in another one.
+    test "shortens the zone and invents no place" do
+      html =
+        door_html(%{
+          "station_host" => "station-de-frankfurt.macula.io",
+          "station_connected" => true,
+          "station_id" => "ff"
+        })
+
+      assert html =~ "station-de-frankfurt"
+      refute html =~ "macula.io"
+      refute html =~ "Frankfurt,"
+      refute html =~ "Germany"
+    end
+
+    # A DOWN LINK IS THE INTERESTING CASE and must be shown, not hidden. An
+    # island dialling a station that is not answering is exactly what a reader
+    # wants to see, and a renderer that only draws healthy links would make an
+    # outage look like a page that had not loaded.
+    test "shows a station that is not answering" do
+      html =
+        door_html(%{
+          "station_host" => "station-de-nuremberg.macula.io",
+          "station_connected" => false,
+          "station_id" => "ff"
+        })
+
+      assert html =~ "station-de-nuremberg"
+      assert html =~ "bg-error"
+      assert html =~ "not connected"
+    end
+
+    # ABSENT IS NOT DOWN, and this is the distinction the whole shape exists to
+    # keep. An island that cannot read its own link publishes no door at all, and
+    # an island on a fact version older than 9 does the same. Both mean "cannot
+    # see", not "nobody answered", and drawing either as a red dot would count a
+    # rollout as an outage.
+    test "an island that publishes no door is blank rather than broken" do
+      for stats <- [nil, %{}, %{"population" => 12}] do
+        html = door_html(stats)
+
+        refute html =~ "bg-error"
+        refute html =~ "bg-success"
+        assert html =~ "–"
+      end
+    end
+  end
 end
