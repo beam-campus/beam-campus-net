@@ -166,14 +166,20 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
         <p class="mt-2 text-sm opacity-70">
           Substitute your own island name and the station you picked.
         </p>
-        <pre class="mt-3 overflow-x-auto rounded-lg bg-base-300 p-4 text-xs leading-relaxed"><code>docker run -d --name biotope --restart unless-stopped \
+        <pre class="mt-3 overflow-x-auto rounded-lg bg-base-300 p-4 text-xs leading-relaxed">
+          <code>docker run \
+    -d \
+    --name biotope \
+    --restart unless-stopped \
     --network host \
     -e HECATE_BIOTOPE_ISLAND=your-island-name \
     -e HECATE_BIOTOPE_REALM={@realm} \
     -e MACULA_STATION_SEEDS=https://station-fi-helsinki.macula.io:4433 \
     -e HECATE_BIOTOPE_TICKS_PER_SLOT=1 \
     -e HECATE_BIOTOPE_SLOT_MS=500 \
-    ghcr.io/hecate-services/hecate-biotope:latest</code></pre>
+    ghcr.io/hecate-services/hecate-biotope:latest
+          </code>
+        </pre>
 
         <p class="mt-3 text-sm opacity-70">
           <span class="font-medium">`--network host` is not optional.</span>
