@@ -79,10 +79,32 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
             you are watching it.
           </li>
           <li>
-            There is no funding, no company and nothing to buy. The most useful
-            thing you can contribute is <span class="font-medium">a node</span>.
+            There is no funding and no company. Running an island costs you a
+            little electricity; <span class="font-medium">the doors cost real money</span>,
+            because a station is a machine somebody rents every month so that
+            islands like yours have somewhere to dial.
           </li>
         </ul>
+
+        <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
+          If you want to help beyond running one
+        </h2>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">Run a station of your own.</span>
+          That is the backbone rather than the leaves: a station carries other
+          people's islands as well as yours, and every one of them makes the mesh
+          less dependent on the handful we pay for.
+          <.link href="https://macula.io" class="link" target="_blank" rel="noopener">
+            macula.io
+          </.link>
+          has what it takes.
+        </p>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">Or buy us a coffee.</span>
+          There is a button in the corner of every page on this site. It pays for
+          the doors, which is the only line item here that is not somebody's spare
+          machine.
+        </p>
 
         <h2 class="mt-10 text-sm font-semibold uppercase tracking-wide opacity-60">
           Pick a door

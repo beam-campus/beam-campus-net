@@ -37,6 +37,17 @@ defmodule BeamCampusWeb.BiotopeJoinLiveTest do
     refute html =~ "Germany"
   end
 
+  # THE DOORS ARE NOT FREE, and the page should say what the two ways to help
+  # are rather than only asking for a node. A station carries other people's
+  # islands, which is the part that costs money every month.
+  test "names both ways to support it" do
+    {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope/join")
+
+    assert html =~ "macula.io"
+    assert html =~ "coffee"
+    assert html =~ "cost real money"
+  end
+
   test "the overview links to it" do
     {:ok, _live, html} = live(build_conn(), ~p"/research/workbench/biotope")
 
