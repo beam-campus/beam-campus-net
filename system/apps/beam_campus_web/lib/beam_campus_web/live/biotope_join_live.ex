@@ -143,10 +143,7 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           Pick a door
         </h2>
         <p class="mt-2 text-sm opacity-70">
-          Every island reaches the mesh through a station. They are <span class="font-medium">identities on the mesh and not locations</span>: one of
-          these spent a long while pointing at a machine in a different country
-          from the one in its name, and one of them carries a German city name on
-          a network in another country today. Pick any: all seven answered when
+          Every island reaches the mesh through a station.  Pick any: all seven answered when
           they were last dialled.
         </p>
         <div class="mt-3 overflow-x-auto">
