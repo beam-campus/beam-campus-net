@@ -821,7 +821,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
         </dd>
       </div>
       <div>
-        <dt class="font-medium opacity-70">door</dt>
+        <dt class="font-medium opacity-70">via</dt>
         <dd class="opacity-50">
           The station this island reaches the mesh through, and whether that link
           is up. The three islands dial <span class="opacity-90">three different stations</span>
@@ -866,7 +866,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           <tr class="border-b border-base-content/10">
             <th class="py-2 pr-4 text-left font-normal">island</th>
             <th class="py-2 pr-4 text-left font-normal">state</th>
-            <th class="py-2 pr-4 text-left font-normal">door</th>
+            <th class="py-2 pr-4 text-left font-normal">via</th>
             <th class="py-2 pr-4 text-right font-normal">world</th>
             <th class="py-2 pr-4 text-right font-normal">tick</th>
             <th class="py-2 pr-4 text-right font-normal">creatures</th>
@@ -886,7 +886,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
               </.link>
             </td>
             <td class="py-2 pr-4"><.liveness liveness={@liveness[name]} /></td>
-            <td class="py-2 pr-4"><.door stats={stats(@rows[name])} /></td>
+            <td class="py-2 pr-4"><.via stats={stats(@rows[name])} /></td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "world")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "tick")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "population")}</td>
@@ -909,7 +909,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   defp stats(_row), do: nil
 
   @doc """
-  Which station this island reaches the mesh through.
+  Which station this island reaches the mesh through: its `via`.
 
   THE POINT OF THREE ISLANDS IS THREE DOORS. They publish to one topic on one
   realm and a reader receives all of them on a single subscription, without
@@ -931,7 +931,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   """
   attr :stats, :map, default: nil
 
-  def door(assigns) do
+  def via(assigns) do
     ~H"""
     <span :if={is_nil(@stats) or is_nil(@stats["station_host"])} class="opacity-40">
       –
@@ -940,8 +940,8 @@ defmodule BeamCampusWeb.BiotopeComponents do
       <span
         class={[
           "inline-block h-1.5 w-1.5 rounded-full",
-          @stats["station_connected"] && "bg-success",
-          !@stats["station_connected"] && "bg-error"
+          up?(@stats["station_connected"]) && "bg-success",
+          !up?(@stats["station_connected"]) && "bg-error"
         ]}
         aria-hidden="true"
       />
@@ -952,11 +952,21 @@ defmodule BeamCampusWeb.BiotopeComponents do
         {short_station(@stats["station_host"])}
       </span>
       <span class="sr-only">
-        {if @stats["station_connected"], do: "connected", else: "not connected"}
+        {if up?(@stats["station_connected"]), do: "connected", else: "not connected"}
       </span>
     </span>
     """
   end
+
+  # ATOMS BECOME TEXT ON THIS WIRE. Macula's payload check says so plainly: every
+  # atom survives, `undefined` becomes null and the rest become text. So an
+  # island publishing `true` delivers the STRING "true" here, and "false"
+  # delivers the string "false" — which is perfectly truthy in Elixir. Testing
+  # this against booleans passes while a station that is not answering draws
+  # green, so both shapes are handled and both are tested.
+  defp up?(true), do: true
+  defp up?("true"), do: true
+  defp up?(_), do: false
 
   # The mesh identity without the zone that every one of them shares. Dropping
   # `.macula.io` is shortening a name, not translating it into a location.

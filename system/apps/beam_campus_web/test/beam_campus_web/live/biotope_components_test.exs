@@ -282,20 +282,24 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
   end
 
   # Which station an island reaches the mesh through.
-  describe "door" do
-    defp door_html(stats) do
+  describe "via" do
+    defp via_html(stats) do
       assigns = %{stats: stats}
 
       rendered_to_string(~H"""
-      <BiotopeComponents.door stats={@stats} />
+      <BiotopeComponents.via stats={@stats} />
       """)
     end
 
+    # THE WIRE SHAPE, NOT THE ERLANG ONE. Atoms become text over macula, so an
+    # island publishing `true` arrives here as the string "true". The first
+    # version of these tests used booleans and would have passed against a
+    # renderer that drew every station green.
     test "names the station and marks the link up" do
       html =
-        door_html(%{
+        via_html(%{
           "station_host" => "station-fi-helsinki.macula.io",
-          "station_connected" => true,
+          "station_connected" => "true",
           "station_id" => "aa11bb22cc33dd44ee55"
         })
 
@@ -311,9 +315,9 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
     # time pointing at a box in another one.
     test "shortens the zone and invents no place" do
       html =
-        door_html(%{
+        via_html(%{
           "station_host" => "station-de-frankfurt.macula.io",
-          "station_connected" => true,
+          "station_connected" => "true",
           "station_id" => "ff"
         })
 
@@ -327,11 +331,13 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
     # island dialling a station that is not answering is exactly what a reader
     # wants to see, and a renderer that only draws healthy links would make an
     # outage look like a page that had not loaded.
+    # "false" is a perfectly truthy value in Elixir, which is exactly how a dead
+    # station would have drawn green.
     test "shows a station that is not answering" do
       html =
-        door_html(%{
+        via_html(%{
           "station_host" => "station-de-nuremberg.macula.io",
-          "station_connected" => false,
+          "station_connected" => "false",
           "station_id" => "ff"
         })
 
@@ -347,7 +353,7 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
     # rollout as an outage.
     test "an island that publishes no door is blank rather than broken" do
       for stats <- [nil, %{}, %{"population" => 12}] do
-        html = door_html(stats)
+        html = via_html(stats)
 
         refute html =~ "bg-error"
         refute html =~ "bg-success"

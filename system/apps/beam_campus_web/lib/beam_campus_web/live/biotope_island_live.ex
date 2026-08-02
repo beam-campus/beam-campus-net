@@ -91,7 +91,7 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
         <div class="mt-4 flex flex-wrap items-baseline justify-between gap-3">
           <h1 class="text-lg font-semibold leading-8">{@name}</h1>
           <div class="flex items-center gap-3">
-            <.door stats={@stats} />
+            <.via stats={@stats} />
             <.liveness liveness={@liveness} />
           </div>
         </div>
