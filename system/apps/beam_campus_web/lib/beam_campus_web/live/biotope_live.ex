@@ -158,7 +158,15 @@ defmodule BeamCampusWeb.BiotopeLive do
     <Layouts.app flash={@flash}>
       <div class="mx-auto max-w-5xl px-4 py-10">
         <.header>
-          Biotopes
+          <div class="flex items-baseline gap-3">
+            <span>Biotopes</span>
+            <.link
+              navigate={~p"/research/workbench/biotope/join"}
+              class="btn btn-sm btn-outline"
+            >
+              + Run one
+            </.link>
+          </div>
           <:subtitle>
             Open populations on the mesh. Energy gathers in the ground, creatures
             feed, breed, starve and eat each other. There are no plants: staying
