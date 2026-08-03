@@ -64,7 +64,16 @@ defmodule BeamCampusWeb.BiotopeJoinLiveTest do
   # And the command has to be one runnable thing: every line but the last
   # continued, and nothing lost to HEEx.
   test "the command is a single runnable invocation" do
-    lines = command(html_of()) |> String.split("\n", trim: true)
+    # ⚠ `String.split(trim: true)` DROPS EMPTY STRINGS AND NOT BLANK ONES, so the
+    # indentation left after the closing `</code>` survived as a line of six
+    # spaces and became `List.last/1`. The test then asserted the command's last
+    # line was the image and was comparing against whitespace. A selector that
+    # matches something, just not the thing.
+    lines =
+      command(html_of())
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
 
     assert hd(lines) =~ "docker run"
     assert List.last(lines) =~ "ghcr.io/hecate-services/hecate-biotope"

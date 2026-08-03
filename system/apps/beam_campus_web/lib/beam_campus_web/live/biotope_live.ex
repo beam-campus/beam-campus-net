@@ -168,11 +168,18 @@ defmodule BeamCampusWeb.BiotopeLive do
             </.link>
           </div>
           <:subtitle>
-            Open populations on the mesh. Energy gathers in the ground, creatures
-            feed, breed, starve and eat each other. There are no plants: staying
-            put and living off what gathers where you stand is a way of living,
-            not a kind of thing. They do have brains, and so far evolution has
-            thrown them away.
+            <strong>Open populations evolving bodies and brains.</strong>
+            A creature is a set of sensors, a hidden layer and a set of things it
+            can do, and NONE of it is assigned: a founder is drawn at random, and
+            every birth may add a sensor, drop one, widen its reach, grow a node,
+            or gain and lose the ability to act at all. What survives is whatever
+            pays for itself.
+            <span class="mt-2 block">
+              The world it happens in is an energy economy. Energy gathers in the
+              ground, creatures feed, breed, starve and eat each other. There are
+              no plants: staying put and living off what gathers where you stand
+              is a way of living, not a kind of thing.
+            </span>
             <span class="mt-2 block">
               Every island runs the SAME physics and differs only in the random
               draw it started from, so whether they drift apart is the question
@@ -207,9 +214,12 @@ defmodule BeamCampusWeb.BiotopeLive do
           />
           <.boards names={@shown} rows={@rows} class="mt-2" />
           <p class="mt-2 text-xs opacity-40">
-            a creature's size is its body, its colour how fast it feeds. Every disc
-            is drawn to the same absolute scale, so they can be read against each
-            other.
+            a creature's size is its body and its colour is <span data-colouring>feeding rate</span>. Press
+            <kbd class="rounded border px-1">K</kbd>
+            to colour every board by KIND instead, where a kind is a body plan and
+            a brain, and two dots of one colour are two creatures built the same
+            way. Every disc is drawn to the same absolute scale, so they can be
+            read against each other.
           </p>
         </div>
 
@@ -221,6 +231,24 @@ defmodule BeamCampusWeb.BiotopeLive do
           </p>
 
           <div class="mt-4 space-y-8">
+            <!-- THE EXPERIMENT FIRST. Population and ground are the medium; how
+                 many distinct architectures are alive and whether any of them
+                 computes is the thing these islands exist to ask, and it was at
+                 the bottom of the page or absent from it. -->
+            <.compare
+              series={@series}
+              get={& &1.kinds}
+              label="distinct kinds alive"
+              hint="architectures, not ancestors: founder lines reads 1 either way"
+              shared={@comparable?}
+            />
+            <.compare
+              series={@series}
+              get={&hundredth(&1.hidden_mean)}
+              label="hidden nodes per creature"
+              hint="leaving zero is the difference between reflex and deliberation"
+              shared={@comparable?}
+            />
             <.compare
               series={@series}
               get={& &1.population}
@@ -293,6 +321,13 @@ defmodule BeamCampusWeb.BiotopeLive do
     |> Enum.uniq()
     |> length() <= 1
   end
+
+  # A MEAN ARRIVES TIMES A HUNDRED because the wire carries integers, and a
+  # missing value must stay missing: an island that has not reported yet is not
+  # an island whose creatures compute nothing.
+  defp hundredth(nil), do: nil
+  defp hundredth(n) when is_integer(n), do: n / 100
+  defp hundredth(n), do: n
 
   defp scale_note(true),
     do:

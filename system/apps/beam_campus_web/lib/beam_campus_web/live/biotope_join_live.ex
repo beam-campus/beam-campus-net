@@ -143,8 +143,16 @@ defmodule BeamCampusWeb.BiotopeJoinLive do
           Pick a door
         </h2>
         <p class="mt-2 text-sm opacity-70">
-          Every island reaches the mesh through a station.  Pick any: all seven answered when
+          Every island reaches the mesh through a station. Pick any: all seven answered when
           they were last dialled.
+        </p>
+        <p class="mt-2 text-sm opacity-70">
+          <span class="font-medium">These names are identities, not locations.</span>
+          A station called <span class="font-mono text-xs">station-de-frankfurt</span>
+          was for a long time physically the Nuremberg box, left misnamed because
+          renaming one breaks the seeds that point at it, and it has moved again
+          since. Pick whichever answers; where the machine happens to sit is not
+          something this name tells you.
         </p>
         <div class="mt-3 overflow-x-auto">
           <table class="w-full text-sm">

@@ -120,10 +120,16 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.disc id={"disc-" <> @name} chart={@chart} size={480} ceiling={ceiling(@stats)} />
         </div>
 
+        <.kinds :if={@chart} chart={@chart} />
+
         <p :if={@chart} class="mt-2 text-xs opacity-50">
           A creature's SIZE is its body, because every contest here is decided on
           structure alone: a fat small creature loses to a lean large one. Its
-          COLOUR is how fast it feeds: pale is gentle and deep is voracious. Feed
+          COLOUR is <span data-colouring>feeding rate</span>
+          by default, and <kbd class="rounded border px-1">K</kbd>
+          switches every board on the page to colour by KIND instead, so two dots
+          of one colour are two creatures built the same way. Pale is gentle
+          feeding and deep is voracious. Feed
           slower than the ground comes back and a cell sustains you for good; feed
           harder and you strip it, your income collapses to the bare floor, and you
           move or starve. The green surface is the ground itself, brighter where
@@ -157,12 +163,12 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.shape
             bars={@stats["sensor_hist"]}
             label="sensors carried"
-            hint="creatures at each count"
+            hint="creatures at each count · the axis stops at the safety cap of 8"
           />
           <.shape
             bars={@stats["hidden_hist"]}
             label="hidden nodes"
-            hint="creatures at each count"
+            hint="creatures at each count · the axis stops at the safety cap of 6"
           />
           <.shape
             bars={@stats["uptake_hist"]}

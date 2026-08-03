@@ -218,6 +218,21 @@ defmodule BeamCampusWeb.BiotopeComponents do
             // How long a step takes to play out. Matches the page's redraw
             // interval, so a tween finishes exactly as the next frame lands.
             this.span = 500
+            // Which question the board is answering. Client-side and shared by
+            // every disc on the page, because a fleet drawn half one way and
+            // half the other is a picture nobody can read across.
+            this.kinds = false
+            this.toggle = (e) => {
+              if (e.type === "keydown" && e.key !== "k" && e.key !== "K") return
+              if (e.type === "keydown" && e.target.tagName === "INPUT") return
+              this.kinds = !this.kinds
+              document.querySelectorAll("[data-colouring]").forEach((el) => {
+                el.textContent = this.kinds ? "kind" : "feeding rate"
+              })
+              this.paint(1)
+            }
+            window.addEventListener("keydown", this.toggle)
+            window.addEventListener("biotope:colour", this.toggle)
             this.fit()
             this.read()
             this.paint(1)
@@ -235,7 +250,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
             this.was = this.now || new Map()
             this.read()
             this.now = new Map()
-            for (let i = 0; i < this.creatures.length; i += 5) {
+            for (let i = 0; i < this.creatures.length; i += 6) {
               this.now.set(this.creatures[i], [this.creatures[i + 1], this.creatures[i + 2]])
             }
             this.started = performance.now()
@@ -254,6 +269,8 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
           destroyed() {
             cancelAnimationFrame(this.frame)
+            window.removeEventListener("keydown", this.toggle)
+            window.removeEventListener("biotope:colour", this.toggle)
           },
 
           // RETINA, or the whole thing looks soft. A canvas has real pixels
@@ -305,9 +322,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
             // the field they stand on, which was the one thing a single shared
             // primitive could never do.
             c.globalAlpha = 1
-            for (let i = 0; i < this.creatures.length; i += 5) {
+            // BOTH COLOURINGS ARRIVE IN EVERY FRAME, at offsets 4 and 5, so
+            // switching between them is a repaint and costs no round trip.
+            // They answer different questions and neither replaces the other: a
+            // feeding rate is a QUANTITY every island shares a scale for, and a
+            // kind is an IDENTITY that only means something inside one world.
+            for (let i = 0; i < this.creatures.length; i += 6) {
               const id = this.creatures[i]
-              const colour = css(this.creatures[i + 4])
+              const colour = css(this.creatures[i + (this.kinds ? 5 : 4)])
               const r = this.creatures[i + 3]
               const to = [this.creatures[i + 1], this.creatures[i + 2]]
               const from = this.was.get(id)
@@ -394,8 +416,8 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   defp summary({creatures, ground, trails}) do
-    "#{creatures} creatures coloured by how fast they feed, " <>
-      "#{ground} cells holding energy and #{trails} scent marks"
+    "#{creatures} creatures, colourable by how fast they feed or by what they " <>
+      "are built like, #{ground} cells holding energy and #{trails} scent marks"
   end
 
   # FLAT INTEGERS, which is the same discipline the island uses on the wire and
@@ -796,6 +818,35 @@ defmodule BeamCampusWeb.BiotopeComponents do
   def legend(assigns) do
     ~H"""
     <dl class="mt-4 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+      <!-- THE SUBJECT GOES FIRST IN THE LEGEND TOO. `founder lines` was the only
+           evolutionary column here and it is the one that says least. -->
+      <div>
+        <dt class="font-medium opacity-70">kinds</dt>
+        <dd class="opacity-50">
+          How many distinct ARCHITECTURES are alive: a body plan and a brain, which
+          is which fields a creature has sensors for and at what reach, how many
+          hidden nodes it computes with, and which acts it can perform. Nothing
+          assigns any of it, and this is what the islands exist to measure.
+        </dd>
+      </div>
+      <div>
+        <dt class="font-medium opacity-70">commonest</dt>
+        <dd class="opacity-50">
+          The share of the population held by the most numerous kind. Two islands
+          can carry nineteen kinds each and be a monoculture with a fringe or
+          genuinely varied, and the count alone cannot tell them apart.
+        </dd>
+      </div>
+      <div>
+        <dt class="font-medium opacity-70">senses and nodes</dt>
+        <dd class="opacity-50">
+          Sensors and hidden nodes per creature. A creature with no hidden layer is
+          a LINEAR valuer of cells: its own energy reads the same for every cell it
+          can reach, so it cancels in the comparison and the creature cannot act on
+          its own state at all. Nodes leaving zero is the difference between reflex
+          and deliberation, and on most seeds they never do.
+        </dd>
+      </div>
       <div>
         <dt class="font-medium opacity-70">tick</dt>
         <dd class="opacity-50">
@@ -847,6 +898,123 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   @doc """
+  WHAT IS ALIVE HERE, AS ARCHITECTURES RATHER THAN AS A HEAD COUNT.
+
+  This is the experiment. Everything else on the page describes an ecology, and
+  an ecology is the medium rather than the subject: what these islands are FOR is
+  whether brains and bodies evolve, and until `fact_version` 14 nothing published
+  could answer it.
+
+  A KIND IS A BODY PLAN AND A BRAIN. Which of the four measurable fields a
+  creature has sensors for and how far each one reaches; how many hidden nodes it
+  computes with; which of the four possible acts it can perform at all. Nothing
+  assigns any of it. A founder is drawn at random, and every birth may add a
+  sensor, drop one, widen a reach, grow a node, or gain and lose a purpose.
+
+  WHY THIS IS NOT `lineages`. That column counts ANCESTORS and can only ever
+  fall, because in a finite asexual population every line coalesces to one
+  eventually. Islands here read `1` almost always, and a world reading one
+  lineage routinely carries between five and twenty-seven distinct
+  architectures. A founding is ancestry and not a kind, so `lineages` reading 1
+  never once meant a monoculture, and for eighteen worlds it was read as one.
+
+  Sorted by how many creatures hold each, so the shape of the population is the
+  first thing visible: one colour running away with the board is a kind winning,
+  and a long flat tail is a world that has not decided.
+  """
+  attr :chart, :map, required: true
+  attr :limit, :integer, default: 8
+  attr :class, :string, default: ""
+
+  def kinds(assigns) do
+    kinds = Biotope.kinds(assigns.chart["kind_table"])
+    tally = Biotope.kind_tally(assigns.chart["kind_of"])
+    total = tally |> Map.values() |> Enum.sum()
+
+    rows =
+      kinds
+      |> Enum.with_index()
+      |> Enum.map(fn {kind, i} ->
+        held = Map.get(tally, i, 0)
+
+        Map.merge(kind, %{
+          held: held,
+          share: share(held, total),
+          rgb: Biotope.kind_rgb(kind.raw)
+        })
+      end)
+      |> Enum.sort_by(& &1.held, :desc)
+
+    assigns =
+      assign(assigns,
+        rows: Enum.take(rows, assigns.limit),
+        hidden_count: max(0, length(rows) - assigns.limit),
+        total_kinds: length(rows),
+        total_creatures: total
+      )
+
+    ~H"""
+    <section class={["mt-6", @class]}>
+      <header class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="text-sm font-medium">
+          {@total_kinds} {plural(@total_kinds, "kind", "kinds")} of creature
+        </h3>
+        <p class="text-xs opacity-60">
+          press <kbd class="rounded border px-1">K</kbd> to colour the board by kind
+        </p>
+      </header>
+      <p :if={@total_kinds == 0} class="mt-2 text-xs opacity-60">
+        This island has not said what its creatures are built like. That is what an
+        island on a build before <code>fact_version</code> 14 looks like, and its board draws grey.
+      </p>
+      <ol :if={@total_kinds > 0} class="mt-3 space-y-1.5">
+        <li :for={row <- @rows} class="flex items-center gap-3 text-xs">
+          <span
+            class="size-3 shrink-0 rounded-sm"
+            style={"background:##{Integer.to_string(row.rgb, 16) |> String.pad_leading(6, "0")}"}
+            aria-hidden="true"
+          >
+          </span>
+          <span class="w-10 shrink-0 tabular-nums opacity-70">{row.share}%</span>
+          <span class="grow font-mono">{body_plan(row)}</span>
+          <span class="shrink-0 opacity-50">{row.held}</span>
+        </li>
+      </ol>
+      <p :if={@hidden_count > 0} class="mt-2 text-xs opacity-50">
+        and {@hidden_count} rarer {plural(@hidden_count, "kind", "kinds")}, each held by
+        fewer creatures than any shown.
+      </p>
+    </section>
+    """
+  end
+
+  # THE BODY PLAN SPELLED OUT, because "3 senses" says a creature measures three
+  # things and not WHICH three, and which three is the whole difference between a
+  # grazer and something that hunts. A sensor's reach is shown beside its field:
+  # reach 0 reads the cell it stands on, reach 2 averages over everything within
+  # two steps, and those are different animals.
+  defp body_plan(%{sensors: [], hidden: hidden, purposes: purposes}) do
+    "blind · #{nodes(hidden)} · #{acts(purposes)}"
+  end
+
+  defp body_plan(%{sensors: sensors, hidden: hidden, purposes: purposes}) do
+    senses = Enum.map_join(sensors, " ", fn {field, reach} -> "#{field}#{reach}" end)
+    "#{senses} · #{nodes(hidden)} · #{acts(purposes)}"
+  end
+
+  defp nodes(0), do: "no nodes"
+  defp nodes(n), do: "#{n} #{plural(n, "node", "nodes")}"
+
+  defp acts([]), do: "inert"
+  defp acts(purposes), do: Enum.join(purposes, "/")
+
+  defp plural(1, singular, _plural), do: singular
+  defp plural(_n, _singular, plural), do: plural
+
+  defp share(_held, 0), do: 0
+  defp share(held, total), do: round(held * 100 / total)
+
+  @doc """
   The fleet in one glance: a row per island, and no scrolling to find out whether
   something has died.
 
@@ -870,6 +1038,15 @@ defmodule BeamCampusWeb.BiotopeComponents do
             <th class="py-2 pr-4 text-right font-normal">world</th>
             <th class="py-2 pr-4 text-right font-normal">tick</th>
             <th class="py-2 pr-4 text-right font-normal">creatures</th>
+            <!-- WHAT THE EXPERIMENT IS ABOUT, IN THE FLEET TABLE. `founder lines`
+                 was here alone and reads 1 on every island almost always, which
+                 looked like a fleet of monocultures and never was: it counts
+                 ANCESTORS. These three count architectures and what they are
+                 made of, which is the thing that actually varies. -->
+            <th class="py-2 pr-4 text-right font-normal">kinds</th>
+            <th class="py-2 pr-4 text-right font-normal">commonest</th>
+            <th class="py-2 pr-4 text-right font-normal">senses</th>
+            <th class="py-2 pr-4 text-right font-normal">nodes</th>
             <th class="py-2 pr-4 text-right font-normal">generations</th>
             <th class="py-2 pr-4 text-right font-normal">founder lines</th>
             <th class="py-2 text-right font-normal">meat</th>
@@ -890,6 +1067,10 @@ defmodule BeamCampusWeb.BiotopeComponents do
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "world")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "tick")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "population")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "kinds")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{pct(@rows[name], "kind_max_pct")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{hundredths(@rows[name], "sensor_mean")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{hundredths(@rows[name], "hidden_mean")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "depth")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "lineages")}</td>
             <td class="py-2 text-right font-mono">{cell(@rows[name], "from_creatures_pct")}%</td>
@@ -899,6 +1080,29 @@ defmodule BeamCampusWeb.BiotopeComponents do
     </div>
     """
   end
+
+  # THE CENSUS REPORTS MEANS TIMES A HUNDRED, because the wire carries integers
+  # and a mean of 1.75 sensors would otherwise arrive as 1. Printing it raw would
+  # report a creature carrying a hundred and seventy-five sensors, which is the
+  # sort of number a reader believes because it is on a page.
+  defp hundredths(row, key), do: scaled(value(row, key))
+
+  defp scaled(n) when is_integer(n), do: "#{div(n, 100)}.#{pad(rem(n, 100))}"
+  defp scaled(_absent), do: "–"
+
+  defp pad(n) when n < 10, do: "0#{n}"
+  defp pad(n), do: "#{n}"
+
+  # A SHARE NEEDS ITS SIGN OR IT IS JUST A NUMBER, and an island on an older
+  # build sends nothing rather than zero: a commonest kind holding 0% would be a
+  # claim about the population instead of about the build.
+  defp pct(row, key), do: percent(value(row, key))
+
+  defp percent(n) when is_integer(n), do: "#{n}%"
+  defp percent(_absent), do: "–"
+
+  defp value(%{stats: stats}, key) when is_map(stats), do: stats[key]
+  defp value(_row, _key), do: nil
 
   defp cell(nil, _key), do: "–"
   defp cell(%{stats: nil}, _key), do: "–"
@@ -1086,6 +1290,99 @@ defmodule BeamCampusWeb.BiotopeComponents do
     </div>
     """
   end
+
+  @doc """
+  WHAT THE CREATURES ARE BECOMING, WHICH IS THE EXPERIMENT.
+
+  Four lines, and between them they are what defines a creature here: what it
+  measures, what it computes with, how much of that computation it actually
+  uses, and how many distinct designs are alive at once.
+
+  Every other chart on this page describes an ECOLOGY, and an ecology is the
+  medium rather than the subject. These islands exist to ask whether brains and
+  bodies evolve, and until now the recorded history of that question held one
+  column, `sensor_mean`, buried under "what the population became".
+
+  ## Why hidden nodes are the line to watch
+
+  A creature with no hidden layer is a LINEAR valuer of cells. Its own energy is
+  the same number for every cell it can reach, so it adds equally to all of them
+  and cancels in the comparison: a creature with no nonlinearity cannot act on
+  its own state at all, however much state it has. "Go where the flesh is, but
+  only while I am the larger" is not a strategy it can express. **The line
+  leaving zero is the difference between reflex and deliberation**, and on most
+  seeds it never does.
+
+  ## Why width is beside it and not instead of it
+
+  A brain getting CHEAPER and a brain getting SIMPLER look identical from a node
+  count. Width is live weights per node: a node wired to six inputs is six times
+  the apparatus of one wired to a single input, and until world 19 they cost the
+  same and nothing could tell them apart.
+
+  ## Why kinds is not `lineages`
+
+  `lineages` counts ANCESTORS and can only fall, because in a finite asexual
+  population every line coalesces to one eventually. It reads 1 on nearly every
+  island and that was read as a monoculture for eighteen worlds. It never was
+  one: a world reading ONE lineage routinely carries between five and
+  twenty-seven distinct architectures.
+
+  A GAP IS AN ISLAND ON AN OLDER BUILD, not a zero. Three of these four arrived
+  after the samples table existed, so a run recorded before them has nothing to
+  draw and draws nothing rather than drawing a floor.
+  """
+  attr :samples, :list, required: true
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
+  attr :class, :string, default: ""
+
+  def brains(assigns) do
+    ~H"""
+    <div class={["grid gap-4 sm:grid-cols-2", @class]}>
+      <.plot
+        samples={@samples}
+        get={&hundredth(&1.sensor_mean)}
+        label="sensors per creature"
+        hint="what it costs them to measure the world"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={&hundredth(&1.hidden_mean)}
+        label="hidden nodes per creature"
+        hint="leaving zero is the difference between reflex and deliberation"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={&hundredth(&1.hidden_width)}
+        label="live wires per node"
+        hint="a brain getting cheaper and one getting simpler look alike without this"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={& &1.kinds}
+        label="distinct kinds alive"
+        hint="architectures, not ancestors: founder lines reads 1 either way"
+        w={@w}
+        h={@h}
+      />
+    </div>
+    """
+  end
+
+  # THE WIRE CARRIES INTEGERS, so every mean arrives times a hundred and a
+  # missing value must stay missing. `(x || 0) / 100` would draw an island that
+  # has not reported yet as an island whose creatures compute nothing, which is a
+  # claim about physics made out of a rollout.
+  defp hundredth(nil), do: nil
+  defp hundredth(n) when is_integer(n), do: n / 100
+  defp hundredth(n), do: n
 
   @doc """
   The entropy account, which is the one line here that cannot fall.
@@ -1636,14 +1933,43 @@ defmodule BeamCampusWeb.BiotopeComponents do
     # island on an older build sends none, and then the index is the best
     # identity available and the drawing simply does not move.
     ids = pad(chart["ids"] || [], length(points), 0)
+    # WHAT EACH ONE IS BUILT LIKE. An index into the architectures sent
+    # alongside, so the colour is a fact about the creature's brain and body
+    # rather than about where it happens to sit in this list.
+    #
+    # ⚠ LOOKED UP BY KIND AND NEVER BY POSITION. Indexing the palette at the
+    # creature's ordinal instead of its kind is a live bug the island shipped for
+    # one commit: 42 coloured dots and 138 grey ones, and it passed a test
+    # asserting "no kind wears two colours" because grey is one colour.
+    palette = kind_palette(chart)
+    kinds = pad(chart["kind_of"] || [], length(points), nil)
 
-    [ids, points, frames, rates]
+    [ids, points, frames, rates, kinds]
     |> Enum.zip()
-    |> Enum.map(fn {id, point, frame, rate} ->
+    |> Enum.map(fn {id, point, frame, rate, kind} ->
       {x, y} = Biotope.to_pixel(point, box)
-      {id, x, y, radius_for(cell, frame), feeding_rgb(rate, ceiling)}
+
+      {id, x, y, radius_for(cell, frame), feeding_rgb(rate, ceiling), kind_colour(kind, palette)}
     end)
   end
+
+  # One colour per architecture, in table order, so a creature's index picks its
+  # own out directly.
+  defp kind_palette(chart) do
+    chart["kind_table"]
+    |> Biotope.kinds()
+    |> Enum.map(&Biotope.kind_rgb(&1.raw))
+  end
+
+  # GREY IS FOR AN ISLAND ON AN OLDER BUILD that sends no architectures at all,
+  # and for nothing else. A fleet is upgraded one node at a time, so a spectator
+  # watching six islands will genuinely see a mixture for a while, and a grey
+  # board is the honest picture of "this one has not told me yet".
+  defp kind_colour(kind, palette) when is_integer(kind) and kind >= 0 do
+    Enum.at(palette, kind, 0x888888)
+  end
+
+  defp kind_colour(_kind, _palette), do: 0x888888
 
   defp pad(values, wanted, filler) do
     values ++ List.duplicate(filler, max(0, wanted - length(values)))

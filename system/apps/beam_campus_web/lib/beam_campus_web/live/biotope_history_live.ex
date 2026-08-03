@@ -66,8 +66,9 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         <.header>
           Biotope history
           <:subtitle>
-            Population and the energy still in the ground, sampled from what the islands
-            published. Drawn against the world's own tick.
+            What the creatures are becoming, and the ecology they are becoming it in,
+            sampled from what the islands published. Drawn against the world's own
+            tick.
           </:subtitle>
         </.header>
 
@@ -119,11 +120,27 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
         </span>
       </div>
 
+      <h3 class="mt-3 text-xs font-medium uppercase tracking-wide opacity-50">
+        What the creatures are becoming
+      </h3>
+      <p class="mt-1 text-xs opacity-50">
+        The experiment, and it goes first. Everything below this describes an
+        ecology, which is the medium rather than the subject: these islands exist
+        to ask whether brains and bodies evolve. Nothing assigns any of it. A
+        founder is drawn at random and every birth may add a sensor, drop one,
+        widen its reach, grow a hidden node, or gain and lose the ability to act.
+      </p>
+      <.brains samples={@samples} w={340} h={140} class="mt-3" />
+
+      <h3 class="mt-6 text-xs font-medium uppercase tracking-wide opacity-50">
+        The ecology they are becoming it in
+      </h3>
       <.stocks samples={@samples} w={340} h={140} class="mt-2" />
       <.entropy samples={@samples} w={340} h={140} class="mt-4 sm:max-w-[50%]" />
 
       <dl class="mt-2 flex flex-wrap gap-6 text-sm">
         <.stat label="creatures" value={@last.population} />
+        <.stat label="kinds" value={@last.kinds} />
         <.stat label="in the ground" value={@last.ground_total} />
         <.stat label="starved" value={@last.starved} />
         <.stat label="of old age" value={@last.aged_out} />

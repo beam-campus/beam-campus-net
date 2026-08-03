@@ -68,8 +68,11 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "<canvas"
     [_, creatures] = Regex.run(~r/data-creatures="([^"]*)"/, html)
     [_, ground] = Regex.run(~r/data-ground="([^"]*)"/, html)
-    # Five values per creature: id, x, y, radius, colour.
-    assert length(Jason.decode!(creatures)) == 10
+    # SIX values per creature: id, x, y, radius, feeding colour, kind colour.
+    # Both colourings travel in one frame so pressing K is a repaint and not a
+    # refetch, and a viewer never asks the island for a different picture of the
+    # same moment.
+    assert length(Jason.decode!(creatures)) == 12
     assert [_x, _y, 0x2F7D52, _alpha] = Jason.decode!(ground)
   end
 

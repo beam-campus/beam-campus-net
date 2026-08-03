@@ -1,0 +1,1273 @@
+
+13:33:37.371 [info] Loading 121 CA(s) from :otp store
+
+13:33:37.477 id=1 [debug] handled request client -> server initialize in 56ms
+
+13:33:37.485 [debug] sent notification server -> client window/logMessage
+
+13:33:37.488 [debug] NextLS v0.23.4 has initialized!
+
+13:33:37.488 [debug] sent notification server -> client window/logMessage
+
+13:33:37.488 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+13:33:37.489 [debug] handled notification client -> server textDocument/didOpen in 5ms
+
+13:33:37.491 [debug] sent notification server -> client window/logMessage
+
+13:33:37.491 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+13:33:37.504 id=2 [debug] handled request client -> server textDocument/documentSymbol in 19ms
+
+13:33:40.505 [debug] sent notification server -> client window/logMessage
+
+13:33:40.505 [debug] Booting runtimes...
+
+13:33:40.509 id=6660 [debug] sent request server -> client window/workDoneProgress/create
+
+13:33:40.510 [debug] sent notification server -> client $/progress
+
+13:33:40.525 [debug] sent notification server -> client window/logMessage
+
+13:33:40.525 [info] Beginning DB migration...
+
+13:33:40.533 [debug] sent notification server -> client window/logMessage
+
+13:33:40.534 [info] Database is being upgraded from version 0 to 7.
+
+This will trigger a full recompilation in order to re-index your codebase.
+
+
+13:33:40.534 [debug] sent notification server -> client window/logMessage
+
+13:33:40.534 [info] Finished DB migration...
+
+13:33:40.534 [debug] sent notification server -> client window/logMessage
+
+13:33:40.534 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785670420534695515 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3MDQxNzM3OTgzNTIxN0Bob3N0MDAAAADnAAAAAGpvKxI=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+13:33:40.535 [debug] handled notification client -> server initialized in 3053ms
+
+13:33:40.994 [debug] sent notification server -> client window/logMessage
+
+13:33:40.994 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+13:33:40.999 [debug] sent notification server -> client $/progress
+
+13:33:41.000 [debug] sent notification server -> client window/logMessage
+
+13:33:41.000 [error] Runtime for folder system failed to initialize
+
+13:33:41.001 [debug] sent notification server -> client window/logMessage
+
+13:33:41.001 [info] The runtime for system has successfully shut down.
+
+13:34:37.221 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+13:34:37.609 [debug] handled notification client -> server textDocument/didChange in 676µs
+
+13:34:37.923 [debug] handled notification client -> server textDocument/didChange in 699µs
+
+13:34:38.389 [debug] handled notification client -> server textDocument/didChange in 795µs
+
+13:34:46.351 id=3 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:35:04.877 [debug] handled notification client -> server textDocument/didChange in 763µs
+
+13:35:05.115 [debug] handled notification client -> server textDocument/didChange in 704µs
+
+13:35:06.417 [debug] handled notification client -> server textDocument/didChange in 855µs
+
+13:35:07.047 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:07.544 [debug] handled notification client -> server textDocument/didChange in 923µs
+
+13:35:07.915 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:08.284 [debug] handled notification client -> server textDocument/didChange in 732µs
+
+13:35:08.716 [debug] handled notification client -> server textDocument/didChange in 945µs
+
+13:35:09.708 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:10.809 [debug] handled notification client -> server textDocument/didChange in 932µs
+
+13:35:11.524 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:35:17.225 id=5 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:35:29.289 [debug] handled notification client -> server textDocument/didChange in 657µs
+
+13:35:30.012 [debug] handled notification client -> server textDocument/didChange in 820µs
+
+13:35:30.176 [debug] handled notification client -> server textDocument/didChange in 851µs
+
+13:35:31.163 [debug] handled notification client -> server textDocument/didChange in 753µs
+
+13:35:31.613 [debug] handled notification client -> server textDocument/didChange in 797µs
+
+13:35:31.808 [debug] handled notification client -> server textDocument/didChange in 716µs
+
+13:35:32.424 [debug] handled notification client -> server textDocument/didChange in 818µs
+
+13:35:33.071 [debug] handled notification client -> server textDocument/didChange in 936µs
+
+13:35:33.333 [debug] handled notification client -> server textDocument/didChange in 699µs
+
+13:35:33.526 [debug] handled notification client -> server textDocument/didChange in 745µs
+
+13:35:37.467 [debug] handled notification client -> server textDocument/didChange in 774µs
+
+13:35:37.695 [debug] handled notification client -> server textDocument/didChange in 685µs
+
+13:35:37.913 [debug] handled notification client -> server textDocument/didChange in 993µs
+
+13:35:38.488 [debug] handled notification client -> server textDocument/didChange in 703µs
+
+13:35:38.846 [debug] handled notification client -> server textDocument/didChange in 715µs
+
+13:35:39.957 [debug] handled notification client -> server textDocument/didChange in 728µs
+
+13:35:40.755 [debug] handled notification client -> server textDocument/didChange in 714µs
+
+13:35:41.272 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:41.783 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:42.821 [debug] handled notification client -> server textDocument/didChange in 806µs
+
+13:35:43.159 [debug] handled notification client -> server textDocument/didChange in 691µs
+
+13:35:43.452 [debug] handled notification client -> server textDocument/didChange in 710µs
+
+13:35:43.601 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:45.877 [debug] handled notification client -> server textDocument/didChange in 708µs
+
+13:35:46.719 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:46.722 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:47.272 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:47.462 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:35:47.897 [debug] handled notification client -> server textDocument/didChange in 697µs
+
+13:35:57.770 [debug] handled notification client -> server textDocument/didChange in 864µs
+
+13:35:59.587 [debug] handled notification client -> server textDocument/didChange in 739µs
+
+13:36:00.151 [debug] handled notification client -> server textDocument/didChange in 748µs
+
+13:36:00.489 [debug] handled notification client -> server textDocument/didChange in 774µs
+
+13:36:00.689 [debug] handled notification client -> server textDocument/didChange in 732µs
+
+13:36:01.371 [debug] handled notification client -> server textDocument/didChange in 805µs
+
+13:36:01.963 [debug] handled notification client -> server textDocument/didChange in 763µs
+
+13:36:02.419 [debug] handled notification client -> server textDocument/didChange in 635µs
+
+13:36:02.633 [debug] handled notification client -> server textDocument/didChange in 648µs
+
+13:36:02.947 [debug] handled notification client -> server textDocument/didChange in 662µs
+
+13:36:03.677 [debug] handled notification client -> server textDocument/didChange in 645µs
+
+13:36:03.981 [debug] handled notification client -> server textDocument/didChange in 700µs
+
+13:36:04.177 [debug] handled notification client -> server textDocument/didChange in 705µs
+
+13:36:04.613 [debug] handled notification client -> server textDocument/didChange in 731µs
+
+13:36:04.779 [debug] handled notification client -> server textDocument/didChange in 769µs
+
+13:38:02.922 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:38:07.900 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:38:14.100 id=6 [debug] handled request client -> server textDocument/documentSymbol in 1ms
+
+13:38:32.924 [debug] handled notification client -> server textDocument/didChange in 770µs
+
+13:38:32.936 id=7 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:38:38.037 [debug] handled notification client -> server textDocument/didChange in 741µs
+
+13:38:38.062 id=8 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:38:45.616 [debug] handled notification client -> server textDocument/didChange in 703µs
+
+13:38:52.407 [debug] handled notification client -> server textDocument/didChange in 732µs
+
+13:38:52.656 [debug] handled notification client -> server textDocument/didChange in 710µs
+
+13:38:52.903 [debug] handled notification client -> server textDocument/didChange in 790µs
+
+13:38:53.625 [debug] handled notification client -> server textDocument/didChange in 828µs
+
+13:38:54.885 [debug] handled notification client -> server textDocument/didChange in 723µs
+
+13:38:55.420 [debug] handled notification client -> server textDocument/didChange in 712µs
+
+13:38:55.929 [debug] handled notification client -> server textDocument/didChange in 662µs
+
+13:38:56.495 [debug] handled notification client -> server textDocument/didChange in 738µs
+
+13:38:57.423 [debug] handled notification client -> server textDocument/didChange in 733µs
+
+13:38:57.731 [debug] handled notification client -> server textDocument/didChange in 719µs
+
+13:38:58.033 [debug] handled notification client -> server textDocument/didChange in 714µs
+
+13:38:58.251 [debug] handled notification client -> server textDocument/didChange in 844µs
+
+13:38:58.663 [debug] handled notification client -> server textDocument/didChange in 709µs
+
+13:38:58.813 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:38:59.091 [debug] handled notification client -> server textDocument/didChange in 999µs
+
+13:38:59.460 [debug] handled notification client -> server textDocument/didChange in 830µs
+
+13:38:59.651 [debug] handled notification client -> server textDocument/didChange in 711µs
+
+13:39:00.309 [debug] handled notification client -> server textDocument/didChange in 823µs
+
+13:39:00.481 [debug] handled notification client -> server textDocument/didChange in 920µs
+
+13:39:01.925 id=9 [debug] handled request client -> server textDocument/documentSymbol in 1ms
+
+13:39:31.286 [debug] handled notification client -> server textDocument/didChange in 761µs
+
+13:39:31.288 [debug] handled notification client -> server textDocument/didChange in 715µs
+
+13:39:32.293 id=10 [debug] handled request client -> server textDocument/formatting in 1004ms
+
+13:39:32.311 id=11 [debug] handled request client -> server shutdown in 1ms
+
+13:39:32.311 [debug] handled notification client -> server textDocument/didSave in 2ms
+
+13:42:36.442 [info] Loading 121 CA(s) from :otp store
+
+13:42:36.532 id=1 [debug] handled request client -> server initialize in 49ms
+
+13:42:36.535 [debug] sent notification server -> client window/logMessage
+
+13:42:36.537 [debug] NextLS v0.23.4 has initialized!
+
+13:42:36.537 [debug] sent notification server -> client window/logMessage
+
+13:42:36.537 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+13:42:36.538 [debug] handled notification client -> server textDocument/didOpen in 3ms
+
+13:42:36.541 [debug] sent notification server -> client window/logMessage
+
+13:42:36.541 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+13:42:36.552 id=2 [debug] handled request client -> server textDocument/documentSymbol in 16ms
+
+13:42:37.821 id=3 [debug] handled request client -> server textDocument/documentSymbol in 1ms
+
+13:42:39.263 [debug] sent notification server -> client window/logMessage
+
+13:42:39.264 [debug] Booting runtimes...
+
+13:42:39.266 id=6658 [debug] sent request server -> client window/workDoneProgress/create
+
+13:42:39.267 [debug] sent notification server -> client $/progress
+
+13:42:39.274 [debug] sent notification server -> client window/logMessage
+
+13:42:39.274 [info] Beginning DB migration...
+
+13:42:39.277 [debug] sent notification server -> client window/logMessage
+
+13:42:39.277 [info] Database is on the latest version: 7
+
+13:42:39.277 [debug] sent notification server -> client window/logMessage
+
+13:42:39.277 [info] Finished DB migration...
+
+13:42:39.277 [debug] sent notification server -> client window/logMessage
+
+13:42:39.277 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785670959277166821 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3MDk1NjQ0ODk0ODY0MUBob3N0MDAAAADoAAAAAGpvLS0=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+13:42:39.277 [debug] handled notification client -> server initialized in 2744ms
+
+13:42:39.732 [debug] sent notification server -> client window/logMessage
+
+13:42:39.733 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+13:42:39.737 [debug] sent notification server -> client $/progress
+
+13:42:39.738 [debug] sent notification server -> client window/logMessage
+
+13:42:39.738 [error] Runtime for folder system failed to initialize
+
+13:42:39.739 [debug] sent notification server -> client window/logMessage
+
+13:42:39.740 [info] The runtime for system has successfully shut down.
+
+13:42:52.044 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+13:43:03.222 [debug] handled notification client -> server textDocument/didChange in 714µs
+
+13:43:04.591 [debug] handled notification client -> server textDocument/didChange in 736µs
+
+13:43:05.525 [debug] handled notification client -> server textDocument/didChange in 746µs
+
+13:43:05.532 [debug] handled notification client -> server textDocument/didChange in 635µs
+
+13:43:09.551 [debug] handled notification client -> server textDocument/didChange in 732µs
+
+13:43:09.841 [debug] handled notification client -> server textDocument/didChange in 718µs
+
+13:43:10.441 [debug] handled notification client -> server textDocument/didChange in 691µs
+
+13:43:10.590 [debug] handled notification client -> server textDocument/didChange in 721µs
+
+13:43:10.739 [debug] handled notification client -> server textDocument/didChange in 685µs
+
+13:43:13.747 [debug] handled notification client -> server textDocument/didChange in 710µs
+
+13:43:16.491 [debug] handled notification client -> server textDocument/didChange in 678µs
+
+13:43:16.497 [debug] handled notification client -> server textDocument/didChange in 830µs
+
+13:43:19.957 [debug] handled notification client -> server textDocument/didChange in 738µs
+
+13:43:20.529 [debug] handled notification client -> server textDocument/didChange in 725µs
+
+13:43:21.130 [debug] handled notification client -> server textDocument/didChange in 829µs
+
+13:43:21.279 [debug] handled notification client -> server textDocument/didChange in 823µs
+
+13:43:21.559 [debug] handled notification client -> server textDocument/didChange in 674µs
+
+13:43:21.967 [debug] handled notification client -> server textDocument/didChange in 776µs
+
+13:43:22.311 [debug] handled notification client -> server textDocument/didChange in 813µs
+
+13:43:27.315 [debug] handled notification client -> server textDocument/didChange in 810µs
+
+13:43:29.071 [debug] handled notification client -> server textDocument/didChange in 729µs
+
+13:43:29.077 [debug] handled notification client -> server textDocument/didChange in 770µs
+
+13:43:33.135 [debug] handled notification client -> server textDocument/didChange in 746µs
+
+13:43:33.519 [debug] handled notification client -> server textDocument/didChange in 768µs
+
+13:43:34.119 [debug] handled notification client -> server textDocument/didChange in 772µs
+
+13:43:34.270 [debug] handled notification client -> server textDocument/didChange in 767µs
+
+13:43:34.519 [debug] handled notification client -> server textDocument/didChange in 707µs
+
+13:43:34.885 [debug] handled notification client -> server textDocument/didChange in 706µs
+
+13:43:35.127 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:43:39.861 [debug] handled notification client -> server textDocument/didChange in 771µs
+
+13:43:48.521 [debug] handled notification client -> server textDocument/didChange in 970µs
+
+13:43:48.528 [debug] handled notification client -> server textDocument/didChange in 852µs
+
+13:43:59.849 [debug] handled notification client -> server textDocument/didChange in 703µs
+
+13:43:59.855 [debug] handled notification client -> server textDocument/didChange in 772µs
+
+13:44:02.053 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:47:56.311 [info] Loading 121 CA(s) from :otp store
+
+13:47:56.408 id=1 [debug] handled request client -> server initialize in 58ms
+
+13:47:56.413 [debug] sent notification server -> client window/logMessage
+
+13:47:56.416 [debug] NextLS v0.23.4 has initialized!
+
+13:47:56.416 [debug] sent notification server -> client window/logMessage
+
+13:47:56.416 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+13:47:56.417 [debug] handled notification client -> server textDocument/didOpen in 4ms
+
+13:47:56.419 [debug] sent notification server -> client window/logMessage
+
+13:47:56.419 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+13:47:56.429 id=2 [debug] handled request client -> server textDocument/documentSymbol in 16ms
+
+13:47:57.935 id=3 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:47:58.022 [debug] sent notification server -> client window/logMessage
+
+13:47:58.022 [debug] Booting runtimes...
+
+13:47:58.024 id=6530 [debug] sent request server -> client window/workDoneProgress/create
+
+13:47:58.025 [debug] sent notification server -> client $/progress
+
+13:47:58.034 [debug] sent notification server -> client window/logMessage
+
+13:47:58.034 [info] Beginning DB migration...
+
+13:47:58.037 [debug] sent notification server -> client window/logMessage
+
+13:47:58.037 [info] Database is on the latest version: 7
+
+13:47:58.037 [debug] sent notification server -> client window/logMessage
+
+13:47:58.037 [info] Finished DB migration...
+
+13:47:58.037 [debug] sent notification server -> client window/logMessage
+
+13:47:58.037 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785671278037697859 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3MTI3NjMxNzE0NjEyMEBob3N0MDAAAADoAAAAAGpvLm0=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+13:47:58.038 [debug] handled notification client -> server initialized in 1627ms
+
+13:47:58.573 [debug] sent notification server -> client window/logMessage
+
+13:47:58.573 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+13:47:58.578 [debug] sent notification server -> client $/progress
+
+13:47:58.579 [debug] sent notification server -> client window/logMessage
+
+13:47:58.579 [error] Runtime for folder system failed to initialize
+
+13:47:58.581 [debug] sent notification server -> client window/logMessage
+
+13:47:58.581 [info] The runtime for system has successfully shut down.
+
+13:48:04.448 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+13:48:07.289 [debug] handled notification client -> server textDocument/didChange in 868µs
+
+13:48:07.573 [debug] handled notification client -> server textDocument/didChange in 825µs
+
+13:48:07.823 [debug] handled notification client -> server textDocument/didChange in 916µs
+
+13:48:08.043 [debug] handled notification client -> server textDocument/didChange in 980µs
+
+13:48:08.253 [debug] handled notification client -> server textDocument/didChange in 810µs
+
+13:48:08.465 [debug] handled notification client -> server textDocument/didChange in 787µs
+
+13:48:08.735 [debug] handled notification client -> server textDocument/didChange in 755µs
+
+13:48:09.273 [debug] handled notification client -> server textDocument/didChange in 781µs
+
+13:48:14.768 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:48:19.434 id=5 [debug] handled request client -> server textDocument/formatting in 1004ms
+
+13:48:19.451 [debug] handled notification client -> server textDocument/didSave in 2ms
+
+13:49:54.835 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:49:56.397 [debug] handled notification client -> server textDocument/didChange in 695µs
+
+13:49:56.740 [debug] handled notification client -> server textDocument/didChange in 699µs
+
+13:49:57.197 [debug] handled notification client -> server textDocument/didChange in 809µs
+
+13:49:57.489 [debug] handled notification client -> server textDocument/didChange in 977µs
+
+13:49:58.109 [debug] handled notification client -> server textDocument/didChange in 827µs
+
+13:49:58.341 [debug] handled notification client -> server textDocument/didChange in 924µs
+
+13:49:59.065 [debug] handled notification client -> server textDocument/didChange in 858µs
+
+13:49:59.347 [debug] handled notification client -> server textDocument/didChange in 736µs
+
+13:50:00.155 [debug] handled notification client -> server textDocument/didChange in 727µs
+
+13:50:00.499 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:50:01.185 [debug] handled notification client -> server textDocument/didChange in 941µs
+
+13:50:05.633 [debug] handled notification client -> server textDocument/didChange in 804µs
+
+13:50:17.342 id=6 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:50:49.939 [debug] handled notification client -> server textDocument/didChange in 828µs
+
+13:50:51.111 [debug] handled notification client -> server textDocument/didChange in 845µs
+
+13:50:52.045 [debug] handled notification client -> server textDocument/didChange in 705µs
+
+13:50:52.193 [debug] handled notification client -> server textDocument/didChange in 635µs
+
+13:50:52.566 [debug] handled notification client -> server textDocument/didChange in 737µs
+
+13:50:52.764 [debug] handled notification client -> server textDocument/didChange in 846µs
+
+13:50:53.601 [debug] handled notification client -> server textDocument/didChange in 708µs
+
+13:50:54.186 [debug] handled notification client -> server textDocument/didChange in 759µs
+
+13:50:54.846 [debug] handled notification client -> server textDocument/didChange in 619µs
+
+13:50:55.016 [debug] handled notification client -> server textDocument/didChange in 618µs
+
+13:50:55.532 [debug] handled notification client -> server textDocument/didChange in 662µs
+
+13:51:01.429 [debug] handled notification client -> server textDocument/didChange in 736µs
+
+13:51:02.179 [debug] handled notification client -> server textDocument/didChange in 730µs
+
+13:51:02.779 [debug] handled notification client -> server textDocument/didChange in 640µs
+
+13:51:02.928 [debug] handled notification client -> server textDocument/didChange in 653µs
+
+13:51:03.079 [debug] handled notification client -> server textDocument/didChange in 671µs
+
+13:51:03.325 [debug] handled notification client -> server textDocument/didChange in 907µs
+
+13:51:03.925 [debug] handled notification client -> server textDocument/didChange in 877µs
+
+13:51:04.075 [debug] handled notification client -> server textDocument/didChange in 847µs
+
+13:51:04.461 [debug] handled notification client -> server textDocument/didChange in 783µs
+
+13:51:04.909 [debug] handled notification client -> server textDocument/didChange in 782µs
+
+13:51:06.985 [debug] handled notification client -> server textDocument/didChange in 718µs
+
+13:51:07.134 [debug] handled notification client -> server textDocument/didChange in 614µs
+
+13:51:08.383 [debug] handled notification client -> server textDocument/didChange in 753µs
+
+13:51:11.333 [debug] handled notification client -> server textDocument/didChange in 808µs
+
+13:51:11.595 [debug] handled notification client -> server textDocument/didChange in 851µs
+
+13:51:11.806 [debug] handled notification client -> server textDocument/didChange in 917µs
+
+13:51:13.350 [debug] handled notification client -> server textDocument/didChange in 807µs
+
+13:51:13.504 [debug] handled notification client -> server textDocument/didChange in 876µs
+
+13:51:13.840 [debug] handled notification client -> server textDocument/didChange in 749µs
+
+13:51:16.325 [debug] handled notification client -> server textDocument/didChange in 753µs
+
+13:51:16.473 [debug] handled notification client -> server textDocument/didChange in 736µs
+
+13:51:16.889 [debug] handled notification client -> server textDocument/didChange in 873µs
+
+13:51:17.287 [debug] handled notification client -> server textDocument/didChange in 785µs
+
+13:51:17.693 [debug] handled notification client -> server textDocument/didChange in 898µs
+
+13:51:17.874 [debug] handled notification client -> server textDocument/didChange in 800µs
+
+13:51:18.459 [debug] handled notification client -> server textDocument/didChange in 796µs
+
+13:51:18.780 [debug] handled notification client -> server textDocument/didChange in 715µs
+
+13:51:19.012 [debug] handled notification client -> server textDocument/didChange in 671µs
+
+13:51:19.512 [debug] handled notification client -> server textDocument/didChange in 671µs
+
+13:51:20.163 [debug] handled notification client -> server textDocument/didChange in 669µs
+
+13:51:20.556 [debug] handled notification client -> server textDocument/didChange in 839µs
+
+13:51:20.706 [debug] handled notification client -> server textDocument/didChange in 803µs
+
+13:51:21.314 [debug] handled notification client -> server textDocument/didChange in 746µs
+
+13:51:21.714 [debug] handled notification client -> server textDocument/didChange in 734µs
+
+13:51:21.874 [debug] handled notification client -> server textDocument/didChange in 676µs
+
+13:51:22.139 [debug] handled notification client -> server textDocument/didChange in 878µs
+
+13:51:22.917 [debug] handled notification client -> server textDocument/didChange in 833µs
+
+13:51:24.027 [debug] handled notification client -> server textDocument/didChange in 816µs
+
+13:51:24.188 [debug] handled notification client -> server textDocument/didChange in 700µs
+
+13:51:24.553 [debug] handled notification client -> server textDocument/didChange in 814µs
+
+13:51:24.702 [debug] handled notification client -> server textDocument/didChange in 743µs
+
+13:51:25.471 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:25.949 [debug] handled notification client -> server textDocument/didChange in 835µs
+
+13:51:26.111 [debug] handled notification client -> server textDocument/didChange in 737µs
+
+13:51:26.554 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:26.712 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:28.899 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:29.049 [debug] handled notification client -> server textDocument/didChange in 975µs
+
+13:51:29.415 [debug] handled notification client -> server textDocument/didChange in 803µs
+
+13:51:29.761 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:29.911 [debug] handled notification client -> server textDocument/didChange in 818µs
+
+13:51:30.441 [debug] handled notification client -> server textDocument/didChange in 824µs
+
+13:51:33.313 [debug] handled notification client -> server textDocument/didChange in 736µs
+
+13:51:38.149 [debug] handled notification client -> server textDocument/didChange in 961µs
+
+13:51:49.597 [debug] handled notification client -> server textDocument/didChange in 995µs
+
+13:51:49.801 [debug] handled notification client -> server textDocument/didChange in 823µs
+
+13:51:50.021 [debug] handled notification client -> server textDocument/didChange in 823µs
+
+13:51:51.827 [debug] handled notification client -> server textDocument/didChange in 892µs
+
+13:51:51.975 [debug] handled notification client -> server textDocument/didChange in 821µs
+
+13:51:52.881 [debug] handled notification client -> server textDocument/didChange in 892µs
+
+13:51:53.305 [debug] handled notification client -> server textDocument/didChange in 853µs
+
+13:51:53.535 [debug] handled notification client -> server textDocument/didChange in 952µs
+
+13:51:53.825 [debug] handled notification client -> server textDocument/didChange in 930µs
+
+13:51:53.975 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:54.447 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:51:54.827 [debug] handled notification client -> server textDocument/didChange in 821µs
+
+13:51:55.011 [debug] handled notification client -> server textDocument/didChange in 780µs
+
+13:51:55.369 [debug] handled notification client -> server textDocument/didChange in 787µs
+
+13:51:55.939 [debug] handled notification client -> server textDocument/didChange in 843µs
+
+13:52:02.355 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:02.526 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:02.829 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:03.533 [debug] handled notification client -> server textDocument/didChange in 827µs
+
+13:52:03.682 [debug] handled notification client -> server textDocument/didChange in 677µs
+
+13:52:12.101 [debug] handled notification client -> server textDocument/didChange in 994µs
+
+13:52:12.599 [debug] handled notification client -> server textDocument/didChange in 797µs
+
+13:52:12.797 [debug] handled notification client -> server textDocument/didChange in 716µs
+
+13:52:13.039 [debug] handled notification client -> server textDocument/didChange in 723µs
+
+13:52:13.335 [debug] handled notification client -> server textDocument/didChange in 848µs
+
+13:52:13.843 [debug] handled notification client -> server textDocument/didChange in 731µs
+
+13:52:14.009 [debug] handled notification client -> server textDocument/didChange in 667µs
+
+13:52:14.271 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:15.117 [debug] handled notification client -> server textDocument/didChange in 799µs
+
+13:52:15.301 [debug] handled notification client -> server textDocument/didChange in 689µs
+
+13:52:15.815 [debug] handled notification client -> server textDocument/didChange in 730µs
+
+13:52:16.083 [debug] handled notification client -> server textDocument/didChange in 802µs
+
+13:52:16.359 [debug] handled notification client -> server textDocument/didChange in 837µs
+
+13:52:16.559 [debug] handled notification client -> server textDocument/didChange in 764µs
+
+13:52:17.159 [debug] handled notification client -> server textDocument/didChange in 898µs
+
+13:52:17.441 [debug] handled notification client -> server textDocument/didChange in 764µs
+
+13:52:17.607 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:17.991 [debug] handled notification client -> server textDocument/didChange in 751µs
+
+13:52:39.719 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:40.320 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:40.468 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:40.618 [debug] handled notification client -> server textDocument/didChange in 795µs
+
+13:52:40.767 [debug] handled notification client -> server textDocument/didChange in 993µs
+
+13:52:40.915 [debug] handled notification client -> server textDocument/didChange in 847µs
+
+13:52:41.687 [debug] handled notification client -> server textDocument/didChange in 651µs
+
+13:52:42.181 [debug] handled notification client -> server textDocument/didChange in 931µs
+
+13:52:42.332 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:52:42.665 [debug] handled notification client -> server textDocument/didChange in 965µs
+
+13:52:42.877 [debug] handled notification client -> server textDocument/didChange in 757µs
+
+13:52:43.299 [debug] handled notification client -> server textDocument/didChange in 819µs
+
+13:52:43.925 [debug] handled notification client -> server textDocument/didChange in 897µs
+
+13:52:44.434 [debug] handled notification client -> server textDocument/didChange in 670µs
+
+13:52:44.804 [debug] handled notification client -> server textDocument/didChange in 676µs
+
+13:52:45.537 [debug] handled notification client -> server textDocument/didChange in 658µs
+
+13:52:45.921 [debug] handled notification client -> server textDocument/didChange in 823µs
+
+13:52:46.274 [debug] handled notification client -> server textDocument/didChange in 742µs
+
+13:52:46.631 [debug] handled notification client -> server textDocument/didChange in 801µs
+
+13:52:46.781 [debug] handled notification client -> server textDocument/didChange in 667µs
+
+13:52:47.530 [debug] handled notification client -> server textDocument/didChange in 643µs
+
+13:52:47.850 [debug] handled notification client -> server textDocument/didChange in 785µs
+
+13:52:48.209 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:53:01.129 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:53:01.729 [debug] handled notification client -> server textDocument/didChange in 721µs
+
+13:53:01.878 [debug] handled notification client -> server textDocument/didChange in 692µs
+
+13:53:03.301 [debug] handled notification client -> server textDocument/didChange in 854µs
+
+13:53:03.901 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:53:04.050 [debug] handled notification client -> server textDocument/didChange in 818µs
+
+13:53:04.199 [debug] handled notification client -> server textDocument/didChange in 832µs
+
+13:53:04.348 [debug] handled notification client -> server textDocument/didChange in 865µs
+
+13:53:04.520 [debug] handled notification client -> server textDocument/didChange in 804µs
+
+13:53:04.905 [debug] handled notification client -> server textDocument/didChange in 866µs
+
+13:53:05.983 [debug] handled notification client -> server textDocument/didChange in 830µs
+
+13:53:06.347 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+13:53:06.581 [debug] handled notification client -> server textDocument/didChange in 868µs
+
+13:53:06.784 [debug] handled notification client -> server textDocument/didChange in 699µs
+
+13:53:16.492 id=7 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:53:21.831 id=8 [debug] handled request client -> server textDocument/formatting in 1000ms
+
+13:53:21.847 [debug] handled notification client -> server textDocument/didSave in 722µs
+
+13:53:21.848 id=9 [debug] handled request client -> server shutdown in 1ms
+
+13:55:46.949 [info] Loading 121 CA(s) from :otp store
+
+13:55:47.048 id=1 [debug] handled request client -> server initialize in 53ms
+
+13:55:47.052 [debug] sent notification server -> client window/logMessage
+
+13:55:47.055 [debug] NextLS v0.23.4 has initialized!
+
+13:55:47.055 [debug] sent notification server -> client window/logMessage
+
+13:55:47.055 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+13:55:47.060 [debug] handled notification client -> server textDocument/didOpen in 8ms
+
+13:55:47.061 [debug] sent notification server -> client window/logMessage
+
+13:55:47.061 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+13:55:47.073 id=2 [debug] handled request client -> server textDocument/documentSymbol in 20ms
+
+13:55:48.625 id=3 [debug] handled request client -> server textDocument/documentSymbol in 3ms
+
+13:55:49.187 [debug] sent notification server -> client window/logMessage
+
+13:55:49.187 [debug] Booting runtimes...
+
+13:55:49.190 id=2 [debug] sent request server -> client window/workDoneProgress/create
+
+13:55:49.192 [debug] sent notification server -> client $/progress
+
+13:55:49.201 [debug] sent notification server -> client window/logMessage
+
+13:55:49.201 [info] Beginning DB migration...
+
+13:55:49.204 [debug] sent notification server -> client window/logMessage
+
+13:55:49.204 [info] Database is on the latest version: 7
+
+13:55:49.204 [debug] sent notification server -> client window/logMessage
+
+13:55:49.204 [info] Finished DB migration...
+
+13:55:49.204 [debug] sent notification server -> client window/logMessage
+
+13:55:49.205 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785671749204838457 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3MTc0Njk1NzUzOTI2NUBob3N0MDAAAADoAAAAAGpvMEM=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+13:55:49.205 [debug] handled notification client -> server initialized in 2155ms
+
+13:55:49.951 [debug] sent notification server -> client window/logMessage
+
+13:55:49.951 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+13:55:49.957 [debug] sent notification server -> client $/progress
+
+13:55:49.959 [debug] sent notification server -> client window/logMessage
+
+13:55:49.959 [error] Runtime for folder system failed to initialize
+
+13:55:49.960 [debug] sent notification server -> client window/logMessage
+
+13:55:49.960 [info] The runtime for system has successfully shut down.
+
+13:56:03.782 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+13:56:04.428 [debug] handled notification client -> server textDocument/didChange in 762µs
+
+13:56:05.102 [debug] handled notification client -> server textDocument/didChange in 735µs
+
+13:56:05.286 [debug] handled notification client -> server textDocument/didChange in 822µs
+
+13:56:05.868 [debug] handled notification client -> server textDocument/didChange in 884µs
+
+13:56:06.314 [debug] handled notification client -> server textDocument/didChange in 725µs
+
+13:56:14.528 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+13:56:25.012 [debug] handled notification client -> server textDocument/didChange in 750µs
+
+13:56:25.014 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+14:07:43.032 [info] Loading 121 CA(s) from :otp store
+
+14:07:43.138 id=1 [debug] handled request client -> server initialize in 62ms
+
+14:07:43.143 [debug] sent notification server -> client window/logMessage
+
+14:07:43.145 [debug] NextLS v0.23.4 has initialized!
+
+14:07:43.145 [debug] sent notification server -> client window/logMessage
+
+14:07:43.145 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+14:07:43.148 [debug] handled notification client -> server textDocument/didOpen in 5ms
+
+14:07:43.150 [debug] sent notification server -> client window/logMessage
+
+14:07:43.150 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+14:07:43.163 id=2 [debug] handled request client -> server textDocument/documentSymbol in 18ms
+
+14:07:44.540 id=3 [debug] handled request client -> server textDocument/documentSymbol in 1ms
+
+14:07:45.641 [debug] sent notification server -> client window/logMessage
+
+14:07:45.641 [debug] Booting runtimes...
+
+14:07:45.646 id=6535 [debug] sent request server -> client window/workDoneProgress/create
+
+14:07:45.648 [debug] sent notification server -> client $/progress
+
+14:07:45.655 [debug] sent notification server -> client window/logMessage
+
+14:07:45.655 [info] Beginning DB migration...
+
+14:07:45.659 [debug] sent notification server -> client window/logMessage
+
+14:07:45.659 [info] Database is on the latest version: 7
+
+14:07:45.659 [debug] sent notification server -> client window/logMessage
+
+14:07:45.659 [info] Finished DB migration...
+
+14:07:45.659 [debug] sent notification server -> client window/logMessage
+
+14:07:45.659 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785672465659517815 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3MjQ2MzAzODcyOTMzOUBob3N0MDAAAADoAAAAAGpvMxA=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+14:07:45.660 [debug] handled notification client -> server initialized in 2518ms
+
+14:07:46.243 [debug] sent notification server -> client window/logMessage
+
+14:07:46.243 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+14:07:46.247 [debug] sent notification server -> client $/progress
+
+14:07:46.249 [debug] sent notification server -> client window/logMessage
+
+14:07:46.249 [error] Runtime for folder system failed to initialize
+
+14:07:46.250 [debug] sent notification server -> client window/logMessage
+
+14:07:46.250 [info] The runtime for system has successfully shut down.
+
+14:07:51.592 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+14:07:53.360 [debug] handled notification client -> server textDocument/didChange in 905µs
+
+14:07:53.852 [debug] handled notification client -> server textDocument/didChange in 747µs
+
+14:07:54.022 [debug] handled notification client -> server textDocument/didChange in 903µs
+
+14:07:54.340 [debug] handled notification client -> server textDocument/didChange in 983µs
+
+14:07:57.666 [debug] handled notification client -> server textDocument/didChange in 922µs
+
+14:08:07.764 [debug] handled notification client -> server textDocument/didChange in 855µs
+
+14:08:08.364 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+14:08:08.513 [debug] handled notification client -> server textDocument/didChange in 773µs
+
+14:08:08.664 [debug] handled notification client -> server textDocument/didChange in 808µs
+
+14:08:08.814 [debug] handled notification client -> server textDocument/didChange in 868µs
+
+14:08:08.963 [debug] handled notification client -> server textDocument/didChange in 833µs
+
+14:08:09.221 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+14:08:09.446 [debug] handled notification client -> server textDocument/didChange in 809µs
+
+14:08:09.938 [debug] handled notification client -> server textDocument/didChange in 840µs
+
+14:08:10.596 [debug] handled notification client -> server textDocument/didChange in 890µs
+
+14:08:27.158 [debug] handled notification client -> server textDocument/didChange in 819µs
+
+14:08:27.414 [debug] handled notification client -> server textDocument/didChange in 856µs
+
+14:08:27.634 [debug] handled notification client -> server textDocument/didChange in 792µs
+
+14:08:27.860 [debug] handled notification client -> server textDocument/didChange in 745µs
+
+14:08:28.464 [debug] handled notification client -> server textDocument/didChange in 716µs
+
+14:08:30.092 [debug] handled notification client -> server textDocument/didChange in 816µs
+
+14:08:30.360 [debug] handled notification client -> server textDocument/didChange in 858µs
+
+14:08:30.568 [debug] handled notification client -> server textDocument/didChange in 856µs
+
+14:08:31.366 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+14:08:31.780 [debug] handled notification client -> server textDocument/didChange in 938µs
+
+14:08:34.953 [debug] handled notification client -> server textDocument/didChange in 1ms
+
+14:08:35.760 [debug] handled notification client -> server textDocument/didChange in 827µs
+
+14:08:36.548 [debug] handled notification client -> server textDocument/didChange in 674µs
+
+14:08:36.745 [debug] handled notification client -> server textDocument/didChange in 664µs
+
+14:08:37.223 [debug] handled notification client -> server textDocument/didChange in 682µs
+
+14:08:37.416 [debug] handled notification client -> server textDocument/didChange in 822µs
+
+14:08:37.901 [debug] handled notification client -> server textDocument/didChange in 884µs
+
+14:08:38.266 [debug] handled notification client -> server textDocument/didChange in 796µs
+
+14:08:38.620 [debug] handled notification client -> server textDocument/didChange in 771µs
+
+14:08:39.067 [debug] handled notification client -> server textDocument/didChange in 670µs
+
+14:08:39.449 [debug] handled notification client -> server textDocument/didChange in 803µs
+
+14:08:42.019 [debug] handled notification client -> server textDocument/didChange in 795µs
+
+14:08:45.354 [debug] handled notification client -> server textDocument/didChange in 766µs
+
+14:08:45.576 [debug] handled notification client -> server textDocument/didChange in 701µs
+
+14:08:45.966 [debug] handled notification client -> server textDocument/didChange in 763µs
+
+14:08:46.386 [debug] handled notification client -> server textDocument/didChange in 745µs
+
+14:08:46.549 [debug] handled notification client -> server textDocument/didChange in 608µs
+
+14:08:46.919 [debug] handled notification client -> server textDocument/didChange in 684µs
+
+14:08:47.133 [debug] handled notification client -> server textDocument/didChange in 674µs
+
+14:08:47.337 [debug] handled notification client -> server textDocument/didChange in 657µs
+
+14:08:47.713 [debug] handled notification client -> server textDocument/didChange in 760µs
+
+14:08:48.209 [debug] handled notification client -> server textDocument/didChange in 799µs
+
+14:08:48.415 [debug] handled notification client -> server textDocument/didChange in 851µs
+
+14:08:49.449 [debug] handled notification client -> server textDocument/didChange in 813µs
+
+14:08:53.276 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+14:08:58.106 [debug] handled notification client -> server textDocument/didChange in 741µs
+
+15:46:44.302 [info] Loading 121 CA(s) from :otp store
+
+15:46:44.407 id=1 [debug] handled request client -> server initialize in 54ms
+
+15:46:44.413 [debug] sent notification server -> client window/logMessage
+
+15:46:44.416 [debug] NextLS v0.23.4 has initialized!
+
+15:46:44.416 [debug] sent notification server -> client window/logMessage
+
+15:46:44.416 [debug] Log file located at /home/rl/work/github.com/beam-campus/beam-campus-net/.elixir-tools/next-ls.log
+
+15:46:44.418 [debug] handled notification client -> server textDocument/didOpen in 6ms
+
+15:46:44.420 [debug] sent notification server -> client window/logMessage
+
+15:46:44.420 [info] [extension] Credo initializing with options %NextLS.InitOpts.Extensions.Credo{enable: true, cli_options: []}
+
+15:46:44.433 id=2 [debug] handled request client -> server textDocument/documentSymbol in 20ms
+
+15:46:45.853 id=3 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+15:46:47.312 [debug] sent notification server -> client window/logMessage
+
+15:46:47.312 [debug] Booting runtimes...
+
+15:46:47.314 id=258 [debug] sent request server -> client window/workDoneProgress/create
+
+15:46:47.316 [debug] sent notification server -> client $/progress
+
+15:46:47.322 [debug] sent notification server -> client window/logMessage
+
+15:46:47.322 [info] Beginning DB migration...
+
+15:46:47.325 [debug] sent notification server -> client window/logMessage
+
+15:46:47.325 [info] Database is on the latest version: 7
+
+15:46:47.325 [debug] sent notification server -> client window/logMessage
+
+15:46:47.325 [info] Finished DB migration...
+
+15:46:47.325 [debug] sent notification server -> client window/logMessage
+
+15:46:47.325 [info] Booting runtime for system.
+
+- elixir: /home/rl/.asdf/shims/elixir
+- zombie wrapper script: /home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/lib/next_ls-0.23.4/priv/cmd
+- working_dir: /home/rl/work/github.com/beam-campus/beam-campus-net/system
+- command: /home/rl/.asdf/shims/elixir --no-halt --sname nextls-runtime-1785678407325148305 --cookie HHYKTHK2JHVUZI3HDBMAF64GPJFPN4AV4Y7CQDE27SSFQKZPVAFQ==== -S mix loadpaths --no-compile
+
+Environment: 
+
+LSP=nextls
+NEXTLS_PARENT_PID=g1h3Im5leHQtbHMtMTc4NTY3ODQwNDMxMDE4MjQ0N0Bob3N0MDAAAADoAAAAAGpvSkU=
+MIX_ENV=dev
+MIX_TARGET=host
+MIX_BUILD_ROOT=.elixir-tools/_build
+ROOTDIR=false
+BINDIR=false
+RELEASE_ROOT=false
+RELEASE_SYS_CONFIG=false
+PATH=/home/rl/.asdf/shims:/home/rl/.local/share/.burrito/next_ls_erts-15.2_0.23.4/bin:/home/rl/.local/share/nvim/mason/bin:/home/rl/.asdf/installs/rust/1.90.0/bin:/home/rl/.asdf/shims:/usr/lib/ccache/bin/:/home/rl/.local/bin:/home/rl/.cargo/bin:/home/rl/.local/share/../bin:/home/rl/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/home/rl/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/var/lib/flatpak/exports/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/rl/go/bin:/opt/nvim-linux64/bin
+
+
+15:46:47.325 [debug] handled notification client -> server initialized in 2915ms
+
+15:46:47.834 [debug] sent notification server -> client window/logMessage
+
+15:46:47.834 [info] ** (ArgumentError) The module Phoenix.CodeReloader was given as a child to a supervisor but it does not exist
+    (elixir 1.18.4) lib/supervisor.ex:797: Supervisor.init_child/1
+    (elixir 1.18.4) lib/supervisor.ex:905: Supervisor.child_spec/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (mix 1.18.4) lib/mix/pubsub.ex:77: Mix.PubSub.listener_supervisor/0
+    (mix 1.18.4) lib/mix/pubsub.ex:59: Mix.PubSub.start_listeners/0
+    (mix 1.18.4) lib/mix/tasks/deps.loadpaths.ex:76: Mix.Tasks.Deps.Loadpaths.run/1
+    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.18.4) lib/mix/tasks/loadpaths.ex:37: Mix.Tasks.Loadpaths.run/1
+
+
+15:46:47.838 [debug] sent notification server -> client $/progress
+
+15:46:47.839 [debug] sent notification server -> client window/logMessage
+
+15:46:47.839 [error] Runtime for folder system failed to initialize
+
+15:46:47.840 [debug] sent notification server -> client window/logMessage
+
+15:46:47.840 [info] The runtime for system has successfully shut down.
+
+15:47:21.514 id=4 [debug] handled request client -> server textDocument/documentSymbol in 2ms
+
+15:47:21.515 [debug] handled notification client -> server textDocument/didChange in 3ms
+
+15:47:39.907 id=5 [debug] handled request client -> server textDocument/formatting in 1004ms
+
+15:47:39.923 id=6 [debug] handled request client -> server shutdown in 963µs
+
+15:47:39.924 [debug] handled notification client -> server textDocument/didSave in 2ms

@@ -200,7 +200,8 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
       [_, json] = Regex.run(~r/data-creatures="([^"]*)"/, html)
       # Five per creature: id, x, y, radius, colour. The id is what lets a
       # viewer animate between frames rather than redraw them.
-      [_id1, _x1, _y1, big, _c1, _id2, _x2, _y2, small, _c2] = Jason.decode!(json)
+      [_id1, _x1, _y1, big, _c1, _k1, _id2, _x2, _y2, small, _c2, _k2] =
+        Jason.decode!(json)
 
       assert big > small, "the creature with the larger BODY must draw larger"
     end
@@ -277,7 +278,8 @@ defmodule BeamCampusWeb.BiotopeComponentsTest do
       [_, json] = Regex.run(~r/data-creatures="([^"]*)"/, html)
       [first | _] = Jason.decode!(json)
       assert first == 17
-      assert Enum.at(Jason.decode!(json), 5) == 4001
+      # Offset SIX since kinds: id, x, y, radius, feeding colour, kind colour.
+      assert Enum.at(Jason.decode!(json), 6) == 4001
     end
   end
 

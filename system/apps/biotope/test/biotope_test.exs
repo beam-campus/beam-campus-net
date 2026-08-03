@@ -225,4 +225,137 @@ defmodule BiotopeTest do
       assert Biotope.marks("scent") == []
     end
   end
+  # ══════════════════════════════════════════════════════════════════════
+  # What each creature is built like
+  # ══════════════════════════════════════════════════════════════════════
+
+  describe "kinds" do
+    # ⚠ THE WIRE SENDS INDEXES AND THIS IS THE ONLY PLACE THEY ARE GIVEN
+    # MEANING. The island holds the same two lists and pins their order with a
+    # test of its own; this site deliberately takes no dependency on the
+    # island's code, so it mirrors them, and the mirror is the risk.
+    #
+    # Reordering either list would silently change the meaning of every kind
+    # table ever published: a reader would draw a scent sensor where a ground
+    # sensor is, and nothing about the page would look wrong. This test cannot
+    # detect a change made on the island. It can only stop this side drifting on
+    # its own, which is the most a reader can do.
+    test "the wire codes for fields and purposes are the fact_version 14 orders" do
+      assert Biotope.fields() == [:creatures, :ground, :scent, :self]
+      assert Biotope.purposes() == [:move, :breed, :grow, :eat]
+    end
+
+    # NSensors, then field and reach pairs, then hidden, then the count of
+    # purposes and the purposes.
+    test "decodes an architecture into what a creature actually is" do
+      table = [2, 1, 0, 2, 1, 1, 2, 0, 3]
+
+      assert [kind] = Biotope.kinds(table)
+      assert kind.sensors == [{:ground, 0}, {:scent, 1}]
+      assert kind.hidden == 1
+      assert kind.purposes == [:move, :eat]
+      # The flat form is kept because it is what the colour is derived from.
+      assert kind.raw == [2, 1, 0, 2, 1, 1, 0, 3]
+    end
+
+    test "decodes several architectures from one table" do
+      table = [1, 1, 0, 0, 1, 0] ++ [0, 2, 2, 1, 2]
+
+      assert [first, second] = Biotope.kinds(table)
+      assert first.sensors == [{:ground, 0}]
+      assert first.hidden == 0
+      assert second.sensors == []
+      assert second.hidden == 2
+      assert second.purposes == [:breed, :grow]
+    end
+
+    # A CREATURE THAT MEASURES NOTHING IS A LEGITIMATE CREATURE. It pays no rent,
+    # values every cell alike and wanders, and it is the null forager everything
+    # else has to beat. It must render, not vanish.
+    test "a blind creature with no brain and no acts is still a kind" do
+      assert [kind] = Biotope.kinds([0, 0, 0])
+      assert kind.sensors == []
+      assert kind.hidden == 0
+      assert kind.purposes == []
+    end
+
+    # ⚠ NETWORK INPUT FROM A SERVICE ON SOMEONE ELSE'S MACHINE, possibly a
+    # version ahead. A truncated or nonsensical table must cost the rest of the
+    # table and not the spectator's page.
+    test "a malformed table costs the rest of the table and not the page" do
+      assert Biotope.kinds([1, 1, 0, 0, 1]) == []
+      assert Biotope.kinds([3, 1, 0]) == []
+      assert Biotope.kinds([-1]) == []
+      assert Biotope.kinds("not a list") == []
+      assert Biotope.kinds(nil) == []
+      # Everything read cleanly before the damage is kept.
+      assert [_one] = Biotope.kinds([1, 1, 0, 0, 1, 0] ++ [9, 9])
+    end
+
+    # An island a version ahead may name a field this reader has never heard of.
+    # Showing the number is honest; inventing a name for it would not be.
+    test "an unknown field or purpose is shown as itself rather than guessed at" do
+      assert [kind] = Biotope.kinds([1, 99, 0, 0, 1, 98])
+      assert kind.sensors == [{99, 0}]
+      assert kind.purposes == [98]
+    end
+  end
+
+  describe "kind_rgb" do
+    # ⚠ THE SAME ARCHITECTURE MUST WEAR THE SAME COLOUR ON BOTH PAGES. The island
+    # serves its own local view and this site serves the public one, and they are
+    # two drawings of one world. `:erlang.phash2/2` is portable across nodes and
+    # ERTS versions and both sides hash the same flat integer list, so a kind
+    # keeps its colour whichever page you are looking at.
+    #
+    # These four values were taken from the island's own `island_disc:kind_rgb/1`
+    # and are pinned here. If this test fails, the two drawings have diverged and
+    # one of them is lying about which creatures are alike.
+    test "matches the island's own colour for the same architecture" do
+      assert Biotope.kind_rgb([1, 1, 0, 0, 1, 0]) == 0x4760D1
+      assert Biotope.kind_rgb([2, 0, 1, 1, 2, 1, 0, 2, 0, 3]) == 0xD147C1
+      assert Biotope.kind_rgb([0, 3, 4, 0, 1, 2, 3]) == 0x47D1C9
+      assert Biotope.kind_rgb([1, 2, 4, 0, 0]) == 0xD1474C
+    end
+
+    # NOT DERIVED FROM THE INDEX IN THE TABLE. The table holds the kinds present,
+    # sorted, so one creature dying shifts every index above it. A colour taken
+    # from an index would repaint the whole board for a change to one creature
+    # and a viewer would read that as the population turning over.
+    test "a kind keeps its colour when another kind dies" do
+      alone = Biotope.kinds([1, 2, 0, 0, 1, 0])
+      crowded = Biotope.kinds([1, 1, 0, 0, 1, 0] ++ [1, 2, 0, 0, 1, 0])
+
+      assert Biotope.kind_rgb(hd(alone).raw) ==
+               Biotope.kind_rgb(List.last(crowded).raw)
+    end
+
+    test "different architectures are visibly different and never black" do
+      colours =
+        for n <- 1..40, do: Biotope.kind_rgb([1, rem(n, 4), div(n, 4), 0, 1, 0])
+
+      assert Enum.all?(colours, &(&1 > 0x101010))
+      assert Enum.all?(colours, &(&1 <= 0xFFFFFF))
+      assert length(Enum.uniq(colours)) > 8
+    end
+
+    test "something that is not an architecture draws grey rather than crashing" do
+      assert Biotope.kind_rgb(nil) == 0x888888
+      assert Biotope.kind_rgb("nonsense") == 0x888888
+    end
+  end
+
+  describe "kind_tally" do
+    test "counts how many creatures hold each kind" do
+      assert Biotope.kind_tally([0, 1, 0, 0, 2]) == %{0 => 3, 1 => 1, 2 => 1}
+    end
+
+    # An island on an older build sends nothing, which is not the same as an
+    # island whose creatures are all one kind.
+    test "an absent list is no creatures rather than one kind" do
+      assert Biotope.kind_tally(nil) == %{}
+      assert Biotope.kind_tally([]) == %{}
+    end
+  end
+
 end

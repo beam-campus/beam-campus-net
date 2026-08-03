@@ -52,7 +52,19 @@ defmodule Biotope.RecordHistory.Sample do
   # A missing value is recorded as NULL and drawn as a gap, which is the truth. A
   # zero is not: it would put an island's entropy at nothing, and entropy at
   # nothing is a claim about physics rather than about a rollout.
-  @optional [:dissipated, :structure_total, :depth, :lineages]
+  @optional [
+    :dissipated,
+    :structure_total,
+    :depth,
+    :lineages,
+    # WHAT THE EXPERIMENT IS ABOUT, and optional for exactly the reason above:
+    # `kinds` and `kind_max_pct` arrived with fact version 13 and `hidden_width`
+    # with world 19, so a fleet mid-rollout sends facts with and without them.
+    :hidden_mean,
+    :hidden_width,
+    :kinds,
+    :kind_max_pct
+  ]
 
   @fields @required ++ @optional
 
@@ -98,6 +110,31 @@ defmodule Biotope.RecordHistory.Sample do
     # creature alive is a founder and the world has selected nothing.
     field :depth, :integer
     field :lineages, :integer
+    # ══════════════════════════════════════════════════════════════════
+    # WHAT A CREATURE IS, WHICH IS THE SUBJECT OF THE WHOLE EXERCISE
+    # ══════════════════════════════════════════════════════════════════
+    #
+    # `sensor_mean` above is what a creature MEASURES. These are what it
+    # COMPUTES WITH and how many distinct designs are alive. Every other column
+    # in this table describes an ecology, and the islands are running a
+    # neuroevolution experiment: until these, the recorded history could not say
+    # whether a single brain had ever appeared.
+    #
+    # A creature with no hidden layer is a linear valuer of cells and cannot act
+    # on its own state at all, since its own energy reads the same for every cell
+    # it can reach and cancels in the comparison. So `hidden_mean` crossing zero
+    # is the difference between reflex and deliberation.
+    #
+    # `hidden_width` is live weights per node, because A BRAIN GETTING CHEAPER
+    # AND A BRAIN GETTING SIMPLER LOOK IDENTICAL from the node count alone.
+    #
+    # `kinds` is distinct architectures alive, as against `lineages` above, which
+    # counts ANCESTORS and can only fall: a world reading ONE lineage routinely
+    # carries between five and twenty-seven distinct architectures.
+    field :hidden_mean, :integer
+    field :hidden_width, :integer
+    field :kinds, :integer
+    field :kind_max_pct, :integer
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

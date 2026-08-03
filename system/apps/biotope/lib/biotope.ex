@@ -157,4 +157,177 @@ defmodule Biotope do
 
   @doc "The drawing radius of one cell, for the same box."
   def cell_radius(%{radius: radius, size: size}), do: size / (2 * (radius + 1) * :math.sqrt(3))
+
+  # ══════════════════════════════════════════════════════════════════════
+  # WHAT EACH CREATURE IS BUILT LIKE, WHICH IS THE POINT OF THE EXPERIMENT
+  # ══════════════════════════════════════════════════════════════════════
+  #
+  # Fourteen fact versions carried where every creature was, how big it was and
+  # how fast it fed, and not one carried what any of them was. This site drew an
+  # ecology and the islands are running a neuroevolution experiment.
+  #
+  # A KIND IS A BODY PLAN AND A BRAIN: which of the four measurable fields it has
+  # sensors for and at what reach, how many hidden nodes it computes with, and
+  # which of the four possible acts it can perform at all. Nothing assigns these.
+  # A founder is drawn at random and every birth may add a sensor, drop one,
+  # widen its reach, grow a node, or gain and lose a purpose.
+  #
+  # THE ARCHITECTURES ARRIVE ONCE AND THE CREATURES POINT AT THEM. `kind_table`
+  # holds each architecture present, once; `kind_of` is one index into it per
+  # creature, parallel to `ids`. A hundred creatures share a couple of dozen
+  # structures, so a genome per head would send the same twenty twenty times.
+
+  # ⚠ THE WIRE SENDS INDEXES AND THESE ARE WHAT THEY MEAN. The island holds the
+  # same two lists and pins their order with a test, because reordering either
+  # would silently change the meaning of every kind table ever published: a
+  # reader would draw a scent sensor where a ground sensor is and nothing would
+  # look wrong.
+  #
+  # This site deliberately takes no dependency on the island's code, so it
+  # mirrors the lists rather than importing them, and the mirror is the risk.
+  # **These are the `fact_version` 14 orders.** A test pins them here too, which
+  # is the most a reader can do: it cannot detect a change on the island, only
+  # refuse to drift on its own.
+  @fields [:creatures, :ground, :scent, :self]
+  @purposes [:move, :breed, :grow, :eat]
+
+  @doc "The four measurable fields, in wire order."
+  def fields, do: @fields
+
+  @doc "The four possible acts, in wire order."
+  def purposes, do: @purposes
+
+  @doc """
+  Decode `kind_table` into the architectures it describes.
+
+  Each is `%{sensors: [{field, reach}], hidden: n, purposes: [atom], raw: [int]}`.
+  `raw` is kept because it is what the colour is derived from.
+
+  A MALFORMED TABLE COSTS THE REST OF THE TABLE AND NOT THE PAGE. This is network
+  input from a service on someone else's machine, possibly a version ahead. A
+  truncated or nonsensical record stops the decode and returns what was read
+  cleanly up to that point, which draws fewer kinds rather than crashing a
+  spectator's tab.
+  """
+  @spec kinds(list()) :: [map()]
+  def kinds(flat) when is_list(flat), do: decode_kinds(flat, [])
+  def kinds(_other), do: []
+
+  defp decode_kinds([], acc), do: Enum.reverse(acc)
+
+  defp decode_kinds([n | rest], acc) when is_integer(n) and n >= 0 do
+    take_kind(n, rest, Enum.split(rest, n * 2), acc)
+  end
+
+  defp decode_kinds(_malformed, acc), do: Enum.reverse(acc)
+
+  defp take_kind(n, _rest, {sensors, [hidden, count | tail]}, acc)
+       when is_integer(hidden) and is_integer(count) and count >= 0 and
+              length(sensors) == n * 2 do
+    {purposes, remainder} = Enum.split(tail, count)
+    finish_kind(purposes, count, [n | sensors] ++ [hidden | purposes], remainder, acc)
+  end
+
+  defp take_kind(_n, _rest, _split, acc), do: Enum.reverse(acc)
+
+  defp finish_kind(purposes, count, raw, remainder, acc) when length(purposes) == count do
+    [n | body] = raw
+    {sensors, [hidden | acts]} = Enum.split(body, n * 2)
+
+    kind = %{
+      sensors: sensor_pairs(sensors),
+      hidden: hidden,
+      purposes: Enum.map(acts, &purpose_name/1),
+      raw: raw
+    }
+
+    decode_kinds(remainder, [kind | acc])
+  end
+
+  defp finish_kind(_purposes, _count, _raw, _remainder, acc), do: Enum.reverse(acc)
+
+  defp sensor_pairs(flat) do
+    flat
+    |> Enum.chunk_every(2, 2, :discard)
+    |> Enum.map(fn [field, reach] -> {field_name(field), reach} end)
+  end
+
+  # An index this reader does not recognise is shown as itself rather than
+  # guessed at, because an island a version ahead is a normal thing to meet on a
+  # fleet mid-rollout and inventing a name for its new field would be worse than
+  # admitting the number.
+  defp field_name(i) when is_integer(i) and i >= 0 and i < length(@fields),
+    do: Enum.at(@fields, i)
+
+  defp field_name(other), do: other
+
+  defp purpose_name(i) when is_integer(i) and i >= 0 and i < length(@purposes),
+    do: Enum.at(@purposes, i)
+
+  defp purpose_name(other), do: other
+
+  @doc """
+  How many creatures hold each kind, keyed by index into the table.
+  """
+  @spec kind_tally(list()) :: %{integer() => integer()}
+  def kind_tally(kind_of) when is_list(kind_of),
+    do: Enum.frequencies(Enum.filter(kind_of, &is_integer/1))
+
+  def kind_tally(_other), do: %{}
+
+  @doc """
+  A kind as `0xRRGGBB`.
+
+  ⚠ DERIVED FROM THE ARCHITECTURE AND NOT FROM ITS INDEX IN THE TABLE. The table
+  holds the kinds present, sorted, so the moment one appears or dies every index
+  above it shifts. A colour taken from the index would repaint the whole board
+  for a change to one creature, and a viewer would read that as the population
+  turning over.
+
+  IT ALSO MATCHES THE ISLAND'S OWN PAGE, EXACTLY. `:erlang.phash2/2` is portable
+  across nodes and ERTS versions, and the island hashes this same flat integer
+  list, so a kind wears one colour whether you are watching from the island's
+  local page or from here. That is worth more than it looks: it is the only way
+  to compare two drawings of one world by eye.
+  """
+  @spec kind_rgb([integer()]) :: non_neg_integer()
+  def kind_rgb(raw) when is_list(raw), do: hsl(:erlang.phash2(raw, 360), 62, 56)
+  def kind_rgb(_other), do: 0x888888
+
+  # Integer HSL, mirroring the island's arithmetic step for step. Saturation and
+  # lightness are fixed so every kind reads at the same weight against the ground
+  # and the eye sorts them by hue alone.
+  defp hsl(h, s, l) do
+    c = (100 - abs(2 * l - 100)) * s
+    x = div(c * (100 - abs(rem(div(h * 100, 60), 200) - 100)), 10_000)
+    m = l * 100 - div(c, 2)
+    rgb(div(h, 60), div(c, 100), x, div(m, 100))
+  end
+
+  defp rgb(0, c, x, m), do: pack(c + m, x + m, m)
+  defp rgb(1, c, x, m), do: pack(x + m, c + m, m)
+  defp rgb(2, c, x, m), do: pack(m, c + m, x + m)
+  defp rgb(3, c, x, m), do: pack(m, x + m, c + m)
+  defp rgb(4, c, x, m), do: pack(x + m, m, c + m)
+  defp rgb(_5, c, x, m), do: pack(c + m, m, x + m)
+
+  defp pack(r, g, b), do: clamp(r) * 0x10000 + clamp(g) * 0x100 + clamp(b)
+
+  defp clamp(v), do: max(0, min(255, div(v * 255, 100)))
+
+  @doc """
+  A kind in words: "3 senses, 1 node, 4 acts".
+
+  Short on purpose. The full body plan goes in a table beside the board; this is
+  what fits under a swatch.
+  """
+  @spec kind_label(map()) :: String.t()
+  def kind_label(%{sensors: sensors, hidden: hidden, purposes: purposes}) do
+    "#{count(length(sensors), "sense", "senses")}, " <>
+      "#{count(hidden, "node", "nodes")}, " <>
+      "#{count(length(purposes), "act", "acts")}"
+  end
+
+  defp count(1, singular, _plural), do: "1 #{singular}"
+  defp count(n, _singular, plural), do: "#{n} #{plural}"
 end
