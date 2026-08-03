@@ -119,8 +119,24 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
           {length(@samples)} samples · ticks {@first.tick} to {@last.tick}
         </span>
       </div>
-
+      
+    <!-- ⚠ FIRST, BECAUSE IT IS THE ONLY CHART HERE ABOUT THE SEARCH RATHER
+           THAN THE ECOLOGY, and the only thing a world with no goal has in
+           place of a fitness curve. -->
       <h3 class="mt-3 text-xs font-medium uppercase tracking-wide opacity-50">
+        Is it still finding new ways to live
+      </h3>
+      <p class="mt-1 text-xs opacity-50">
+        A creature's KIND is what it was built with; its WAY OF LIVING is what it
+        did with it. The left line only rises. The right one falls, and
+        <strong>zero means this island has stopped discovering</strong>
+        while its population carries on perfectly healthily. Over 32 seeds the
+        median island reaches zero by tick 6,000, which is a finding about these
+        rules rather than a fault of any island.
+      </p>
+      <.discovery samples={@samples} w={340} h={140} class="mt-3" />
+
+      <h3 class="mt-6 text-xs font-medium uppercase tracking-wide opacity-50">
         What the creatures are becoming
       </h3>
       <p class="mt-1 text-xs opacity-50">
@@ -141,6 +157,8 @@ defmodule BeamCampusWeb.BiotopeHistoryLive do
       <dl class="mt-2 flex flex-wrap gap-6 text-sm">
         <.stat label="creatures" value={@last.population} />
         <.stat label="kinds" value={@last.kinds} />
+        <.stat label="ways of living" value={@last.explored} />
+        <.stat label="new lately" value={@last.frontier} />
         <.stat label="in the ground" value={@last.ground_total} />
         <.stat label="starved" value={@last.starved} />
         <.stat label="of old age" value={@last.aged_out} />

@@ -148,6 +148,8 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.stat label="signatures" value={@stats["scent_tags"]} />
           <.stat label="spread" value={@stats["scent_spread"]} />
           <.stat label="ticks/s" value={@stats["ticks_per_second"]} />
+          <.stat label="ways of living" value={@stats["explored"]} />
+          <.stat label="new ways lately" value={@stats["frontier"]} />
         </dl>
 
         <div :if={@stats} class="mt-6 grid gap-6 sm:grid-cols-2">

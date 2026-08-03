@@ -830,6 +830,22 @@ defmodule BeamCampusWeb.BiotopeComponents do
         </dd>
       </div>
       <div>
+        <dt class="font-medium opacity-70">ways and new</dt>
+        <dd class="opacity-50">
+          A creature's KIND is what it is built like; its WAY OF LIVING is what it
+          actually did: how much of its food it took from other creatures rather
+          than the ground, how much of its life it spent moving, and how far it
+          got from where it was born. <strong>ways</strong>
+          counts how many of the 125 combinations this island has ever produced
+          and can only rise. <strong>new</strong>
+          counts those first seen in the last thousand ticks, so it can fall, and
+          <strong>zero means the island has stopped finding new ways to make a
+            living</strong>
+          however healthy its population looks. It is the closest thing a world
+          with no goal has to a progress bar.
+        </dd>
+      </div>
+      <div>
         <dt class="font-medium opacity-70">commonest</dt>
         <dd class="opacity-50">
           The share of the population held by the most numerous kind. Two islands
@@ -1044,6 +1060,13 @@ defmodule BeamCampusWeb.BiotopeComponents do
                  ANCESTORS. These three count architectures and what they are
                  made of, which is the thing that actually varies. -->
             <th class="py-2 pr-4 text-right font-normal">kinds</th>
+            <!-- ⚠ THE ONLY COLUMN HERE THAT CAN FALL TO ZERO WHILE EVERYTHING
+                 ELSE LOOKS HEALTHY. `ways` counts cells of the behaviour space
+                 ever occupied and can only rise; `new` counts those first seen
+                 in the last thousand ticks, and zero means the island has
+                 stopped finding new ways to make a living. -->
+            <th class="py-2 pr-4 text-right font-normal">ways</th>
+            <th class="py-2 pr-4 text-right font-normal">new</th>
             <th class="py-2 pr-4 text-right font-normal">commonest</th>
             <th class="py-2 pr-4 text-right font-normal">senses</th>
             <th class="py-2 pr-4 text-right font-normal">nodes</th>
@@ -1068,6 +1091,13 @@ defmodule BeamCampusWeb.BiotopeComponents do
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "tick")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "population")}</td>
             <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "kinds")}</td>
+            <td class="py-2 pr-4 text-right font-mono">{cell(@rows[name], "explored")}</td>
+            <td class={[
+              "py-2 pr-4 text-right font-mono",
+              settled?(@rows[name]) && "text-warning"
+            ]}>
+              {cell(@rows[name], "frontier")}
+            </td>
             <td class="py-2 pr-4 text-right font-mono">{pct(@rows[name], "kind_max_pct")}</td>
             <td class="py-2 pr-4 text-right font-mono">{hundredths(@rows[name], "sensor_mean")}</td>
             <td class="py-2 pr-4 text-right font-mono">{hundredths(@rows[name], "hidden_mean")}</td>
@@ -1100,6 +1130,12 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   defp percent(n) when is_integer(n), do: "#{n}%"
   defp percent(_absent), do: "–"
+
+  # AN ISLAND THAT HAS STOPPED DISCOVERING IS MARKED, because the number that
+  # says so is a zero among other numbers and a zero reads as nothing at all.
+  # Only for islands that have actually reported a frontier: an older build
+  # sends none, and absent is not the same as converged.
+  defp settled?(row), do: value(row, "frontier") == 0
 
   defp value(%{stats: stats}, key) when is_map(stats), do: stats[key]
   defp value(_row, _key), do: nil
@@ -1383,6 +1419,65 @@ defmodule BeamCampusWeb.BiotopeComponents do
   defp hundredth(nil), do: nil
   defp hundredth(n) when is_integer(n), do: n / 100
   defp hundredth(n), do: n
+
+  @doc """
+  IS THIS WORLD STILL FINDING NEW WAYS TO LIVE, OR HAS IT SETTLED?
+
+  The only chart on this page that can answer a question about the SEARCH rather
+  than about the ecology, and the only one a world with no goal has in place of a
+  fitness curve.
+
+  ## Two lines, and the second is the one to read
+
+  **ways found** is how many of the 125 cells of the behaviour space have ever
+  held a creature. It can only rise. **An island that stopped discovering last
+  night still reports a large number here and looks perfectly healthy**, which is
+  exactly why it is drawn beside the other one and not alone.
+
+  **new ways lately** counts those first seen in the last thousand ticks. It
+  falls. **Zero is a converged world**: the population carries on, energy keeps
+  flowing, creatures are born and eaten, and nothing new is being found.
+
+  Measured over 32 seeds to 8,000 ticks the median island reaches zero by tick
+  6,000 and stays there. That is a real result about these rules and not a fault
+  of any island.
+
+  ## What a way of living is
+
+  Not an architecture. A creature's KIND is which sensors and nodes it was built
+  with; its WAY OF LIVING is what it did with them: what share of its food came
+  from other creatures rather than the ground, what share of its life it spent
+  moving, and how far it got from where it was born. Two creatures built
+  identically can live completely differently, and the two censuses have been
+  measured moving in opposite directions.
+  """
+  attr :samples, :list, required: true
+  attr :w, :integer, default: 320
+  attr :h, :integer, default: 150
+  attr :class, :string, default: ""
+
+  def discovery(assigns) do
+    ~H"""
+    <div class={["grid gap-4 sm:grid-cols-2", @class]}>
+      <.plot
+        samples={@samples}
+        get={& &1.explored}
+        label="ways of living found"
+        hint="of 125, and it can only rise"
+        w={@w}
+        h={@h}
+      />
+      <.plot
+        samples={@samples}
+        get={& &1.frontier}
+        label="new ways lately"
+        hint="first seen in the last thousand ticks · zero is a settled world"
+        w={@w}
+        h={@h}
+      />
+    </div>
+    """
+  end
 
   @doc """
   The entropy account, which is the one line here that cannot fall.

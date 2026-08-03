@@ -63,7 +63,14 @@ defmodule Biotope.RecordHistory.Sample do
     :hidden_mean,
     :hidden_width,
     :kinds,
-    :kind_max_pct
+    :kind_max_pct,
+    # Fact version 16. `frontier` is the only column in this table that can
+    # answer "is this world still finding new ways to live", and it is the only
+    # one that can fall back to zero while everything else looks healthy.
+    :explored,
+    :behaviour_space,
+    :frontier,
+    :deepest_elite
   ]
 
   @fields @required ++ @optional
@@ -135,6 +142,27 @@ defmodule Biotope.RecordHistory.Sample do
     field :hidden_width, :integer
     field :kinds, :integer
     field :kind_max_pct, :integer
+    # ══════════════════════════════════════════════════════════════════
+    # WHAT THEY DO, AS AGAINST WHAT THEY ARE
+    # ══════════════════════════════════════════════════════════════════
+    #
+    # `kinds` above counts ARCHITECTURES. These count BEHAVIOURS: a creature's
+    # place in a space of ways-of-living, from what share of its food it took
+    # from other creatures, how much of its life it spent moving, and how far it
+    # travelled from where it was born.
+    #
+    # The two disagree, which is the point of having both. Measured on one world
+    # over six thousand ticks, architectures fell from 38 to 10 while ways of
+    # living rose from 0 to 91 of 125: a census of the genotype alone was
+    # reading expansion as convergence.
+    #
+    # ⚠ `explored` ONLY RISES AND `frontier` DOES NOT. A world that stopped
+    # discovering still reports a large `explored`. The frontier counts what was
+    # found in the last thousand ticks, and zero is convergence.
+    field :explored, :integer
+    field :behaviour_space, :integer
+    field :frontier, :integer
+    field :deepest_elite, :integer
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
