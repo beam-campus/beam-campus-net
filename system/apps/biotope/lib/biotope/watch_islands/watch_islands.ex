@@ -43,7 +43,12 @@ defmodule Biotope.WatchIslands do
   @retry_ms 3_000
   @pubsub BeamCampus.PubSub
   @channel "biotope"
-  @kinds [:world, :chart]
+  # ⚠ THREE TOPICS SINCE THE ISLANDS LEARNED TO TALK. `narration` is a sentence a
+  # language model wrote about an island's own figures, on its own topic
+  # deliberately: counts and pictures are what an island MEASURED, and prose is
+  # what a model SAID about them. A reader that wants one should not have to take
+  # the other, and nothing downstream should be able to confuse them.
+  @kinds [:world, :chart, :narration]
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -151,6 +156,7 @@ defmodule Biotope.WatchIslands do
   # the honest response is to show nothing rather than to invent a name for it.
   defp file(:world, fact), do: announce(Board.put_stats(fact), fact["island"])
   defp file(:chart, fact), do: announce(Board.put_chart(fact), fact["island"])
+  defp file(:narration, fact), do: announce(Board.put_narration(fact), fact["island"])
   defp file(nil, _fact), do: :ok
 
   # THE ANNOUNCEMENT SAYS WHICH ISLAND SPOKE, and it used to say only that

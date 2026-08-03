@@ -914,6 +914,74 @@ defmodule BeamCampusWeb.BiotopeComponents do
   end
 
   @doc """
+  WHAT A MODEL MADE OF AN ISLAND'S NUMBERS, CLEARLY MARKED AS NOT A MEASUREMENT.
+
+  Everything else on this page is something an island counted. This is a sentence
+  a language model wrote about those counts, and a reader has to be able to tell
+  the two apart at a glance.
+
+  ## It was told to say what it sees and never why
+
+  "Most creatures graze" reads the numbers out loud and can be checked against
+  them. "They graze because hunting stopped paying" is a guess wearing the
+  clothes of a fact, and nobody measured it. The island's narrator is instructed
+  accordingly and, more to the point, is handed nothing but integers, so there is
+  little to build a cause out of even if the instruction slips.
+
+  ## The evidence travels with it
+
+  `derived_from` on the fact is the entire brief the model saw. Any sentence here
+  can be checked against exactly the figures it was written from, which is why
+  this component offers them rather than asking a reader to trust the prose.
+
+  Absent until an island narrates, and absent for ever on an island with no model
+  to ask, which is most of them. An island that simply does not narrate is not in
+  an error state and nothing here explains its silence.
+  """
+  attr :row, :any, required: true
+  attr :class, :string, default: ""
+
+  def narration(assigns) do
+    assigns = assign(assigns, said: said(assigns.row))
+
+    ~H"""
+    <section
+      :if={@said}
+      class={["mt-6 rounded-lg border-l-4 border-primary/60 bg-base-200 p-4", @class]}
+    >
+      <h3 class="text-xs font-medium uppercase tracking-wide opacity-50">
+        What a model makes of this
+      </h3>
+      <p class="mt-2 text-sm leading-relaxed">{@said["text"]}</p>
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-50">
+          written by {@said["said_by"]} from these figures and nothing else
+        </summary>
+        <dl class="mt-2 grid gap-x-4 gap-y-1 text-xs opacity-60 sm:grid-cols-2">
+          <div :for={{k, v} <- figures(@said)} class="flex justify-between gap-2">
+            <dt class="font-mono">{k}</dt>
+            <dd class="font-mono tabular-nums">{v}</dd>
+          </div>
+        </dl>
+        <p class="mt-2 text-xs opacity-50">
+          It was asked to say what it SEES and never why. A sentence explaining a
+          cause would be a claim nobody measured, and every claim on this site is
+          meant to name the instrument that could refute it. The numbers above are
+          what the island counted; the paragraph is not.
+        </p>
+      </details>
+    </section>
+    """
+  end
+
+  defp said(%{narration: fact}) when is_map(fact), do: fact
+  defp said(_row), do: nil
+
+  # Sorted, so the same island always presents its evidence the same way.
+  defp figures(%{"derived_from" => from}) when is_map(from), do: Enum.sort(from)
+  defp figures(_said), do: []
+
+  @doc """
   WHAT IS ALIVE HERE, AS ARCHITECTURES RATHER THAN AS A HEAD COUNT.
 
   This is the experiment. Everything else on the page describes an ecology, and

@@ -120,6 +120,8 @@ defmodule BeamCampusWeb.BiotopeIslandLive do
           <.disc id={"disc-" <> @name} chart={@chart} size={480} ceiling={ceiling(@stats)} />
         </div>
 
+        <.narration row={@row} />
+
         <.kinds :if={@chart} chart={@chart} />
 
         <p :if={@chart} class="mt-2 text-xs opacity-50">

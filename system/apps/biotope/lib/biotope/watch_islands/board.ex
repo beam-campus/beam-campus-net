@@ -96,6 +96,17 @@ defmodule Biotope.WatchIslands.Board do
   def put_chart(%{"island" => name} = fact), do: merge(name, :chart, fact)
   def put_chart(_fact), do: :ignored
 
+  @doc """
+  File a `world_narrated` fact: what a model said about an island's numbers.
+
+  KEPT LIKE A FRAME AND NOT LIKE A STATISTIC. Only the latest is held, because a
+  remark is about a moment and a spectator wants the current one. The history of
+  what was said belongs in a read model if it ever matters, and it probably does
+  not: the FIGURES are the record and the sentence is a reading of them.
+  """
+  def put_narration(%{"island" => name} = fact), do: merge(name, :narration, fact)
+  def put_narration(_fact), do: :ignored
+
   defp merge(name, key, fact) do
     existing = island(name)
     write(existing, name, key, fact)
@@ -117,7 +128,8 @@ defmodule Biotope.WatchIslands.Board do
   # A new island starts with both slots present and empty, so a page can tell
   # "has not sent a picture yet" from "is not an island I know about".
   defp admit(true, name, key, fact) do
-    store(name, %{stats: nil, chart: nil, seen_at: now()} |> Map.put(key, fact))
+    store(name, %{stats: nil, chart: nil, narration: nil, seen_at: now()}
+                |> Map.put(key, fact))
   end
 
   defp store(name, row), do: :ets.insert(@table, {{:island, name}, row})
