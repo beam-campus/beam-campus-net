@@ -51,7 +51,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
 
     words = Enum.map(states(), &ASociety.explain/1)
 
-    assert length(Enum.uniq(words)) == 5
+    assert length(Enum.uniq(words)) == 4
     assert Enum.all?(words, &(String.length(&1) > 20))
   end
 
@@ -63,7 +63,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
     assert html =~ String.slice(ASociety.explain(ASociety.state()), 0, 40)
   end
 
-  defp states, do: [:unconfigured, :dark, :no_contract, :silent, :watching]
+  defp states, do: [:unconfigured, :dark, :silent, :watching]
 
   test "an island that has not said its name is shown by its identity", %{conn: conn} do
     Board.put(String.duplicate("a", 32), :vitals, %{"island_id" => String.duplicate("a", 32)})
@@ -86,6 +86,49 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
     assert length(ASociety.islands()) == 2
   end
 
+  # ⚠ RULE 9 ON THE PAGE, WHICH IS THE LAST PLACE IT COULD BE SMUGGLED IN. The
+  # axes are incommensurable, so any single number would be a weighting, and a
+  # weighting is somebody's culture rather than a measurement. A panel wants a
+  # headline and whoever writes one will be tempted.
+  test "the panel shows all nine axes and no total", %{conn: conn} do
+    id = String.duplicate("f", 32)
+
+    Board.put(id, :vitals, %{
+      "island_id" => id,
+      "island" => "beam00",
+      "tick" => 42,
+      "persons" => 96,
+      "capacity" => 120,
+      "births" => 3,
+      "deaths" => 3,
+      "axes" => ~w(subsistence protection affection understanding participation
+                   leisure creation identity freedom),
+      "needs" => [500, 510, 490, 505, 495, 500, 502, 511, 499],
+      "synergic" => 5,
+      "singular" => 4,
+      "inhibiting" => 0,
+      "pseudo" => 0,
+      "violator" => 0
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
+
+    for axis <- ~w(subsistence protection affection understanding participation
+                   leisure creation identity freedom) do
+      assert html =~ axis
+    end
+
+    assert html =~ "tick 42"
+    assert html =~ "96 / 120 persons"
+    assert html =~ "5 synergic"
+    assert html =~ "0 violator"
+
+    refute html =~ "welfare"
+    refute html =~ "wellbeing"
+    refute html =~ "happiness"
+    refute html =~ "overall"
+  end
+
   test "the board refuses rather than growing without bound, and says it did" do
     for n <- 1..70 do
       id = String.pad_leading(Integer.to_string(n), 32, "0")
@@ -96,11 +139,37 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
     assert ASociety.refused() > 0
   end
 
-  # ⚠ THE STATE TODAY, ASSERTED SO THAT IT CHANGES DELIBERATELY. The island
-  # publishes nothing at this commit, so there is no topic to subscribe to. When
-  # hecate-society defines its first fact this fails, which is the reminder to
-  # update the page's words at the same time.
-  test "there is no fact contract yet" do
-    assert ASociety.kinds() == []
+  # ⚠ IT DID FAIL THE DAY THE ISLAND PUBLISHED, which was its whole job. It used
+  # to assert there was no contract at all. Now it pins what the contract IS, so
+  # that adding a second topic is a deliberate act on both sides rather than a
+  # reader quietly listening to something the island never agreed to send.
+  test "the contract is one topic" do
+    assert ASociety.kinds() == [:vitals]
+  end
+
+  # ⚠ THE READER DOES NOT MIRROR THE ORDER OF THE NINE AXES. The island sends
+  # their names beside the vector precisely so that an island a version ahead,
+  # with a tenth axis, renders correctly here without this app being redeployed.
+  # The sibling had to mirror a field order in its own source and drifted.
+  test "the axis names come off the wire, not out of this app" do
+    fact = %{
+      "axes" => ["subsistence", "protection", "a_tenth_axis"],
+      "needs" => [500, 250, 900]
+    }
+
+    assert ASociety.needs(fact) == [
+             {"subsistence", 500},
+             {"protection", 250},
+             {"a_tenth_axis", 900}
+           ]
+  end
+
+  # Network input from a public realm. Two lists of different lengths is a
+  # version difference or a truncated frame, and it must cost the panel rather
+  # than the page.
+  test "a fact whose lists disagree costs the panel and not the page" do
+    assert ASociety.needs(%{"axes" => ["a", "b"], "needs" => [1]}) == []
+    assert ASociety.needs(%{}) == []
+    assert ASociety.needs(nil) == []
   end
 end

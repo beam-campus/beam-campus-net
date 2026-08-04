@@ -5,20 +5,17 @@ defmodule ASociety.WatchIslands do
   The whole slice: topics in, an ETS row out, a `Phoenix.PubSub` broadcast so any
   mounted LiveView redraws. Nothing here publishes, and nothing here computes.
 
-  ## ⚠ THE TOPIC LIST IS EMPTY, AND THAT IS THE HONEST STATE
+  ## One topic, and the island owns the contract
 
-  `hecate-society` publishes nothing yet. Its service module asks the realm for
-  authority over an empty resource list, which is deliberate there: a scope
-  claimed before it is used is a credential lying around with no owner.
+  `society/vitals`: counts, and the nine need means. The island publishes it and
+  names it in its own `identity_spec/0`, so the authority it asks the realm for
+  and the topic it publishes on are compared by a test on that side.
 
-  So this subscribes to nothing, says so, and the page says so. **Inventing topic
-  names here would be worse than an empty list**: the island is the side that
-  owns the contract, and a reader that guesses at it is a reader that will
-  silently listen on the wrong channel and show an empty page that looks
-  identical to a quiet mesh.
-
-  When the island publishes its first fact, `@kinds` gains one entry and
-  everything below it already works.
+  This reader mirrors the leaf name and nothing else. **It does not mirror the
+  order of the nine axes**, because the island sends their names alongside the
+  vector. The sibling had to mirror a field order in its own source and drifted:
+  world 23 appended a fifth field, the mirror did not follow, and the first four
+  indexes went on decoding correctly so nothing looked wrong.
 
   ## Subscribing is retried, because the pool is not up at boot
 
@@ -57,10 +54,7 @@ defmodule ASociety.WatchIslands do
   @pubsub BeamCampus.PubSub
   @channel "asociety"
 
-  # ⚠ EMPTY UNTIL THE ISLAND PUBLISHES. See the module doc: the island owns the
-  # contract and a reader that guesses at it listens on the wrong channel and
-  # shows a page indistinguishable from a quiet mesh.
-  @kinds []
+  @kinds [:vitals]
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 

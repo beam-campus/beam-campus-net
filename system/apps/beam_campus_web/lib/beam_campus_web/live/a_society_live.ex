@@ -139,24 +139,144 @@ defmodule BeamCampusWeb.ASocietyLive do
   defp badge_class(:watching), do: "badge-success"
   defp badge_class(:silent), do: "badge-warning"
   defp badge_class(:dark), do: "badge-warning"
-  defp badge_class(:no_contract), do: "badge-info"
   defp badge_class(_unconfigured), do: "badge-ghost"
 
   attr :island, :map, required: true
 
   defp island_card(assigns) do
+    assigns = assign(assigns, vitals: ASociety.vitals(assigns.island))
+
     ~H"""
     <article class="card border border-base-300/60 bg-base-100">
       <div class="card-body">
-        <h3 class="text-lg font-semibold tracking-tight">{ASociety.label(@island)}</h3>
-        <p class="font-mono text-[11px] text-base-content/50 break-all">{@island.id}</p>
-        <p :if={ASociety.quiet_for(@island)} class="mt-2 text-sm text-base-content/60">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-lg font-semibold tracking-tight">{ASociety.label(@island)}</h3>
+          <span :if={@vitals} class="font-mono text-xs text-base-content/50 tabular-nums">
+            tick {@vitals["tick"]}
+          </span>
+        </div>
+        <p class="font-mono text-[11px] text-base-content/40 break-all">{@island.id}</p>
+
+        <.counts :if={@vitals} vitals={@vitals} />
+        <.needs :if={@vitals} vitals={@vitals} />
+        <.satisfiers :if={@vitals} vitals={@vitals} />
+
+        <p :if={ASociety.quiet_for(@island)} class="mt-3 text-sm text-base-content/60">
           heard {ASociety.since(ASociety.quiet_for(@island))} ago
         </p>
       </div>
     </article>
     """
   end
+
+  attr :vitals, :map, required: true
+
+  defp counts(assigns) do
+    ~H"""
+    <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-base-content/60 tabular-nums">
+      <span>{@vitals["persons"]} / {@vitals["capacity"]} persons</span>
+      <span>{@vitals["births"]} born</span>
+      <span>{@vitals["deaths"]} died</span>
+    </div>
+    """
+  end
+
+  # ── The nine, and why they are all one colour ─────────────────────────
+  #
+  # ⚠ ONE HUE FOR ALL NINE BARS, AND THAT IS NOT A SHORTCUT. Colouring each bar
+  # differently would be a value ramp on nominal categories: it double-encodes
+  # length as hue and burns the only free channel on information the bar already
+  # shows. Worse here, it would encode a HIERARCHY. Max-Neef's central claim is
+  # that the nine needs are simultaneous, with none foundational and none a
+  # luxury, and a chart that painted subsistence a different colour from identity
+  # would say the opposite of the model it is drawing.
+  #
+  # ⚠⚠ AND THERE IS NO TOTAL BAR. Charter rule 9: the axes are incommensurable, so
+  # any single number would be a weighting, and a weighting is somebody's culture
+  # rather than a measurement. This is the last place it could be smuggled in,
+  # because a panel wants a headline and whoever writes one will be tempted.
+  attr :vitals, :map, required: true
+
+  defp needs(assigns) do
+    assigns = assign(assigns, rows: ASociety.needs(assigns.vitals))
+
+    ~H"""
+    <div :if={@rows != []} class="mt-4">
+      <p class="font-mono text-[11px] uppercase tracking-widest text-base-content/40">
+        Needs met, per axis
+      </p>
+      <dl class="mt-2 space-y-[2px]">
+        <.need_row :for={{axis, level} <- @rows} axis={axis} level={level} />
+      </dl>
+    </div>
+    """
+  end
+
+  attr :axis, :string, required: true
+  attr :level, :integer, required: true
+
+  defp need_row(assigns) do
+    ~H"""
+    <div class="flex items-center gap-2">
+      <dt class="w-28 shrink-0 text-[11px] text-base-content/60 truncate">{@axis}</dt>
+      <dd class="flex-1 flex items-center gap-2">
+        <div class="h-1.5 flex-1 rounded-full bg-base-300/70 overflow-hidden">
+          <div class="h-full rounded-full bg-primary" style={"width: #{percent(@level)}%"}></div>
+        </div>
+        <span class="w-9 shrink-0 text-right font-mono text-[11px] text-base-content/50 tabular-nums">
+          {percent(@level)}
+        </span>
+      </dd>
+    </div>
+    """
+  end
+
+  # Clamped, because this is network input from a public realm and an island a
+  # version ahead could send a level on a scale this reader does not know. A bar
+  # 300% wide would break the card layout; a clamped one is merely wrong.
+  defp percent(level) when is_integer(level) do
+    level |> Kernel.*(100) |> div(ASociety.level_ceiling()) |> max(0) |> min(100)
+  end
+
+  defp percent(_other), do: 0
+
+  # ── Whether the practices in use actually work ────────────────────────
+  attr :vitals, :map, required: true
+
+  defp satisfiers(assigns) do
+    assigns = assign(assigns, classes: ASociety.satisfier_classes(assigns.vitals))
+
+    ~H"""
+    <div :if={@classes != []} class="mt-4">
+      <p class="font-mono text-[11px] uppercase tracking-widest text-base-content/40">
+        Practices in use
+      </p>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] tabular-nums">
+        <span :for={{class, n} <- @classes} class={class_ink(class, n)} title={class_meaning(class)}>
+          {n} {class}
+        </span>
+      </div>
+    </div>
+    """
+  end
+
+  # ⚠ STATUS INK ONLY WHERE THE COLOUR MEANS SOMETHING, and only when the count is
+  # non-zero. A violator claims to meet a need while making it harder to meet, so
+  # its presence IS a status. Zero of them is not good news worth colouring, it is
+  # simply the ordinary case.
+  defp class_ink("violator", n) when n > 0, do: "text-error"
+  defp class_ink("pseudo", n) when n > 0, do: "text-warning"
+  defp class_ink(_class, _n), do: "text-base-content/50"
+
+  defp class_meaning("synergic"), do: "meets its own need and others with it"
+  defp class_meaning("singular"), do: "meets its own need, exactly"
+  defp class_meaning("inhibiting"), do: "works, at a price paid on another need"
+  defp class_meaning("pseudo"), do: "claims a need it does not meet, and harms nothing"
+
+  defp class_meaning("violator"),
+    do: "claims a need it does not meet, and damages another"
+
+  defp class_meaning(_other), do: nil
 
   # ── What this page will draw, once there is anything to draw ──────────
   defp what_it_will_draw(assigns) do

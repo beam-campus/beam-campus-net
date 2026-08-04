@@ -48,6 +48,53 @@ defmodule ASociety do
   @doc "Milliseconds since this island last said anything, or `nil`."
   defdelegate quiet_for(row), to: Board
 
+  @doc "The last `vitals` fact from this island, or `nil`."
+  @spec vitals(map()) :: map() | nil
+  def vitals(%{facts: facts}), do: Map.get(facts, :vitals)
+  def vitals(_row), do: nil
+
+  @doc """
+  The nine need levels paired with their own names.
+
+  ⚠ THE NAMES COME OFF THE WIRE, NOT OUT OF THIS FILE. The island publishes its
+  axis names beside the vector precisely so a reader never has to mirror an order
+  it cannot see change. An island a version ahead, with a tenth axis, renders
+  correctly here without this app being redeployed.
+
+  A fact whose two lists disagree in length is a version difference or a truncated
+  frame, and it costs the panel rather than the page.
+  """
+  @spec needs(map() | nil) :: [{String.t(), integer()}]
+  def needs(nil), do: []
+
+  def needs(fact) do
+    axes = Map.get(fact, "axes", [])
+    levels = Map.get(fact, "needs", [])
+    paired(is_list(axes) and is_list(levels) and length(axes) == length(levels), axes, levels)
+  end
+
+  defp paired(true, axes, levels), do: Enum.zip(axes, levels)
+  defp paired(false, _axes, _levels), do: []
+
+  @doc """
+  How many satisfiers in use are of each Max-Neef class.
+
+  A violator claims to meet a need while making it harder to meet. It is the
+  measurable form of a culture being bad for the persons carrying it, which is
+  why it is on the wire and on the page rather than left to be inferred.
+  """
+  @spec satisfier_classes(map() | nil) :: [{String.t(), integer()}]
+  def satisfier_classes(nil), do: []
+
+  def satisfier_classes(fact) do
+    for c <- ~w(synergic singular inhibiting pseudo violator),
+        is_integer(Map.get(fact, c)),
+        do: {c, Map.get(fact, c)}
+  end
+
+  @doc "The full level scale a need is measured on, so a bar knows its own maximum."
+  def level_ceiling, do: 1000
+
   @doc "Subscribe the calling process to board changes."
   defdelegate subscribe(), to: WatchIslands
 
@@ -75,9 +122,6 @@ defmodule ASociety do
 
     * `:unconfigured` — no seeds. A local clone. Nothing is wrong.
     * `:dark` — configured and no healthy link. A transport question.
-    * `:no_contract` — connected, and the island publishes nothing yet, so there
-      is no topic to subscribe to. **This is the state today**, and it is a
-      statement about the island's build rather than about the mesh.
     * `:silent` — subscribed and nothing has arrived. A transport question again,
       and a different one from `:dark`.
     * `:watching` — islands are on the board.
@@ -85,15 +129,26 @@ defmodule ASociety do
   Collapsing any two of these produces a page that sends the reader to look in
   the wrong place, which is the failure the sibling's four-state liveness check
   exists to prevent.
-  """
-  @spec state() :: :unconfigured | :dark | :no_contract | :silent | :watching
-  def state, do: judge(configured?(), watching?(), kinds(), empty?())
 
-  defp judge(false, _watching, _kinds, _empty), do: :unconfigured
-  defp judge(true, false, _kinds, _empty), do: :dark
-  defp judge(true, true, [], _empty), do: :no_contract
-  defp judge(true, true, _kinds, true), do: :silent
-  defp judge(true, true, _kinds, false), do: :watching
+  ## `:no_contract` was a fifth state and is gone, deliberately
+
+  It meant "connected, and the island publishes nothing, so there is no topic to
+  subscribe to" — a statement about the island's build rather than about the
+  mesh, and it was the honest state for as long as `hecate-society` published
+  nothing.
+
+  The island publishes now. **The compiler noticed before I did**: with `@kinds`
+  no longer empty, the clause matching an empty topic list became unreachable and
+  `--warnings-as-errors` refused to build. A state that cannot occur is a lie in
+  the documentation, so it went rather than being left as reassuring dead code.
+  """
+  @spec state() :: :unconfigured | :dark | :silent | :watching
+  def state, do: judge(configured?(), watching?(), empty?())
+
+  defp judge(false, _watching, _empty), do: :unconfigured
+  defp judge(true, false, _empty), do: :dark
+  defp judge(true, true, true), do: :silent
+  defp judge(true, true, false), do: :watching
 
   @doc """
   What each state means, in words, and where it sends the reader.
@@ -114,13 +169,6 @@ defmodule ASociety do
     do:
       "Configured, and no healthy link to a station. The islands may be running " <>
         "perfectly and unreachable from here. This is a transport question."
-
-  def explain(:no_contract),
-    do:
-      "Connected, and there is nothing to subscribe to yet. hecate-society " <>
-        "publishes no facts at this commit: four islands are deployed, healthy, " <>
-        "and hold no people. This page is scaffolding waiting on the island's " <>
-        "first fact, and it would rather say so than draw an empty chart."
 
   def explain(:silent),
     do:
