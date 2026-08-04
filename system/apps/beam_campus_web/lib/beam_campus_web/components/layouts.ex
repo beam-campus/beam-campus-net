@@ -82,6 +82,16 @@ defmodule BeamCampusWeb.Layouts do
                     Biotopes <span class="opacity-50">· live</span>
                   </.link>
                 </li>
+                <%!-- Same again. Four islands on the beam fleet, each publishing
+                      what its people need and whether the practices they use
+                      actually deliver it. A workbench CARD was not enough: this
+                      menu is its own list and a page absent from it is a page
+                      nobody finds. --%>
+                <li>
+                  <.link navigate={~p"/research/workbench/asociety"}>
+                    A Society <span class="opacity-50">· live</span>
+                  </.link>
+                </li>
               </ul>
             </div>
           </li>

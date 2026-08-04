@@ -372,7 +372,6 @@ defmodule BiotopeTest do
     end
   end
 
-
   # ── An island's name is not its identity ────────────────────────
 
   describe "islands are filed under an identity, not a name" do
