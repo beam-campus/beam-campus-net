@@ -1,6 +1,11 @@
 defmodule BeamCampusWeb.ASocietyLive do
   @moduledoc """
-  The artificial-cultures line: islands of persons who hold beliefs and teach them.
+  ASociety: islands of persons who hold beliefs and teach them.
+
+  ⚠ ONE WORD, AND IT IS A CONTRACTION RATHER THAN A TYPO. **A**rtificial
+  **Society**, in the way ALife contracts artificial life. Written "A Society" it
+  reads as an indefinite article and a noun, which is a different and much
+  vaguer claim about what this is.
 
   ## Why this is not a map
 
@@ -36,7 +41,7 @@ defmodule BeamCampusWeb.ASocietyLive do
 
     {:ok,
      socket
-     |> assign(page_title: "A Society")
+     |> assign(page_title: "ASociety")
      |> load()}
   end
 
@@ -79,8 +84,11 @@ defmodule BeamCampusWeb.ASocietyLive do
           Artificial cultures
         </p>
         <h1 class="mt-5 text-4xl sm:text-6xl font-semibold tracking-tight text-balance">
-          A Society
+          ASociety
         </h1>
+        <p class="mt-2 font-mono text-xs text-base-content/50">
+          Artificial Society, the way ALife contracts artificial life.
+        </p>
         <p class="mt-6 max-w-2xl text-lg text-base-content/80 leading-relaxed">
           Every formal model of cultural evolution runs on a graph somebody drew.
           Here an island is a machine, the reach between islands is the mesh, and a

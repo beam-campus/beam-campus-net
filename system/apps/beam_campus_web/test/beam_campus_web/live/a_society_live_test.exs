@@ -23,7 +23,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   test "renders with nothing at all", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
 
-    assert html =~ "A Society"
+    assert html =~ "ASociety"
     # Not configured in test, and the page says which kind of quiet it is rather
     # than one apologetic sentence covering five different situations.
     assert html =~ "not configured to read the society realm"
@@ -144,10 +144,10 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   # the card, and the dropdown in `layouts.ex` still listed Robo Rumble and
   # Biotopes and nothing else. A page absent from the menu is a page nobody
   # finds, whatever else points at it.
-  test "A Society is in the site navigation", %{conn: conn} do
+  test "ASociety is in the site navigation", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research")
 
-    assert html =~ "A Society"
+    assert html =~ "ASociety"
     assert html =~ "/research/workbench/asociety"
   end
 

@@ -17,10 +17,10 @@ defmodule BeamCampusWeb.WorkbenchLiveTest do
   # ⚠ THE MENU ENTRY IS THE REQUIREMENT, not just the page. A demo reachable only
   # by typing its URL is a demo nobody finds, and the card is the only thing that
   # makes the workbench a menu rather than a list of routes somebody remembers.
-  test "A Society is on the menu and points at its own corpus", %{conn: conn} do
+  test "ASociety is on the menu and points at its own corpus", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research/workbench")
 
-    assert html =~ "A Society"
+    assert html =~ "ASociety"
     assert html =~ "/research/workbench/asociety"
     assert html =~ "Open the scaffold"
 

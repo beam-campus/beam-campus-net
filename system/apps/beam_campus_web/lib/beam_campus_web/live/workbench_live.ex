@@ -11,7 +11,7 @@ defmodule BeamCampusWeb.WorkbenchLive do
   @experiments [
     %{
       id: "asociety",
-      title: "A Society: cultures on machines that decide who lands",
+      title: "ASociety: cultures on machines that decide who lands",
       tag: "Artificial cultures \u00b7 mesh",
       kind: :engine,
       status: :scaffold,

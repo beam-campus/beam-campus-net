@@ -47,7 +47,7 @@ config :biotope,
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
 
-# ── A Society (artificial cultures) ──────────────────────────────────────
+# ── ASociety (artificial cultures) ──────────────────────────────────────
 # Same shape and same reasoning as :biotope above. The site SUBSCRIBES and draws,
 # never publishes, and takes no dependency on the island's code.
 #

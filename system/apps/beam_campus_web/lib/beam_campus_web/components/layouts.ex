@@ -89,7 +89,7 @@ defmodule BeamCampusWeb.Layouts do
                       nobody finds. --%>
                 <li>
                   <.link navigate={~p"/research/workbench/asociety"}>
-                    A Society <span class="opacity-50">· live</span>
+                    ASociety <span class="opacity-50">· live</span>
                   </.link>
                 </li>
               </ul>
