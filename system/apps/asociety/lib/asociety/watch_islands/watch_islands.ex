@@ -96,16 +96,34 @@ defmodule ASociety.WatchIslands do
     {:noreply, attempt(ASociety.Mesh.configured?(), %{s | timer: nil})}
   end
 
-  def handle_info({:macula_event, ref, _topic, payload}, s) do
+  # ⚠ FIVE ELEMENTS, AND THE FIRST VERSION OF THIS CLAUSE HAD FOUR.
+  #
+  # The SDK sends `{:macula_event, ref, topic, payload, meta}`. A four-element
+  # pattern does not match it, so every fact fell through to the catch-all below
+  # and was dropped. Nothing raised, nothing logged, the subscription was live,
+  # the island's publish counter read 226 sent and 0 failed, and the page said
+  # "subscribed, and nothing has arrived" for an hour.
+  #
+  # It was written from memory of the sibling's shape rather than by copying the
+  # sibling's clause, and the catch-all turned a wrong pattern into silence. The
+  # test suite has an assertion that pushes this exact message through the real
+  # handler for that reason.
+  def handle_info({:macula_event, ref, _topic, payload, _meta}, s) do
     {:noreply, file(Map.get(s.refs, ref), payload, s)}
   end
 
   # A link that drops is announced, and re-arming is what turns an outage into a
-  # gap rather than into silence for the lifetime of the node.
-  def handle_info({:macula_event_gone, ref}, s) do
-    Logger.info("[ASociety] subscription gone, re-arming")
-    {:noreply, rearm(%{s | subscribed: s.subscribed -- [Map.get(s.refs, ref)],
-                         refs: Map.delete(s.refs, ref)})}
+  # gap rather than into silence for the lifetime of the node. THREE elements,
+  # for the same reason as above: it carries a reason.
+  def handle_info({:macula_event_gone, ref, reason}, s) do
+    Logger.warning("[ASociety] subscription gone (#{inspect(reason)}), re-arming")
+
+    {:noreply,
+     rearm(%{
+       s
+       | subscribed: s.subscribed -- [Map.get(s.refs, ref)],
+         refs: Map.delete(s.refs, ref)
+     })}
   end
 
   def handle_info(_msg, s), do: {:noreply, s}

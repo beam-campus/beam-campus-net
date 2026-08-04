@@ -139,6 +139,55 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
     assert ASociety.refused() > 0
   end
 
+  # ⚠ THE MESSAGE SHAPE, PUSHED THROUGH THE REAL HANDLER. THIS IS THE ONE THAT
+  # WOULD HAVE SAVED AN HOUR.
+  #
+  # The SDK sends `{:macula_event, ref, topic, payload, meta}`. The first version
+  # of the subscriber matched four elements, so every fact fell through the
+  # catch-all `handle_info(_msg, s)` and was dropped in silence: subscription
+  # live, island reporting 226 published and 0 failed, page saying "subscribed,
+  # and nothing has arrived".
+  #
+  # Nothing else could have caught it. Every unit test passed, the island's own
+  # suite passed, both ends agreed on realm, topic and station, and the fault
+  # was a tuple one element short in a clause that had a catch-all underneath it.
+  test "a fact in the SDK's real message shape reaches the board" do
+    id = String.duplicate("e", 32)
+    ref = make_ref()
+
+    :sys.replace_state(ASociety.WatchIslands, fn s ->
+      %{s | refs: Map.put(s.refs, ref, :vitals)}
+    end)
+
+    send(
+      ASociety.WatchIslands,
+      {:macula_event, ref, "society/vitals",
+       %{"island_id" => id, "island" => "beam09", "tick" => 7}, %{}}
+    )
+
+    # A cast through the GenServer, so the send above has been handled by the
+    # time this returns.
+    _ = :sys.get_state(ASociety.WatchIslands)
+
+    assert Enum.any?(ASociety.islands(), &(&1.id == id))
+  end
+
+  # And the shape that announces a dropped link, which was two elements short in
+  # the same way and would have left the reader deaf after any reconnect.
+  test "a gone subscription is handled rather than ignored" do
+    ref = make_ref()
+
+    :sys.replace_state(ASociety.WatchIslands, fn s ->
+      %{s | refs: Map.put(s.refs, ref, :vitals), subscribed: [:vitals]}
+    end)
+
+    send(ASociety.WatchIslands, {:macula_event_gone, ref, :link_down})
+    state = :sys.get_state(ASociety.WatchIslands)
+
+    refute Map.has_key?(state.refs, ref)
+    refute :vitals in state.subscribed
+  end
+
   # ⚠ THE SITE NAV IS ITS OWN LIST, AND A WORKBENCH CARD DOES NOT FEED IT.
   # That is how this page shipped invisible: the card was added, a test asserted
   # the card, and the dropdown in `layouts.ex` still listed Robo Rumble and
