@@ -529,6 +529,48 @@ defmodule BeamCampusWeb.BiotopeComponents do
             this.now = new Map()
             this.span = 500
             this.kinds = false
+            // THE CAMERA. The world has its own coordinates and this is where
+            // the viewer happens to be looking, which is the only way a map
+            // that grows without limit stays readable: the alternative is
+            // shrinking every island as the world gains nodes, so that adding
+            // land makes everything smaller.
+            this.cam = {x: 0, y: 0, k: 1}
+            this.drag = null
+            this.el.addEventListener("pointerdown", (e) => {
+              this.drag = {x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y}
+              this.el.setPointerCapture(e.pointerId)
+              this.el.style.cursor = "grabbing"
+            })
+            this.el.addEventListener("pointermove", (e) => {
+              if (!this.drag) return
+              this.cam.x = this.drag.cx + (e.clientX - this.drag.x) / this.cam.k
+              this.cam.y = this.drag.cy + (e.clientY - this.drag.y) / this.cam.k
+              this.paint(1)
+            })
+            const release = (e) => {
+              this.drag = null
+              this.el.style.cursor = "grab"
+              if (e.pointerId !== undefined && this.el.hasPointerCapture(e.pointerId)) {
+                this.el.releasePointerCapture(e.pointerId)
+              }
+            }
+            this.el.addEventListener("pointerup", release)
+            this.el.addEventListener("pointercancel", release)
+            // Zoom about the POINTER, not the centre, so the thing under the
+            // cursor stays under it. Zooming about the middle makes a map feel
+            // like it is fighting back.
+            this.el.addEventListener("wheel", (e) => {
+              e.preventDefault()
+              const r = this.el.getBoundingClientRect()
+              const px = e.clientX - r.left, py = e.clientY - r.top
+              const before = this.at(px, py)
+              this.cam.k = Math.min(4, Math.max(0.1, this.cam.k * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))
+              const after = this.at(px, py)
+              this.cam.x += after.x - before.x
+              this.cam.y += after.y - before.y
+              this.paint(1)
+            }, {passive: false})
+            this.el.addEventListener("dblclick", () => { this.fitWorld(); this.paint(1) })
             this.toggle = (e) => {
               if (e.type === "keydown" && e.key !== "k" && e.key !== "K") return
               if (e.type === "keydown" && e.target.tagName === "INPUT") return
@@ -537,14 +579,18 @@ defmodule BeamCampusWeb.BiotopeComponents do
             }
             window.addEventListener("keydown", this.toggle)
             window.addEventListener("biotope:colour", this.toggle)
+            this.resize = () => { this.fit(); this.fitWorld(); this.paint(1) }
+            window.addEventListener("resize", this.resize)
             this.fit()
             this.read()
+            this.fitWorld()
             this.paint(1)
           },
 
           destroyed() {
             window.removeEventListener("keydown", this.toggle)
             window.removeEventListener("biotope:colour", this.toggle)
+            window.removeEventListener("resize", this.resize)
           },
 
           // ⚠ TWEEN STATE IS KEYED BY ISLAND AND ID, NEVER BY ID ALONE. Creature
@@ -664,21 +710,23 @@ defmodule BeamCampusWeb.BiotopeComponents do
           }
         }
       </script>
-      <div class="overflow-auto rounded bg-black/40 max-h-[70vh]">
+      <div class="relative">
         <canvas
           id={@id}
           phx-hook=".Archipelago"
           phx-update="ignore"
-          width={@width}
-          height={@height}
-          style={"width:#{@width}px;height:#{@height}px"}
-          data-width={@width}
-          data-height={@height}
+          class="w-full rounded bg-black/40 cursor-grab touch-none"
+          style="aspect-ratio: 16 / 10"
+          data-world-width={@width}
+          data-world-height={@height}
           data-isles={@isles}
           role="img"
           aria-label={"one world, #{@count} islands"}
         >
         </canvas>
+        <div class="pointer-events-none absolute bottom-2 right-2 rounded bg-black/50 px-2 py-1 text-[10px] opacity-60">
+          drag to move &middot; scroll to zoom &middot; double-click to fit
+        </div>
       </div>
     </figure>
     """

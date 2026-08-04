@@ -61,6 +61,33 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert isles |> Enum.map(&{&1["x"], &1["y"]}) |> Enum.uniq() |> length() == 2
   end
 
+  # ⚠ THE CANVAS IS A WINDOW, NOT THE WORLD. A canvas sized to the world stopped
+  # fitting a screen at FIVE islands, measured, and the fleet already has four.
+  # So the element is a fixed viewport and the world's size travels separately,
+  # for the camera to frame. If the world's dimensions ever stop being published
+  # the map silently cannot fit itself, and nothing else would notice.
+  test "the world's size travels so the viewport can frame it", %{conn: conn} do
+    Board.put_chart(%{
+      "island" => "beam01",
+      "tick" => 10,
+      "radius" => 20,
+      "stride" => 2,
+      "creatures" => [0, 0],
+      "ground" => [2, 0, 400]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert [_, w] = Regex.run(~r/data-world-width="(\d+)"/, html)
+    assert [_, h] = Regex.run(~r/data-world-height="(\d+)"/, html)
+    assert String.to_integer(w) > 0
+    assert String.to_integer(h) > 0
+
+    # And the canvas does NOT carry a pixel size of its own, or it is the world
+    # again and the viewport is decoration.
+    refute html =~ ~r/<canvas[^>]*data-isles[^>]*\swidth="/
+  end
+
   # And a name with no picture yet is a name, not a place. Drawing an empty disc
   # for an island that has announced itself and published nothing would say it
   # is barren when it is only silent.
