@@ -453,20 +453,260 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # one of these arrays is a plain integer and the hook reconstructs what it
   # needs. Coordinates are rounded to whole pixels because the canvas is drawing
   # to whole pixels anyway.
-  defp pack(marks) do
-    marks |> Enum.flat_map(&Tuple.to_list/1) |> Enum.map(&round/1) |> Jason.encode!()
+
+  @doc """
+  ONE WORLD, drawn as one map, with every island on it.
+
+  ## Why this exists
+
+  Every island has been drawn as its own disc in its own panel, so three nodes
+  read as three unrelated experiments side by side. **They are one world, and
+  adding a node adds land to it.** This is that, drawn.
+
+  Positions come from `Biotope.Archipelago`, which hashes the island's name, so
+  no node claims anything, no authority grants anything, and any two viewers
+  holding the same islands compute the same map.
+
+  ## The sea is not simulated and has no cells
+
+  Islands are a GRAPH connected by migration, not a plane. Nothing lives between
+  them, no creature walks across, and the distance on this map is layout rather
+  than physics. What will make the map say something true about connectedness is
+  the migration arcs, which arrive with migration itself.
+  """
+  attr :charts, :list, required: true
+  attr :id, :string, default: "archipelago"
+  attr :size, :integer, default: 240
+  attr :ceiling, :integer, default: 400
+  attr :class, :string, default: ""
+
+  # The sea between two islands. Wide enough that the discs read as separate
+  # places rather than a smeared continent, narrow enough that a migration arc
+  # is short enough to follow with the eye.
+  @sea 56
+
+  def archipelago(assigns) do
+    names = Enum.map(assigns.charts, fn {name, _chart} -> name end)
+    placed = Biotope.Archipelago.place(names)
+    pitch = assigns.size + @sea
+    at = Biotope.Archipelago.pixels(placed, pitch)
+    {cols, rows, _origin} = Biotope.Archipelago.extent(placed)
+
+    assigns =
+      assign(assigns,
+        isles: Jason.encode!(Enum.map(assigns.charts, &isle(&1, at, assigns))),
+        width: cols * pitch,
+        height: rows * pitch,
+        count: length(names)
+      )
+
+    ~H"""
+    <figure class={["relative", @class]}>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".Archipelago">
+        // THE WHOLE WORLD ON ONE CANVAS.
+        //
+        // The same painter as a single disc, run once per island with the origin
+        // moved. Everything about how a mark looks was decided in Elixir, where
+        // it is documented and tested; nothing here interprets anything.
+        const css = (rgb) => "#" + rgb.toString(16).padStart(6, "0")
+
+        export default {
+          mounted() {
+            this.ctx = this.el.getContext("2d")
+            this.was = new Map()
+            this.now = new Map()
+            this.span = 500
+            this.kinds = false
+            this.toggle = (e) => {
+              if (e.type === "keydown" && e.key !== "k" && e.key !== "K") return
+              if (e.type === "keydown" && e.target.tagName === "INPUT") return
+              this.kinds = !this.kinds
+              this.paint(1)
+            }
+            window.addEventListener("keydown", this.toggle)
+            window.addEventListener("biotope:colour", this.toggle)
+            this.fit()
+            this.read()
+            this.paint(1)
+          },
+
+          destroyed() {
+            window.removeEventListener("keydown", this.toggle)
+            window.removeEventListener("biotope:colour", this.toggle)
+          },
+
+          // ⚠ TWEEN STATE IS KEYED BY ISLAND AND ID, NEVER BY ID ALONE. Creature
+          // ids are local to an island, so on one map they collide: creature 7 on
+          // beam01 and creature 7 on beam03 are different animals, and keying on
+          // the number alone would slide marks between islands, across the sea,
+          // which is the one movement this world does not have.
+          updated() {
+            this.was = this.now || new Map()
+            this.read()
+            this.now = new Map()
+            for (const isle of this.isles) {
+              for (let i = 0; i < isle.creatures.length; i += 6) {
+                this.now.set(isle.name + ":" + isle.creatures[i],
+                             [isle.x + isle.creatures[i + 1], isle.y + isle.creatures[i + 2]])
+              }
+            }
+            this.started = performance.now()
+            this.animate()
+          },
+
+          animate() {
+            const e = Math.min(1, (performance.now() - this.started) / this.span)
+            this.paint(e)
+            if (e < 1) requestAnimationFrame(() => this.animate())
+          },
+
+          fit() {
+            const p = window.devicePixelRatio || 1
+            this.w = parseInt(this.el.dataset.width)
+            this.h = parseInt(this.el.dataset.height)
+            this.el.width = this.w * p
+            this.el.height = this.h * p
+            this.ctx.setTransform(p, 0, 0, p, 0, 0)
+          },
+
+          read() {
+            this.isles = JSON.parse(this.el.dataset.isles || "[]")
+          },
+
+          paint(ease) {
+            const c = this.ctx
+            c.clearRect(0, 0, this.w, this.h)
+            for (const isle of this.isles) this.island(isle, ease)
+          },
+
+          island(isle, ease) {
+            const c = this.ctx
+
+            // The rim first, so an island reads as a place with an edge rather
+            // than as a drawing that happens to stop.
+            c.strokeStyle = "rgba(255,255,255,0.10)"
+            c.lineWidth = 1
+            c.beginPath()
+            for (let i = 0; i < isle.rim.length; i += 2) {
+              const x = isle.x + isle.rim[i], y = isle.y + isle.rim[i + 1]
+              i ? c.lineTo(x, y) : c.moveTo(x, y)
+            }
+            c.closePath()
+            c.stroke()
+
+            for (let i = 0; i < isle.ground.length; i += 4) {
+              c.globalAlpha = isle.ground[i + 3] / 100
+              c.fillStyle = css(isle.ground[i + 2])
+              this.hex(isle.x + isle.ground[i], isle.y + isle.ground[i + 1], isle.cell)
+              c.fill()
+            }
+
+            // Water OVER the ground. Under it is invisible: ground is drawn for
+            // every cell holding energy at an alpha running to 0.65, so green
+            // over blue reads as green.
+            c.globalAlpha = 1
+            c.fillStyle = "#2B6CB0"
+            for (let i = 0; i < isle.water.length; i += 2) {
+              this.hex(isle.x + isle.water[i], isle.y + isle.water[i + 1], isle.cell)
+              c.fill()
+            }
+
+            c.fillStyle = "#8B7CE8"
+            for (let i = 0; i < isle.trails.length; i += 3) {
+              c.globalAlpha = isle.trails[i + 2] / 100
+              c.beginPath()
+              c.arc(isle.x + isle.trails[i], isle.y + isle.trails[i + 1], isle.cell * 1.2, 0, 6.284)
+              c.fill()
+            }
+
+            c.globalAlpha = 1
+            for (let i = 0; i < isle.creatures.length; i += 6) {
+              const id = isle.name + ":" + isle.creatures[i]
+              const colour = css(isle.creatures[i + (this.kinds ? 5 : 4)])
+              const r = isle.creatures[i + 3]
+              const tx = isle.x + isle.creatures[i + 1], ty = isle.y + isle.creatures[i + 2]
+              const from = this.was.get(id)
+              const x = from ? from[0] + (tx - from[0]) * ease : tx
+              const y = from ? from[1] + (ty - from[1]) * ease : ty
+              c.globalAlpha = from ? 1 : ease
+              c.shadowColor = colour
+              c.shadowBlur = Math.max(2, r)
+              c.fillStyle = colour
+              c.beginPath()
+              c.arc(x, y, r, 0, 6.284)
+              c.fill()
+              c.shadowBlur = 0
+            }
+            c.globalAlpha = 1
+          },
+
+          hex(x, y, cell) {
+            const c = this.ctx
+            c.beginPath()
+            for (let i = 0; i < 6; i++) {
+              const a = (Math.PI / 180) * (60 * i - 30)
+              const px = x + cell * Math.cos(a), py = y + cell * Math.sin(a)
+              i === 0 ? c.moveTo(px, py) : c.lineTo(px, py)
+            }
+            c.closePath()
+          }
+        }
+      </script>
+      <div class="overflow-auto rounded bg-black/40 max-h-[70vh]">
+        <canvas
+          id={@id}
+          phx-hook=".Archipelago"
+          phx-update="ignore"
+          width={@width}
+          height={@height}
+          style={"width:#{@width}px;height:#{@height}px"}
+          data-width={@width}
+          data-height={@height}
+          data-isles={@isles}
+          role="img"
+          aria-label={"one world, #{@count} islands"}
+        >
+        </canvas>
+      </div>
+    </figure>
+    """
   end
 
-  defp pack_rim(size, cell, radius) do
+  defp isle({name, chart}, at, assigns) do
+    box = %{radius: chart["radius"] || 20, size: assigns.size}
+    cell = Biotope.cell_radius(box)
+    {x, y} = Map.get(at, name, {0, 0})
+
+    %{
+      name: name,
+      x: x,
+      y: y,
+      cell: Float.round(cell, 2),
+      ground: flat(soil(chart, box, assigns.ceiling)),
+      water: flat(water(chart, box)),
+      trails: flat(trails(chart, box)),
+      creatures: flat(creatures(chart, box, cell, assigns.ceiling)),
+      rim: rim_points(assigns.size, cell, chart["radius"] || 20)
+    }
+  end
+
+  defp pack(marks), do: Jason.encode!(flat(marks))
+
+  # The same flattening without the encoding, so a caller drawing MANY islands
+  # can put the lists inside one document instead of embedding a JSON string
+  # inside a JSON string.
+  defp flat(marks), do: marks |> Enum.flat_map(&Tuple.to_list/1) |> Enum.map(&round/1)
+
+  defp pack_rim(size, cell, radius), do: Jason.encode!(rim_points(size, cell, radius))
+
+  defp rim_points(size, cell, radius) do
     centre = size / 2
     reach = :math.sqrt(3) * radius * cell + cell
 
-    0..5
-    |> Enum.flat_map(fn i ->
+    Enum.flat_map(0..5, fn i ->
       angle = :math.pi() / 3 * i
       [round(centre + reach * :math.cos(angle)), round(centre + reach * :math.sin(angle))]
     end)
-    |> Jason.encode!()
   end
 
   @doc """

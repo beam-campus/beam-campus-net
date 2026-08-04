@@ -28,6 +28,50 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "not configured to read islands"
   end
 
+  # ⚠ THE CLAIM THE WHOLE TRACK RESTS ON, ASSERTED RATHER THAN HOPED FOR.
+  #
+  # The world is the sum of the nodes. If two islands land on one map at the
+  # same place, or the map holds only one of them, the page is saying the
+  # opposite of what the charter says and nothing else would notice: every
+  # island's own panel would still render perfectly.
+  test "two islands land on ONE map, in different places", %{conn: conn} do
+    for name <- ["beam01", "beam03"] do
+      Board.put_chart(%{
+        "island" => name,
+        "tick" => 10,
+        "radius" => 20,
+        "stride" => 2,
+        "creatures" => [0, 0],
+        "ground" => [2, 0, 400],
+        "water" => [3, 0],
+        "water_stride" => 2
+      })
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    [_, isles] = Regex.run(~r/data-isles="([^"]*)"/, html)
+    isles = isles |> unescape() |> Jason.decode!()
+
+    assert length(isles) == 2
+    assert Enum.map(isles, & &1["name"]) |> Enum.sort() == ["beam01", "beam03"]
+
+    # Distinct ground, or they are drawn on top of each other and the map is a
+    # lie told in one place instead of three.
+    assert isles |> Enum.map(&{&1["x"], &1["y"]}) |> Enum.uniq() |> length() == 2
+  end
+
+  # And a name with no picture yet is a name, not a place. Drawing an empty disc
+  # for an island that has announced itself and published nothing would say it
+  # is barren when it is only silent.
+  test "an island that has sent no chart is not drawn on the map", %{conn: conn} do
+    Board.put_stats(%{"island" => "beam02", "tick" => 1, "population" => 5})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    refute html =~ "data-isles"
+  end
+
   test "draws an island from its facts", %{conn: conn} do
     Board.put_stats(%{
       "island" => "beam01",
@@ -321,5 +365,16 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
 
     assert html =~ ~s|href="/research/workbench/biotope/beam01"|
+  end
+
+  # The attribute arrives HTML-escaped, which is the renderer doing its job.
+  # `&amp;` is undone LAST so an escaped ampersand is not unescaped twice.
+  defp unescape(text) do
+    text
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&#39;", "'")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> String.replace("&amp;", "&")
   end
 end

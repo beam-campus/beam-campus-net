@@ -114,14 +114,27 @@ defmodule BeamCampusWeb.BiotopeLive do
   defp load_islands(socket) do
     names = Biotope.islands()
 
+    rows = Map.new(names, &{&1, Biotope.island(&1)})
+
     assign(socket,
       names: names,
-      rows: Map.new(names, &{&1, Biotope.island(&1)}),
+      # Only islands that have actually sent a picture. An island that has
+      # announced itself and published no chart yet is a name, not a place, and
+      # drawing an empty disc for it would say it is barren rather than silent.
+      charts: for(n <- names, chart = chart_of(rows, n), do: {n, chart}),
+      rows: rows,
       liveness: Map.new(names, &{&1, Biotope.liveness(&1)}),
       refused: Biotope.refused(),
       watching?: Biotope.watching?(),
       configured?: Biotope.configured?()
     )
+  end
+
+  defp chart_of(rows, name) do
+    case Map.get(rows, name) do
+      %{chart: %{} = chart} -> chart
+      _absent -> nil
+    end
   end
 
   defp load_history(socket) do
@@ -205,6 +218,27 @@ defmodule BeamCampusWeb.BiotopeLive do
           <.legend />
           <.running names={@shown} rows={@rows} />
           <.ending names={@shown} liveness={@liveness} />
+        </div>
+        
+    <!-- ⚠ ONE WORLD FIRST, AND THE PANELS BELOW IT SECOND. Every island has
+             been drawn in its own panel since the beginning, which reads as
+             three unrelated experiments side by side. They are one world, and
+             adding a node adds land to it. This is that, drawn, and it goes
+             above the panels because it is the claim the panels illustrate. -->
+        <div :if={@charts != []} class="mt-10">
+          <.caption
+            label="one world"
+            keys={[{"#2F7D52", "ground"}, {"#2B6CB0", "water"}, {"#C2557A", "died here"}]}
+          />
+          <.archipelago charts={@charts} class="mt-2" />
+          <p class="mt-2 text-xs opacity-40">
+            every island on one map, and each node that joins adds land to it.
+            An island's place here is a hash of its name, so nothing is claimed
+            and nothing is granted: any two viewers holding the same islands
+            draw the same world. The sea between them is not simulated and holds
+            nothing, because islands are a graph joined by migration rather than
+            one plane, and no creature walks across.
+          </p>
         </div>
 
         <div :if={@names != []} class="mt-10">
