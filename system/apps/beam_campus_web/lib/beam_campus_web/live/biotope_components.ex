@@ -299,20 +299,6 @@ defmodule BeamCampusWeb.BiotopeComponents do
             const c = this.ctx
             c.clearRect(0, 0, this.size, this.size)
 
-            // WATER FIRST, UNDER EVERYTHING, because water is the landscape and
-            // the ground grows on top of it. Also practical: a wet cell still
-            // carries energy, so painting water over the ground would hide the
-            // one field a creature eats from.
-            //
-            // Same hexagon primitive as the ground, so a shoreline is a shared
-            // edge and not two shapes that nearly meet.
-            c.globalAlpha = 1
-            c.fillStyle = "#2B6CB0"
-            for (let i = 0; i < this.water.length; i += 2) {
-              this.hex(this.water[i], this.water[i + 1])
-              c.fill()
-            }
-
             // THE GROUND IS A FIELD AND GETS A FIELD'S PRIMITIVE. Circles left
             // gaps between cells and read as a dot screen; hexagons tile the
             // disc exactly, so grazed ground reads as bare terrain rather than
@@ -321,6 +307,27 @@ defmodule BeamCampusWeb.BiotopeComponents do
               c.globalAlpha = this.ground[i + 3] / 100
               c.fillStyle = css(this.ground[i + 2])
               this.hex(this.ground[i], this.ground[i + 1])
+              c.fill()
+            }
+
+            // ⚠ WATER GOES ON TOP OF THE GROUND, AND MY FIRST VERSION PUT IT
+            // UNDER. The reasoning was that water is the landscape and the
+            // ground grows on it, which is true and produced an invisible
+            // result: ground is drawn for every cell holding energy, at an
+            // alpha running to 0.65, so green over blue reads as green. The
+            // water arrays were on the wire, decoded and painted, and the board
+            // showed no lakes and no rivers.
+            //
+            // The cost of this order is that a wet cell no longer shows how much
+            // energy it holds. There are about 61 wet cells against 1,261, so
+            // that is a small price for the landscape being visible at all.
+            //
+            // Same hexagon primitive as the ground, so a shoreline is a shared
+            // edge and not two shapes that nearly meet.
+            c.globalAlpha = 1
+            c.fillStyle = "#2B6CB0"
+            for (let i = 0; i < this.water.length; i += 2) {
+              this.hex(this.water[i], this.water[i + 1])
               c.fill()
             }
 

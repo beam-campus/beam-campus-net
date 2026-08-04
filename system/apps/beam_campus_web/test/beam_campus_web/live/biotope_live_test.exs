@@ -86,6 +86,34 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert length(Jason.decode!(water)) == 4
   end
 
+  # ⚠ PAINT ORDER IS A CORRECTNESS PROPERTY AND NOT A MATTER OF TASTE.
+  #
+  # The ground is painted for every cell holding energy, at an alpha running to
+  # 0.65, so water underneath it is invisible: green over blue reads as green.
+  # The first version painted water first, reasoning that water is the landscape
+  # and the ground grows on it, which is true and produced a live board with no
+  # lakes and no rivers on it while the arrays were on the wire, decoded, and
+  # painted.
+  #
+  # Nothing else could have caught that. Every test passed and the data was
+  # correct at every step; the only symptom was a picture a person had to look
+  # at. So the order is asserted where it lives, in the painter's source.
+  test "water is painted over the ground and under the living" do
+    src = File.read!("lib/beam_campus_web/live/biotope_components.ex")
+    ground = :binary.match(src, "this.ground.length") |> elem(0)
+    water = :binary.match(src, "this.water.length") |> elem(0)
+
+    # ⚠ ANCHORED ON THE PAINTING LOOP BY NAME, not by position. There are two
+    # loops over creatures: one remembers positions so the next frame can tween
+    # from them, and one paints. Here the painter is the SECOND; in the island's
+    # own copy of this hook it is the FIRST, so neither "first" nor "last" is a
+    # rule that holds. Both were tried and both were wrong somewhere.
+    {creatures, _} = :binary.match(src, "const colour = css(this.creatures")
+
+    assert water > ground
+    assert water < creatures
+  end
+
   # Counts arrive on their own clock and a picture may be switched off entirely,
   # which is what a headless island does. The page must say so rather than draw
   # an empty disc that looks like an island where everything died.
