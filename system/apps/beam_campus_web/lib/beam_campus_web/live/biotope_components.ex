@@ -490,7 +490,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
     placed = Biotope.Archipelago.place(names)
     pitch = assigns.size + @sea
     at = Biotope.Archipelago.pixels(placed, pitch)
-    {cols, rows, _origin} = Biotope.Archipelago.extent(placed)
+    {cols, rows} = Biotope.Archipelago.extent(placed)
 
     assigns =
       assign(assigns,

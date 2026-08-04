@@ -32,43 +32,64 @@ defmodule Biotope.ArchipelagoTest do
 
   describe "a new island ADDS land rather than rearranging it" do
     # ⚠ THIS IS THE MESSAGE THE MAP EXISTS TO CARRY, so it is asserted rather
-    # than hoped for. A grid sized to the population would reshuffle every
-    # existing island each time one arrived, and the world would read as being
-    # redrawn rather than as growing.
-    test "existing islands do not move when another arrives" do
+    # than hoped for.
+    test "an island keeps its grid cell when others come and go" do
       before = Archipelago.place(["beam01", "beam02"])
       later = Archipelago.place(["beam01", "beam02", "beam03"])
+      fewer = Archipelago.place(["beam01"])
 
       assert Map.get(before, "beam01") == Map.get(later, "beam01")
-      assert Map.get(before, "beam02") == Map.get(later, "beam02")
+      assert Map.get(before, "beam01") == Map.get(fewer, "beam01")
     end
 
-    test "and an island keeps its cell when a neighbour goes away" do
-      full = Archipelago.place(["beam01", "beam02", "beam03"])
-      fewer = Archipelago.place(["beam01", "beam03"])
+    # ⚠ AND THE DRAWN POSITION IS A WEAKER PROMISE THAN THE CELL, DELIBERATELY.
+    # Squeezing out the empty ocean means an island arriving BETWEEN two others
+    # pushes them apart, so pixel positions are not fixed for ever. What must
+    # never change is the ORDER: nothing jumps past anything else, so a new node
+    # reads as land appearing in the right place rather than as a reshuffle.
+    test "relative order survives an arrival, even one that lands in between" do
+      names = for n <- 0..30, do: "island#{n}"
+      grown = Archipelago.place(names)
+      fewer = Archipelago.place(Enum.drop(names, 10))
 
-      assert Map.get(full, "beam01") == Map.get(fewer, "beam01")
-      assert Map.get(full, "beam03") == Map.get(fewer, "beam03")
+      order = fn placed ->
+        placed
+        |> Enum.sort_by(fn {_n, {c, r}} -> {c, r} end)
+        |> Enum.map(&elem(&1, 0))
+      end
+
+      kept = order.(fewer)
+      assert kept == Enum.filter(order.(grown), &(&1 in kept))
+    end
+
+    test "the world gets BIGGER when an island joins, never smaller" do
+      small = Archipelago.place(["beam01", "beam02"])
+      large = Archipelago.place(["beam01", "beam02", "beam03", "beam00"])
+
+      {sc, sr} = Archipelago.extent(small)
+      {lc, lr} = Archipelago.extent(large)
+
+      assert lc * lr > sc * sr
     end
   end
 
   describe "the viewer fits the occupied region, not the whole grid" do
     # Two islands on a 16 by 16 grid would otherwise be two specks in a field of
     # empty ocean, and the page would be mostly nothing.
-    test "extent covers exactly what is occupied" do
+    # ⚠ MEASURED ON THE REAL FLEET BEFORE THIS EXISTED: beam00, beam01, beam02
+    # and beam03 hash to columns 4, 7, 11 and 13, which spans TEN columns. Drawn
+    # raw that is 2,960 pixels, 2.1 screens, and 10% land. Squeezed, it is four
+    # columns and fits one screen.
+    test "empty ocean between islands is squeezed out" do
       placed = %{"a" => {3, 5}, "b" => {7, 5}, "c" => {5, 9}}
 
-      assert {5, 5, {3, 5}} = Archipelago.extent(placed)
+      assert {3, 2} = Archipelago.extent(placed)
+      assert %{"a" => {0, 0}, "b" => {200, 0}, "c" => {100, 100}} =
+               Archipelago.pixels(placed, 100)
     end
 
     test "an empty world still has an extent rather than crashing" do
-      assert {1, 1, {0, 0}} = Archipelago.extent(%{})
-    end
-
-    test "pixels are relative to the occupied region, so there is no dead margin" do
-      placed = %{"a" => {3, 5}, "b" => {4, 6}}
-
-      assert %{"a" => {0, 0}, "b" => {100, 100}} = Archipelago.pixels(placed, 100)
+      assert {1, 1} = Archipelago.extent(%{})
     end
   end
 

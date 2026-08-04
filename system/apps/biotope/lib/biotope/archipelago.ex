@@ -94,36 +94,45 @@ defmodule Biotope.Archipelago do
   defp to_at(cell), do: {rem(cell, @side), div(cell, @side)}
 
   @doc """
-  The occupied region, as `{cols, rows, origin}`.
+  How big the drawn world is, in islands: `{cols, rows}`.
 
-  The viewer fits to this rather than to the whole grid, so a world of two
-  islands is not drawn as two specks in a field of empty ocean. `origin` is the
-  top-left occupied cell, to be subtracted when laying out.
+  Counts OCCUPIED columns and rows rather than the span between them, because
+  the empty ones are squeezed out. Four islands are at most a 4 by 4 box however
+  far apart the hash threw them.
   """
-  @spec extent(%{String.t() => at()}) :: {pos_integer(), pos_integer(), at()}
-  def extent(placed) when map_size(placed) == 0, do: {1, 1, {0, 0}}
+  @spec extent(%{String.t() => at()}) :: {pos_integer(), pos_integer()}
+  def extent(placed) when map_size(placed) == 0, do: {1, 1}
 
-  def extent(placed) do
-    cols = Enum.map(Map.values(placed), &elem(&1, 0))
-    rows = Enum.map(Map.values(placed), &elem(&1, 1))
-
-    {Enum.max(cols) - Enum.min(cols) + 1, Enum.max(rows) - Enum.min(rows) + 1,
-     {Enum.min(cols), Enum.min(rows)}}
-  end
+  def extent(placed), do: {length(ranks(placed, 0)), length(ranks(placed, 1))}
 
   @doc """
   Each island's top-left pixel, given a pitch: one island's width plus the sea
   around it.
 
-  Relative to the occupied region rather than the whole grid, so the drawing has
-  no empty margin and the world grows into the space rather than sitting in it.
+  ## The squeeze happens here
+
+  An island's drawn column is its RANK among the occupied columns, not its raw
+  grid column. Columns 4, 7, 11 and 13 become 0, 1, 2 and 3, the ocean between
+  them disappears, and the picture is the size of the world instead of the size
+  of the grid it was placed on.
+
+  **Order survives exactly**, because ranking is monotone: an island left of
+  another stays left of it, whoever arrives or leaves.
   """
   @spec pixels(%{String.t() => at()}, pos_integer()) :: %{String.t() => {integer(), integer()}}
   def pixels(placed, pitch) do
-    {_cols, _rows, {ox, oy}} = extent(placed)
+    cols = ranks(placed, 0)
+    rows = ranks(placed, 1)
 
     Map.new(placed, fn {name, {col, row}} ->
-      {name, {(col - ox) * pitch, (row - oy) * pitch}}
+      {name, {rank_of(cols, col) * pitch, rank_of(rows, row) * pitch}}
     end)
   end
+
+  # The occupied values on one axis, in order. 0 is the column, 1 the row.
+  defp ranks(placed, axis) do
+    placed |> Map.values() |> Enum.map(&elem(&1, axis)) |> Enum.uniq() |> Enum.sort()
+  end
+
+  defp rank_of(values, value), do: Enum.find_index(values, &(&1 == value))
 end
