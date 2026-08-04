@@ -65,6 +65,12 @@ defmodule BeamCampusWeb.MixProject do
       # the last frame that arrived. Unlike the rumble spectator it regenerates
       # nothing and shares no code with the service it reads.
       {:biotope, in_umbrella: true},
+      # The artificial-cultures spectator. Same contract as the biotope: it
+      # subscribes to published facts and takes no dependency on the island's
+      # code. Declared here so the umbrella compiles it FIRST and the release
+      # starts it in the right order; without this the page's calls resolve at
+      # runtime, which compiles with warnings and orders the release wrong.
+      {:asociety, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).

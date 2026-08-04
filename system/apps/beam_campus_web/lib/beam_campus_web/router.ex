@@ -22,6 +22,7 @@ defmodule BeamCampusWeb.Router do
     live "/research", ResearchLive, :index
     live "/research/faber", FaberLive, :index
     live "/research/spartan", SpartanLive, :index
+    live "/research/asociety", ASocietyLive, :index
     live "/research/notes", NotebookLive, :index
     live "/research/notes/:id", NotebookLive, :show
     live "/research/workbench", WorkbenchLive, :index

@@ -47,6 +47,25 @@ config :biotope,
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
 
+# ── A Society (artificial cultures) ──────────────────────────────────────
+# Same shape and same reasoning as :biotope above. The site SUBSCRIBES and draws,
+# never publishes, and takes no dependency on the island's code.
+#
+# The REALM is defaulted because it is public by design: net.beamcampus.society,
+# whose tag is sha256 of that name, so it is derived rather than issued.
+#
+# The SEEDS have no default. Unset means the site boots normally, connects to
+# nothing, and the page says which of its five states that is.
+config :asociety,
+  realm:
+    System.get_env("BEAM_CAMPUS_SOCIETY_REALM") ||
+      "659ee7725defd42e923cca72f51bbf6ecba9408dbaf4e3ca3f21b101d97cd051",
+  namespace: System.get_env("BEAM_CAMPUS_SOCIETY_NS") || "society",
+  seeds:
+    System.get_env("BEAM_CAMPUS_SOCIETY_SEEDS", "")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+
 config :robo_rumbler,
   realm:
     System.get_env("BEAM_CAMPUS_RUMBLE_REALM") ||

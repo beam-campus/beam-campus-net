@@ -56,11 +56,12 @@ RUN curl -fsSL https://sh.rustup.rs \
 
 # Dependency caching: copy mix files first (lock may not exist — deps.get creates it)
 COPY system/mix.exs ./
-RUN mkdir -p apps/beam_campus apps/beam_campus_web apps/robo_rumbler apps/biotope
+RUN mkdir -p apps/beam_campus apps/beam_campus_web apps/robo_rumbler apps/biotope apps/asociety
 COPY system/apps/beam_campus/mix.exs ./apps/beam_campus/
 COPY system/apps/beam_campus_web/mix.exs ./apps/beam_campus_web/
 COPY system/apps/robo_rumbler/mix.exs ./apps/robo_rumbler/
 COPY system/apps/biotope/mix.exs ./apps/biotope/
+COPY system/apps/asociety/mix.exs ./apps/asociety/
 
 COPY system/config ./config
 COPY system/rel ./rel
