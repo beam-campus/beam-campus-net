@@ -142,6 +142,23 @@ defmodule Biotope do
   def marks(_other), do: []
 
   @doc """
+  A stride-two flat list to `{q, r}` pairs. Position with no amount.
+
+  Water is the only field shaped this way: a cell is wet or it is not, so there
+  is nothing to shade and no third number to send. Same tolerance as `marks/1`,
+  a trailing odd element is dropped rather than raising, because this is network
+  input and a truncated frame should cost one redraw and not the page.
+  """
+  @spec pairs(list()) :: [{integer(), integer()}]
+  def pairs(flat) when is_list(flat) do
+    flat
+    |> Enum.chunk_every(2, 2, :discard)
+    |> Enum.map(fn [q, r] -> {q, r} end)
+  end
+
+  def pairs(_other), do: []
+
+  @doc """
   Axial hex to pixel, pointy-top, centred on the middle of a `size`-wide box.
 
   The board is sized from the fact's own `radius`, so a viewer never has to be
@@ -185,13 +202,20 @@ defmodule Biotope do
   #
   # This site deliberately takes no dependency on the island's code, so it
   # mirrors the lists rather than importing them, and the mirror is the risk.
-  # **These are the `fact_version` 14 orders.** A test pins them here too, which
+  # **These are the `fact_version` 18 orders**, in which the island appended
+  # `:water` as a fifth field. A test pins them here too, which
   # is the most a reader can do: it cannot detect a change on the island, only
   # refuse to drift on its own.
-  @fields [:creatures, :ground, :scent, :self]
+  #
+  # ⚠ `:water` WAS APPENDED BY THE ISLAND'S WORLD 23 AND THIS LIST DID NOT
+  # FOLLOW. Appending is the safe direction, so the first four indexes went on
+  # decoding correctly and nothing looked wrong; what a reader could not do was
+  # name a water sensor at all. That is the mirror's risk, stated above, actually
+  # happening.
+  @fields [:creatures, :ground, :scent, :self, :water]
   @purposes [:move, :breed, :grow, :eat]
 
-  @doc "The four measurable fields, in wire order."
+  @doc "The five measurable fields, in wire order."
   def fields, do: @fields
 
   @doc "The four possible acts, in wire order."

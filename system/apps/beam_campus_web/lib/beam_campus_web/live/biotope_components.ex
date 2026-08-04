@@ -175,12 +175,14 @@ defmodule BeamCampusWeb.BiotopeComponents do
     ground = soil(assigns.chart, box, assigns.ceiling)
     creatures = creatures(assigns.chart, box, cell, assigns.ceiling)
     trails = trails(assigns.chart, box)
+    water = water(assigns.chart, box)
 
     assigns =
       assign(assigns,
         cell: cell,
         counts: {length(creatures), length(ground), length(trails)},
         ground: pack(ground),
+        water: pack(water),
         creatures: pack(creatures),
         trails: pack(trails),
         rim: pack_rim(assigns.size, cell, assigns.chart["radius"] || 20)
@@ -288,6 +290,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
             this.cell = parseFloat(this.el.dataset.cell)
             this.rim = nums(this.el, "rim")
             this.ground = nums(this.el, "ground")
+            this.water = nums(this.el, "water")
             this.trails = nums(this.el, "trails")
             this.creatures = nums(this.el, "creatures")
           },
@@ -295,6 +298,20 @@ defmodule BeamCampusWeb.BiotopeComponents do
           paint(ease) {
             const c = this.ctx
             c.clearRect(0, 0, this.size, this.size)
+
+            // WATER FIRST, UNDER EVERYTHING, because water is the landscape and
+            // the ground grows on top of it. Also practical: a wet cell still
+            // carries energy, so painting water over the ground would hide the
+            // one field a creature eats from.
+            //
+            // Same hexagon primitive as the ground, so a shoreline is a shared
+            // edge and not two shapes that nearly meet.
+            c.globalAlpha = 1
+            c.fillStyle = "#2B6CB0"
+            for (let i = 0; i < this.water.length; i += 2) {
+              this.hex(this.water[i], this.water[i + 1])
+              c.fill()
+            }
 
             // THE GROUND IS A FIELD AND GETS A FIELD'S PRIMITIVE. Circles left
             // gaps between cells and read as a dot screen; hexagons tile the
@@ -405,6 +422,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
         data-cell={Float.round(@cell, 2)}
         data-rim={@rim}
         data-ground={@ground}
+        data-water={@water}
         data-trails={@trails}
         data-creatures={@creatures}
         role="img"
@@ -2201,6 +2219,19 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
   # Faint on purpose. A trail is evidence that something passed, and at full
   # strength it would read as a wall.
+  # WHERE THE WATER IS. Position only, at a stride of two, because a cell is wet
+  # or it is not: there is no amount to shade and no third number on the wire.
+  #
+  # ⚠ THE ISLAND SPENT TWO WORLDS UNABLE TO SHOW THIS. World 23 was entirely
+  # about water and put it in the physics and on no wire at all; world 24 added
+  # it to the island's own chart, and it still was not on the mesh fact this page
+  # reads. Both halves are needed, and neither is any use without the other.
+  defp water(chart, box) do
+    chart["water"]
+    |> Biotope.pairs()
+    |> Enum.map(fn {q, r} -> Biotope.to_pixel({q, r}, box) end)
+  end
+
   defp trails(chart, box) do
     chart["scent"]
     |> Biotope.marks()

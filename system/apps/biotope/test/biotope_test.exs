@@ -240,9 +240,23 @@ defmodule BiotopeTest do
     # sensor is, and nothing about the page would look wrong. This test cannot
     # detect a change made on the island. It can only stop this side drifting on
     # its own, which is the most a reader can do.
-    test "the wire codes for fields and purposes are the fact_version 14 orders" do
-      assert Biotope.fields() == [:creatures, :ground, :scent, :self]
+    #
+    # ⚠ `:water` IS FIFTH BECAUSE THE ISLAND APPENDED IT IN ITS WORLD 23, and
+    # this list did not follow for a whole world. Appending is the safe
+    # direction, so the first four indexes kept decoding correctly and nothing
+    # looked wrong; what this reader could not do was name a water sensor.
+    # Appending here is safe for the same reason. INSERTING would not be.
+    test "the wire codes for fields and purposes are the fact_version 18 orders" do
+      assert Biotope.fields() == [:creatures, :ground, :scent, :self, :water]
       assert Biotope.purposes() == [:move, :breed, :grow, :eat]
+    end
+
+    # A cell is wet or it is not, so water arrives as position with no amount.
+    test "decodes water as position pairs and drops a truncated tail" do
+      assert Biotope.pairs([1, 2, -3, 4]) == [{1, 2}, {-3, 4}]
+      assert Biotope.pairs([1, 2, 9]) == [{1, 2}]
+      assert Biotope.pairs([]) == []
+      assert Biotope.pairs(nil) == []
     end
 
     # NSensors, then field and reach pairs, then hidden, then the count of

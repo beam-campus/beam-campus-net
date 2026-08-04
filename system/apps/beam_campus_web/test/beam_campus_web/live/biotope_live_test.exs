@@ -53,7 +53,9 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
       "radius" => 20,
       "stride" => 2,
       "creatures" => [0, 0, 1, -1],
-      "ground" => [2, 0, 400]
+      "ground" => [2, 0, 400],
+      "water" => [3, 0, 3, 1],
+      "water_stride" => 2
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
@@ -74,6 +76,14 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     # same moment.
     assert length(Jason.decode!(creatures)) == 12
     assert [_x, _y, 0x2F7D52, _alpha] = Jason.decode!(ground)
+
+    # ⚠ AND THE WATER, WHICH TOOK TWO WORLDS TO REACH THIS PAGE. World 23 was
+    # entirely about water and put it on no wire at all; world 24 added it to the
+    # island's own chart and it still was not on the mesh fact this page reads.
+    # Position only, stride two: a cell is wet or it is not, so two cells are
+    # four numbers and there is no amount to shade.
+    [_, water] = Regex.run(~r/data-water="([^"]*)"/, html)
+    assert length(Jason.decode!(water)) == 4
   end
 
   # Counts arrive on their own clock and a picture may be switched off entirely,
