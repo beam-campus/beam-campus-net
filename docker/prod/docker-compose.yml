@@ -29,6 +29,33 @@ services:
       BEAM_CAMPUS_MAILGUN_DOMAIN: "${BEAM_CAMPUS_MAILGUN_DOMAIN:-mg.beam-campus.net}"
       BEAM_CAMPUS_MAILGUN_BASE_URL: "${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.eu.mailgun.net}"
       BEAM_CAMPUS_CONTACT_EMAIL: "${BEAM_CAMPUS_CONTACT_EMAIL:-raf.lefever@erlef.org}"
+
+      # ── The mesh readers ──────────────────────────────────────────────
+      #
+      # ⚠ WITHOUT THESE, THREE WORKBENCH PAGES RENDER THEIR "NOT CONFIGURED"
+      # STATE AND NOTHING IN THIS REPOSITORY EXPLAINS WHY. They were absent
+      # here for as long as those pages have existed, which means the live
+      # site's mesh readers work only because somebody set the variables on
+      # the box by hand, and a re-provision from this file would have lost
+      # all three silently.
+      #
+      # The site SUBSCRIBES and draws. It never publishes and never holds a
+      # store: it is a reader of the mesh, not a participant in it.
+      #
+      # SEEDS HAVE NO DEFAULT, on purpose. Naming a public realm costs
+      # nothing; dialling a production station from every clone does. Unset
+      # means the page says so, which is a working page and not an error.
+      #
+      # The REALMS default because they are public by design: each is the
+      # sha256 of its own name, derived rather than issued. A public web
+      # container must never hold the FLEET tag, which routes sentinel
+      # sightings and warden facts.
+      BEAM_CAMPUS_RUMBLE_SEEDS: "${BEAM_CAMPUS_RUMBLE_SEEDS:-}"
+      BEAM_CAMPUS_RUMBLE_REALM: "${BEAM_CAMPUS_RUMBLE_REALM:-}"
+      BEAM_CAMPUS_BIOTOPE_SEEDS: "${BEAM_CAMPUS_BIOTOPE_SEEDS:-}"
+      BEAM_CAMPUS_BIOTOPE_REALM: "${BEAM_CAMPUS_BIOTOPE_REALM:-}"
+      BEAM_CAMPUS_SOCIETY_SEEDS: "${BEAM_CAMPUS_SOCIETY_SEEDS:-}"
+      BEAM_CAMPUS_SOCIETY_REALM: "${BEAM_CAMPUS_SOCIETY_REALM:-}"
     volumes:
       - site-data:/data
     healthcheck:
