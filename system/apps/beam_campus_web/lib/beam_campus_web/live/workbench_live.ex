@@ -10,6 +10,24 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
   @experiments [
     %{
+      id: "asociety",
+      title: "A Society: cultures on machines that decide who lands",
+      tag: "Artificial cultures \u00b7 mesh",
+      kind: :engine,
+      status: :scaffold,
+      route: "/research/workbench/asociety",
+      programme: "Succeeds the biotope",
+      # ⚠ ITS RECORD IS NOT IN faber-ecosystem. This line keeps its own charter,
+      # design documents and register in hecate-society, with numbering continued
+      # from the biotope. A card that linked to the faber insight index would send
+      # a reader to a corpus that has never heard of it.
+      record_label: "hecate-society / charter",
+      record_url: "https://github.com/hecate-services/hecate-society/blob/main/CHARTER.md",
+      note: nil,
+      blurb:
+        "Islands of persons who hold two kinds of belief: what they were told, and what they have seen. Every formal model of cultural evolution runs on a graph somebody drew; here an island is a machine, a partition is a barrier nobody chose, and each island decides who may land. Scaffold: four islands are deployed and hold no people, so the page reports which of five states it is in rather than drawing an empty chart. It will draw beliefs, never a map."
+    },
+    %{
       id: "biotope",
       title: "Biotopes: open populations on the mesh",
       tag: "ALife · mesh",
@@ -155,20 +173,47 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
         <div class="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-base-content/50">
           <span>{@x.programme}</span>
-          <a
-            href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
-            class="link link-hover"
-            target="_blank"
-            rel="noreferrer"
-          >
-            insight {@x.insight}
-          </a>
-          <.link navigate={@x.note} class="link link-hover">the note</.link>
+          <.record x={@x} />
+          <.note :if={@x[:note]} note={@x.note} />
         </div>
 
         <.open_link x={@x} />
       </div>
     </article>
+    """
+  end
+
+  # Most cards point at the faber insight index. A line that keeps its own corpus
+  # names it instead, because sending a reader to a corpus that has never heard of
+  # the experiment is worse than sending them nowhere.
+  attr :x, :map, required: true
+
+  defp record(%{x: %{insight: _i}} = assigns) do
+    ~H"""
+    <a
+      href="https://github.com/rgfaber/faber-ecosystem/blob/master/insights/INDEX.md"
+      class="link link-hover"
+      target="_blank"
+      rel="noreferrer"
+    >
+      insight {@x.insight}
+    </a>
+    """
+  end
+
+  defp record(assigns) do
+    ~H"""
+    <a href={@x.record_url} class="link link-hover" target="_blank" rel="noreferrer">
+      {@x.record_label}
+    </a>
+    """
+  end
+
+  attr :note, :string, required: true
+
+  defp note(assigns) do
+    ~H"""
+    <.link navigate={@note} class="link link-hover">the note</.link>
     """
   end
 
@@ -178,6 +223,14 @@ defmodule BeamCampusWeb.WorkbenchLive do
     ~H"""
     <.link navigate={@x.route} class="btn btn-primary btn-sm w-fit mt-1">
       Open the experiment <span aria-hidden="true">&rarr;</span>
+    </.link>
+    """
+  end
+
+  defp open_link(%{x: %{status: :scaffold}} = assigns) do
+    ~H"""
+    <.link navigate={@x.route} class="btn btn-outline btn-sm w-fit mt-1">
+      Open the scaffold <span aria-hidden="true">&rarr;</span>
     </.link>
     """
   end
@@ -196,8 +249,10 @@ defmodule BeamCampusWeb.WorkbenchLive do
   defp kind_label(:methodology), do: "methodology · numbers"
 
   defp status_class(:interactive), do: "badge-primary"
+  defp status_class(:scaffold), do: "badge-info"
   defp status_class(:planned), do: "badge-ghost"
 
   defp status_label(:interactive), do: "live"
+  defp status_label(:scaffold), do: "scaffold"
   defp status_label(:planned), do: "planned"
 end

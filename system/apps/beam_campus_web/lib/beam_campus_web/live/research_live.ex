@@ -35,18 +35,6 @@ defmodule BeamCampusWeb.ResearchLive do
       corpus_url:
         "https://github.com/hecate-services/hecate-spartan/blob/main/insights/README.md",
       accent: "secondary"
-    },
-    %{
-      slug: :asociety,
-      kicker: "Artificial cultures",
-      name: "A Society",
-      question:
-        "When the group boundaries are real machines rather than a graph somebody drew, what does a culture do?",
-      shape:
-        "Islands of persons holding two kinds of belief: what they were told, and what they have seen.",
-      corpus: "hecate-society / charter",
-      corpus_url: "https://github.com/hecate-services/hecate-society/blob/main/CHARTER.md",
-      accent: "accent"
     }
   ]
 
@@ -75,10 +63,10 @@ defmodule BeamCampusWeb.ResearchLive do
           Research
         </p>
         <h1 class="mt-5 text-4xl sm:text-6xl font-semibold tracking-tight text-balance">
-          Three research lines, one commons
+          Two research lines, one commons
         </h1>
         <p class="mt-6 max-w-2xl text-lg text-base-content/80 leading-relaxed">
-          The commons runs three independent lines of research. They share a method and a
+          The commons runs two independent lines of research. They share a method and a
           substrate, and nothing else: each keeps its own signed corpus, its own numbering,
           and its own frontier. Findings are written down whichever way they fall, and a
           negative result is published with the same care as a positive one.
@@ -105,7 +93,6 @@ defmodule BeamCampusWeb.ResearchLive do
   # and the path is resolved here. Adding a line means adding one clause.
   defp line_path(:faber), do: ~p"/research/faber"
   defp line_path(:spartan), do: ~p"/research/spartan"
-  defp line_path(:asociety), do: ~p"/research/asociety"
 
   attr :l, :map, required: true
 
@@ -116,8 +103,7 @@ defmodule BeamCampusWeb.ResearchLive do
         <span class={[
           "font-mono text-[11px] uppercase tracking-widest",
           @l.accent == "primary" && "text-primary",
-          @l.accent == "secondary" && "text-secondary",
-          @l.accent == "accent" && "text-accent"
+          @l.accent == "secondary" && "text-secondary"
         ]}>
           {@l.kicker}
         </span>

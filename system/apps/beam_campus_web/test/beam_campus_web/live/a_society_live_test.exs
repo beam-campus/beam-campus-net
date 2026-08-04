@@ -21,7 +21,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   end
 
   test "renders with nothing at all", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/research/asociety")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
 
     assert html =~ "A Society"
     # Not configured in test, and the page says which kind of quiet it is rather
@@ -35,7 +35,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   # the one thing the model does not have. The page states that in words, and if
   # somebody later adds a hex board because the sibling has one, this fails.
   test "says plainly that it is not a map", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/research/asociety")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
 
     assert html =~ "Not a map"
     assert html =~ "beliefs, not believers"
@@ -46,7 +46,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   # dark is a transport question, no_contract is a statement about the island's
   # build, and unconfigured is neither.
   test "every state has its own words", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/research/asociety")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
     assert html =~ "unconfigured"
 
     words = Enum.map(states(), &ASociety.explain/1)
@@ -58,7 +58,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   # The page renders whatever `ASociety.explain/1` returns, so this tests the
   # thing the page shows rather than a copy of the strings kept in a test.
   test "the page shows the explanation for the state it is in", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/research/asociety")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
 
     assert html =~ String.slice(ASociety.explain(ASociety.state()), 0, 40)
   end
@@ -68,7 +68,7 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
   test "an island that has not said its name is shown by its identity", %{conn: conn} do
     Board.put(String.duplicate("a", 32), :vitals, %{"island_id" => String.duplicate("a", 32)})
 
-    {:ok, _view, html} = live(conn, ~p"/research/asociety")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/asociety")
 
     assert html =~ "aaaaaaaa"
   end

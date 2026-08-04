@@ -69,7 +69,13 @@ defmodule BeamCampusWeb.ASocietyLive do
     ~H"""
     <section class="border-b border-base-300/60">
       <div class="mx-auto max-w-5xl px-6 py-20 sm:py-28">
-        <p class="font-mono text-xs uppercase tracking-[0.28em] text-accent">
+        <.link
+          navigate={~p"/research/workbench"}
+          class="link link-hover font-mono text-xs text-base-content/50"
+        >
+          &larr; Workbench
+        </.link>
+        <p class="font-mono text-xs uppercase tracking-[0.28em] text-accent mt-4">
           Artificial cultures
         </p>
         <h1 class="mt-5 text-4xl sm:text-6xl font-semibold tracking-tight text-balance">

@@ -14,6 +14,23 @@ defmodule BeamCampusWeb.WorkbenchLiveTest do
     assert html =~ "/research/notes/abandoning-the-objective"
   end
 
+  # ⚠ THE MENU ENTRY IS THE REQUIREMENT, not just the page. A demo reachable only
+  # by typing its URL is a demo nobody finds, and the card is the only thing that
+  # makes the workbench a menu rather than a list of routes somebody remembers.
+  test "A Society is on the menu and points at its own corpus", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/research/workbench")
+
+    assert html =~ "A Society"
+    assert html =~ "/research/workbench/asociety"
+    assert html =~ "Open the scaffold"
+
+    # Its record is in hecate-society, not in faber-ecosystem. A card that linked
+    # to the faber insight index would send a reader to a corpus that has never
+    # heard of this line.
+    assert html =~ "hecate-society"
+    refute html =~ ~s|insight </a>|
+  end
+
   test "the adaptation demo is reachable at its new nested route", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/adaptation")
     assert html =~ "Evolve a controller"
