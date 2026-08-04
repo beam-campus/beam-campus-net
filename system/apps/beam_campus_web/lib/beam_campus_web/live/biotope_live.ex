@@ -118,6 +118,11 @@ defmodule BeamCampusWeb.BiotopeLive do
 
     assign(socket,
       names: names,
+      # ⚠ NAMES ARE KEYS AND KEYS ARE DIGESTS. An island is FILED under the
+      # identity it minted for itself, because the name is a nickname two
+      # islands can share, but nobody wants to read a digest. Every place that
+      # shows an island to a person looks it up here.
+      labels: Map.new(names, &{&1, Biotope.label(&1)}),
       # Only islands that have actually sent a picture. An island that has
       # announced itself and published no chart yet is a name, not a place, and
       # drawing an empty disc for it would say it is barren rather than silent.
@@ -213,7 +218,7 @@ defmodule BeamCampusWeb.BiotopeLive do
         <.viz_tokens />
 
         <div :if={@names != []} class="mt-8">
-          <.fleet names={@shown} rows={@rows} liveness={@liveness} />
+          <.fleet names={@shown} rows={@rows} liveness={@liveness} labels={@labels} />
           <.runs names={@shown} rows={@rows} />
           <.legend />
           <.running names={@shown} rows={@rows} />
@@ -246,7 +251,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             label="the islands now"
             keys={[{"#2F7D52", "ground"}, {"#C2557A", "died here"}, {"#8B7CE8", "scent"}]}
           />
-          <.boards names={@shown} rows={@rows} class="mt-2" />
+          <.boards names={@shown} rows={@rows} labels={@labels} class="mt-2" />
           <p class="mt-2 text-xs opacity-40">
             a creature's size is its body and its colour is <span data-colouring>feeding rate</span>. Press
             <kbd class="rounded border px-1">K</kbd>

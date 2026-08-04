@@ -62,6 +62,25 @@ defmodule Biotope.WatchIslands.Board do
     end
   end
 
+  @doc """
+  What to CALL an island, given the key it is filed under.
+
+  The key is a digest and no one wants to read one. This is the name the island
+  publishes for itself, which is a nickname and may be shared: a page showing two
+  islands called `beam01` is telling the truth, and they are two rows rather than
+  one because they are filed apart.
+
+  Falls back to the key, so an island that has sent an id and no name still
+  appears rather than vanishing into a blank cell.
+  """
+  def label(key) do
+    case island(key) do
+      %{stats: %{"island" => name}} when is_binary(name) -> name
+      %{chart: %{"island" => name}} when is_binary(name) -> name
+      _nothing -> key
+    end
+  end
+
   @doc "Whether anything at all has arrived yet."
   def empty?, do: islands() == []
 
@@ -89,12 +108,29 @@ defmodule Biotope.WatchIslands.Board do
   # ── Writes. Subscriber only. ────────────────────────────────────
 
   @doc "File a `world_advanced` fact under its island."
-  def put_stats(%{"island" => name} = fact), do: merge(name, :stats, fact)
+  def put_stats(%{"island" => _} = fact), do: merge(key_of(fact), :stats, fact)
   def put_stats(_fact), do: :ignored
 
   @doc "File a `world_charted` fact under its island."
-  def put_chart(%{"island" => name} = fact), do: merge(name, :chart, fact)
+  def put_chart(%{"island" => _} = fact), do: merge(key_of(fact), :chart, fact)
   def put_chart(_fact), do: :ignored
+
+  # ⚠ FILED UNDER THE IDENTITY, NEVER THE NAME.
+  #
+  # `island` is a LABEL: an environment variable on the island, falling back to
+  # its hostname, changeable at runtime from its own web form. Two islands can
+  # carry the same one by accident, and in a world of nodes run by strangers,
+  # on purpose. Filed under the name, two islands called `beam01` overwrite each
+  # other and this table shows ONE PLACE FLICKERING BETWEEN TWO WORLDS, with
+  # nothing anywhere reporting a problem.
+  #
+  # `island_id` is 128 bits the island minted for itself and nobody typed.
+  #
+  # The fallback to the name is for an island on an older build, which sends no
+  # id. It keeps a fleet readable through a rollout, and it is the only reason
+  # this is not simply a required key.
+  defp key_of(%{"island_id" => id}) when is_binary(id) and byte_size(id) > 0, do: id
+  defp key_of(%{"island" => name}), do: name
 
   @doc """
   File a `world_narrated` fact: what a model said about an island's numbers.
@@ -104,7 +140,7 @@ defmodule Biotope.WatchIslands.Board do
   what was said belongs in a read model if it ever matters, and it probably does
   not: the FIGURES are the record and the sentence is a reading of them.
   """
-  def put_narration(%{"island" => name} = fact), do: merge(name, :narration, fact)
+  def put_narration(%{"island" => _} = fact), do: merge(key_of(fact), :narration, fact)
   def put_narration(_fact), do: :ignored
 
   defp merge(name, key, fact) do

@@ -372,4 +372,58 @@ defmodule BiotopeTest do
     end
   end
 
+
+  # ── An island's name is not its identity ────────────────────────
+
+  describe "islands are filed under an identity, not a name" do
+    # ⚠ THE FAILURE THIS PREVENTS IS COMPLETELY SILENT, which is why it exists.
+    #
+    # `island` is a LABEL: an environment variable on the island, falling back to
+    # its hostname, changeable at runtime from the island's own web form. Two
+    # people naming their node `beam01` is not a hypothetical in a world made of
+    # machines run by strangers, and it need not even be an accident.
+    #
+    # Filed under the name, they overwrite each other and the board shows ONE
+    # PLACE FLICKERING BETWEEN TWO WORLDS, with nothing anywhere reporting a
+    # problem: the population jumps, the map redraws, every test still passes.
+    test "two islands sharing a name are two islands" do
+      one = dup("a")
+      two = dup("b")
+
+      Board.put_stats(%{"island" => "beam01", "island_id" => one, "population" => 10})
+      Board.put_stats(%{"island" => "beam01", "island_id" => two, "population" => 99})
+
+      assert one in Board.islands()
+      assert two in Board.islands()
+      assert Board.island(one)[:stats]["population"] == 10
+      assert Board.island(two)[:stats]["population"] == 99
+    end
+
+    # And both are still CALLED beam01, because that is true and a reader has to
+    # be able to read the page. Two rows sharing a name is the honest picture.
+    test "and both keep the name their island published" do
+      id = dup("c")
+      Board.put_stats(%{"island" => "beam01", "island_id" => id, "population" => 10})
+
+      assert Board.label(id) == "beam01"
+    end
+
+    # An island on an older build sends no id. It must stay visible through a
+    # rollout rather than vanish, so the name is the fallback key.
+    test "an island that sends no identity is filed under its name" do
+      Board.put_stats(%{"island" => "beam-oldbuild", "population" => 3})
+
+      assert "beam-oldbuild" in Board.islands()
+      assert Board.label("beam-oldbuild") == "beam-oldbuild"
+    end
+
+    # A key nothing has been heard from is named by the key rather than blank,
+    # because a nameless row on a page reads as a broken page.
+    test "an unknown key is called by its key" do
+      assert Board.label("nobody-has-said-anything") == "nobody-has-said-anything"
+    end
+
+    defp dup(seed), do: String.duplicate(seed, 32)
+  end
+
 end

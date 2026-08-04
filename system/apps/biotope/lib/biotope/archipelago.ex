@@ -109,30 +109,57 @@ defmodule Biotope.Archipelago do
   Each island's top-left pixel, given a pitch: one island's width plus the sea
   around it.
 
-  ## The squeeze happens here
+  ## The squeeze happens here, and it leaves a sliver
 
-  An island's drawn column is its RANK among the occupied columns, not its raw
-  grid column. Columns 4, 7, 11 and 13 become 0, 1, 2 and 3, the ocean between
-  them disappears, and the picture is the size of the world instead of the size
+  An island's drawn column follows its RANK among the occupied columns rather
+  than its raw grid column, so columns 4, 7, 11 and 13 stop costing a screen of
+  empty water and the picture becomes the size of the world instead of the size
   of the grid it was placed on.
 
-  **Order survives exactly**, because ranking is monotone: an island left of
+  ⚠ **Skipped columns are not erased outright.** Each one is worth `open_sea`
+  pixels, so two islands the hash threw far apart are drawn further apart than
+  two it put side by side. Collapsing the gaps to nothing made every island
+  equidistant from every other, which throws away the only spatial information
+  there is.
+
+  It is a HINT and not a measurement, because the distance underneath is a hash
+  and means nothing yet. When the layout is driven by migration rate instead,
+  this is the dial that makes a real distance visible.
+
+  **Order survives exactly**, because the walk is monotone: an island left of
   another stays left of it, whoever arrives or leaves.
   """
-  @spec pixels(%{String.t() => at()}, pos_integer()) :: %{String.t() => {integer(), integer()}}
-  def pixels(placed, pitch) do
-    cols = ranks(placed, 0)
-    rows = ranks(placed, 1)
+  @spec pixels(%{String.t() => at()}, pos_integer(), non_neg_integer()) ::
+          %{String.t() => {integer(), integer()}}
+  def pixels(placed, pitch, open_sea \\ 0) do
+    cols = offsets(ranks(placed, 0), pitch, open_sea)
+    rows = offsets(ranks(placed, 1), pitch, open_sea)
 
     Map.new(placed, fn {name, {col, row}} ->
-      {name, {rank_of(cols, col) * pitch, rank_of(rows, row) * pitch}}
+      {name, {Map.fetch!(cols, col), Map.fetch!(rows, row)}}
     end)
+  end
+
+  # Walk the occupied values in order, paying a pitch for each island and a
+  # sliver of open sea for every empty column skipped on the way to the next.
+  defp offsets(values, pitch, open_sea) do
+    {places, _end} =
+      Enum.reduce(values, {%{}, 0}, fn value, {places, x} ->
+        {Map.put(places, value, x), x + pitch + skipped(values, value) * open_sea}
+      end)
+
+    places
+  end
+
+  defp skipped(values, value) do
+    case Enum.find(values, &(&1 > value)) do
+      nil -> 0
+      next -> next - value - 1
+    end
   end
 
   # The occupied values on one axis, in order. 0 is the column, 1 the row.
   defp ranks(placed, axis) do
     placed |> Map.values() |> Enum.map(&elem(&1, axis)) |> Enum.uniq() |> Enum.sort()
   end
-
-  defp rank_of(values, value), do: Enum.find_index(values, &(&1 == value))
 end

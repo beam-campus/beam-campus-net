@@ -480,16 +480,28 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :ceiling, :integer, default: 400
   attr :class, :string, default: ""
 
-  # The sea between two islands. Wide enough that the discs read as separate
-  # places rather than a smeared continent, narrow enough that a migration arc
-  # is short enough to follow with the eye.
+  # The sea between two ADJACENT islands. Wide enough that the discs read as
+  # separate places rather than a smeared continent, narrow enough that a
+  # migration arc is short enough to follow with the eye.
   @sea 56
+
+  # ⚠ AND WHAT ONE SKIPPED COLUMN OF OPEN WATER IS WORTH.
+  #
+  # The first version collapsed the gaps to nothing, which made the map compact
+  # and made every island exactly as far from every other, throwing away the
+  # only spatial information there is. This keeps a hint of it: islands the hash
+  # threw far apart are drawn further apart.
+  #
+  # Small on purpose. At a full pitch, the real fleet spanned 2.1 screens with
+  # 90% of it empty; at 40 a skipped column costs about a seventh of an island
+  # and the four of them fit comfortably.
+  @open_sea 40
 
   def archipelago(assigns) do
     names = Enum.map(assigns.charts, fn {name, _chart} -> name end)
     placed = Biotope.Archipelago.place(names)
     pitch = assigns.size + @sea
-    at = Biotope.Archipelago.pixels(placed, pitch)
+    at = Biotope.Archipelago.pixels(placed, pitch, @open_sea)
     {cols, rows} = Biotope.Archipelago.extent(placed)
 
     assigns =
@@ -1373,6 +1385,9 @@ defmodule BeamCampusWeb.BiotopeComponents do
   """
   attr :names, :list, required: true
   attr :rows, :map, required: true
+  # An island is filed under its identity, which is a digest. This is what to
+  # call it where a person will read it.
+  attr :labels, :map, default: %{}
   attr :liveness, :map, required: true
 
   def fleet(assigns) do
@@ -1415,7 +1430,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
                 navigate={~p"/research/workbench/biotope/#{name}"}
                 class="link link-hover font-medium"
               >
-                {name}
+                {Map.get(@labels, name, name)}
               </.link>
             </td>
             <td class="py-2 pr-4"><.liveness liveness={@liveness[name]} /></td>
@@ -1559,6 +1574,9 @@ defmodule BeamCampusWeb.BiotopeComponents do
   """
   attr :names, :list, required: true
   attr :rows, :map, required: true
+  # An island is filed under its identity, which is a digest. This is what to
+  # call it where a person will read it.
+  attr :labels, :map, default: %{}
   attr :size, :integer, default: 240
   attr :class, :string, default: ""
 
@@ -1577,7 +1595,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           is what a headless run does.
         </p>
         <figcaption class="mt-1 flex items-baseline justify-between gap-2 text-xs">
-          <span class="font-medium">{name}</span>
+          <span class="font-medium">{Map.get(@labels, name, name)}</span>
           <span class="font-mono opacity-60">{cell(@rows[name], "population")} creatures</span>
         </figcaption>
       </figure>

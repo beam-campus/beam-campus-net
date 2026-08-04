@@ -40,6 +40,9 @@ defmodule Biotope do
   @doc "Latest facts for one island, or `nil`."
   defdelegate island(name), to: Board
 
+  @doc "What to call an island, given the key it is filed under."
+  defdelegate label(key), to: Board
+
   @doc "Whether anything has arrived yet."
   defdelegate empty?(), to: Board
 

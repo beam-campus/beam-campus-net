@@ -91,6 +91,29 @@ defmodule Biotope.ArchipelagoTest do
     test "an empty world still has an extent rather than crashing" do
       assert {1, 1} = Archipelago.extent(%{})
     end
+
+    # ⚠ BUT NOT SQUEEZED TO NOTHING. Collapsing every gap made the map compact
+    # and made every island exactly as far from every other, which throws away
+    # the only spatial information there is. A skipped column is worth a sliver
+    # of open water, so islands the hash threw far apart are drawn further apart.
+    test "a skipped column is a sliver of sea rather than nothing" do
+      # a and b are adjacent; c is three columns further on.
+      placed = %{"a" => {1, 0}, "b" => {2, 0}, "c" => {5, 0}}
+
+      %{"a" => {ax, _}, "b" => {bx, _}, "c" => {cx, _}} =
+        Archipelago.pixels(placed, 100, 10)
+
+      # b sits one island from a, with nothing skipped.
+      assert bx - ax == 100
+      # c sits one island from b PLUS the two columns skipped on the way.
+      assert cx - bx == 100 + 2 * 10
+    end
+
+    test "and with no open sea it collapses exactly as before" do
+      placed = %{"a" => {1, 0}, "b" => {9, 0}}
+
+      assert %{"a" => {0, 0}, "b" => {100, 0}} = Archipelago.pixels(placed, 100)
+    end
   end
 
   # A layout with no islands is what every viewer starts with, and a page that
