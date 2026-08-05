@@ -274,4 +274,58 @@ defmodule BeamCampusWeb.DronexLiveTest do
     |> String.replace("&gt;", ">")
     |> String.replace("&#39;", "'")
   end
+
+  # ⚠ A RAID BEATS A TRAINING BOUT EVERY TIME, and for a while it lost to one. A
+  # bout is one controller against a scripted drill: two marks, and the drill is
+  # not alive in any interesting sense. A raid is six evolved controllers against
+  # six others, bred on different machines under pressures neither chose. That is
+  # what this archipelago exists to produce and it was being played small,
+  # underneath a picture of two circles and an arc.
+  test "a raid is what gets played, in preference to a training bout", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
+
+    Board.put("aaa", :bout, %{
+      "island" => "beam01",
+      "kind" => "training",
+      "winner" => "attacker",
+      "ticks" => 110,
+      "arena" => [1000, 1000, 300],
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+    })
+
+    Board.put_raid("r3", :raid, %{
+      "raid_id" => "r3",
+      "kind" => "raid",
+      "winner" => "defender",
+      "ticks" => 240,
+      "arena" => [1000, 1000, 300],
+      "frames" => [%{"t" => 0, "d" => [0, 100, 100, 80, 0, 100, 0], "m" => []}]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "A raid, fought in somebody else&#39;s airspace"
+    assert html =~ "240 tick"
+    refute html =~ "A training bout"
+  end
+
+  # And an island that has never been raided still has something to watch, rather
+  # than an empty canvas that explains nothing.
+  test "a training bout is played when there has been no raid", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
+
+    Board.put("aaa", :bout, %{
+      "island" => "beam01",
+      "kind" => "training",
+      "winner" => "attacker",
+      "ticks" => 110,
+      "arena" => [1000, 1000, 300],
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "A training bout"
+    assert html =~ "No island has been raided yet"
+  end
 end

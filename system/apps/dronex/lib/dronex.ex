@@ -90,6 +90,41 @@ defmodule Dronex do
   """
   defdelegate raids, to: Dronex.WatchBouts.Board
 
+  @doc """
+  The most recent fight worth watching, and what kind it is.
+
+  ⚠ **A RAID BEATS A TRAINING BOUT EVERY TIME.** A bout is one controller against
+  a scripted drill: two marks, and the drill is not alive in any interesting
+  sense. A raid is six evolved controllers against six others, bred on different
+  machines under selection pressures neither chose. That is the thing this whole
+  archipelago exists to produce, and it was being shown underneath a map of two
+  circles.
+
+  Falls back to a bout, because an island that has never been raided still has
+  something to show and an empty canvas explains nothing.
+  """
+  def latest_fight do
+    case newest_raid() do
+      nil -> from_bout()
+      raid -> {:raid, raid}
+    end
+  end
+
+  defp newest_raid do
+    raids()
+    |> Enum.flat_map(fn r -> List.wrap(Map.get(r.parts, :raid)) |> Enum.take(1) end)
+    |> List.first()
+  end
+
+  defp from_bout do
+    islands()
+    |> Enum.find_value(fn row -> fact(row, :bout) end)
+    |> case do
+      nil -> nil
+      bout -> {:bout, bout}
+    end
+  end
+
   @doc "Whether a raid has been fought and drawn, as opposed to still being out."
   def finished?(%{parts: parts}), do: Map.has_key?(parts, :raid)
   def finished?(_other), do: false

@@ -61,12 +61,17 @@ defmodule BeamCampusWeb.DronexLive do
   @impl true
   def handle_event("choose", %{"id" => id}, socket), do: {:noreply, assign(socket, chosen: id)}
 
+  # The same deep blue-black the maps use. A function and not a module attribute:
+  # inside a `~H` sigil `@backdrop` means `assigns.backdrop`.
+  defp backdrop, do: "bg-[#0a1220]"
+
   defp load(socket) do
     islands = Dronex.islands()
 
     assign(socket,
       islands: islands,
       raids: Dronex.raids(),
+      fight: Dronex.latest_fight(),
       state: Dronex.state(),
       refused: Dronex.refused()
     )
@@ -108,7 +113,14 @@ defmodule BeamCampusWeb.DronexLive do
 
         <.dronex_state state={@state} refused={@refused} />
 
-        <%!-- ⚠ THE MAP FIRST, AND THE PANELS BELOW IT. Every island has been a
+        <%!-- ⚠ THE FIGHT FIRST, AND EVERYTHING ELSE UNDER IT. What anybody
+             opening this page wants is drones fighting drones. The map, the
+             counters and the frozen ladder all explain the fight; none of them
+             replaces it, and for a while the fight was a small canvas below a
+             picture of two circles and an arc. --%>
+        <.fight :if={@fight} fight={@fight} />
+
+        <%!-- ⚠ THE MAP SECOND. Every island has been a
              row in a list until now, which reads as several unrelated
              experiments. They are one archipelago, and the raids between them
              are the only thing that makes that true rather than asserted. --%>
@@ -134,11 +146,6 @@ defmodule BeamCampusWeb.DronexLive do
           </div>
 
           <.vitals :if={@shown} row={@shown} />
-          <.replay :if={@bout} bout={@bout} />
-          <p :if={@shown && is_nil(@bout)} class="mt-6 text-sm opacity-60">
-            This island is reporting, and has not published a fight yet. An island
-            publishes one every twenty seconds once it has a population.
-          </p>
         </div>
 
         <p class="mt-10 text-sm opacity-60">
@@ -242,9 +249,45 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
-  # ── The replay ──────────────────────────────────────────────────
+  # ── The fight ───────────────────────────────────────────────────
+
+  @doc """
+  The most recent fight, played big.
+
+  ⚠ **A RAID IS SIX AGAINST SIX AND A TRAINING BOUT IS ONE AGAINST A SCRIPT.**
+  Both arrive in the same shape, so the same player draws either; what differs is
+  that a raid is the only one where both sides are alive, evolved, and bred on
+  different machines. It is shown whenever there is one.
+  """
+  attr :fight, :any, required: true
+
+  def fight(%{fight: {kind, b}} = assigns) do
+    assigns = assign(assigns, bout: b, raid?: kind == :raid)
+
+    ~H"""
+    <section class="mt-8">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 class="text-sm font-semibold opacity-80">
+          {(@raid? && "A raid, fought in somebody else's airspace") || "A training bout"}
+        </h2>
+        <span :if={@raid?} class="badge badge-sm badge-error badge-outline">raid</span>
+      </div>
+
+      <p class="mt-1 text-xs opacity-50">
+        {(@raid? &&
+            "Six evolved controllers against six others, bred on a different machine under selection pressures neither side chose. The attacker flew in; the defender ran the fight and keeps every genome that attacked it.") ||
+          "One evolved controller against a scripted drill. No island has been raided yet, so this is what there is to watch."}
+      </p>
+
+      <.replay bout={@bout} big={@raid?} />
+    </section>
+    """
+  end
+
+  def fight(assigns), do: ~H""
 
   attr :bout, :map, required: true
+  attr :big, :boolean, default: false
 
   defp replay(assigns) do
     b = assigns.bout
@@ -403,8 +446,8 @@ defmodule BeamCampusWeb.DronexLive do
         phx-hook=".Replay"
         phx-update="ignore"
         data-bout={@payload}
-        class="mt-2 w-full rounded bg-black/40"
-        style="aspect-ratio: 5 / 3"
+        class={["mt-2 w-full rounded", backdrop()]}
+        style={(@big && "aspect-ratio: 16 / 9") || "aspect-ratio: 5 / 3"}
         role="img"
         aria-label={"a #{@ticks} tick engagement, won by #{@winner}"}
       >
