@@ -41,7 +41,7 @@ defmodule BeamCampusWeb.DronexLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Dronex.subscribe()
-    {:ok, socket |> assign(dirty?: false, chosen: nil) |> load()}
+    {:ok, socket |> assign(dirty?: false, chosen: nil, watching: nil) |> load()}
   end
 
   @impl true
@@ -61,21 +61,50 @@ defmodule BeamCampusWeb.DronexLive do
   @impl true
   def handle_event("choose", %{"id" => id}, socket), do: {:noreply, assign(socket, chosen: id)}
 
+  # ⚠ THE PICKED FIGHT SURVIVES A REDRAW, which is the whole point of holding it
+  # in the socket rather than recomputing "the best one" every second. Facts
+  # arrive continuously from four islands; a visitor who clicked a fight and had
+  # it swapped out from under them two seconds later would conclude the page was
+  # broken, and would be right.
+  def handle_event("watch", %{"key" => key}, socket),
+    do: {:noreply, socket |> assign(watching: key) |> load()}
+
   # The same deep blue-black the maps use. A function and not a module attribute:
   # inside a `~H` sigil `@backdrop` means `assigns.backdrop`.
   defp backdrop, do: "bg-[#0a1220]"
 
   defp load(socket) do
     islands = Dronex.islands()
+    watchable = Dronex.watchable()
 
     assign(socket,
       islands: islands,
       raids: Dronex.raids(),
-      fight: Dronex.latest_fight(),
+      watchable: watchable,
+      leaderboard: Dronex.leaderboard(),
+      fight: watching(watchable, socket.assigns[:watching]),
       state: Dronex.state(),
       refused: Dronex.refused()
     )
   end
+
+  # Whichever fight was clicked, else the best one the ranking offers, else
+  # whatever `Dronex.latest_fight/0` can still find. The last fallback matters:
+  # an island that has published vitals and nothing else has no watchable fight
+  # at all, and an empty canvas explains nothing.
+  defp watching(watchable, key) do
+    picked(Enum.find(watchable, &(tag(&1.key) == key)) || List.first(watchable))
+  end
+
+  # ⚠ `|>` BINDS TIGHTER THAN `||`, which made the first version of this return
+  # the ranking ENTRY rather than the `{kind, fact}` the renderer takes — and
+  # only in the case where a fight was actually found, so the fallback path
+  # looked fine and the normal path did not.
+  defp picked(nil), do: Dronex.latest_fight()
+  defp picked(entry), do: {entry.kind, entry.fact}
+
+  # `{:raid, "abc"}` is not something a DOM attribute can carry back.
+  defp tag({kind, id}), do: "#{kind}:#{id}"
 
   # The island being watched: whichever was clicked, else the first that has
   # actually published a bout, else the first at all.
@@ -118,12 +147,16 @@ defmodule BeamCampusWeb.DronexLive do
              counters and the frozen ladder all explain the fight; none of them
              replaces it, and for a while the fight was a small canvas below a
              picture of two circles and an arc. --%>
+        <.chooser :if={@watchable != []} watchable={@watchable} watching={@watching} />
+
         <.fight :if={@fight} fight={@fight} />
 
         <%!-- ⚠ THE MAP SECOND. Every island has been a
              row in a list until now, which reads as several unrelated
              experiments. They are one archipelago, and the raids between them
              are the only thing that makes that true rather than asserted. --%>
+        <.leaderboard :if={@leaderboard != []} standings={@leaderboard} />
+
         <.archipelago :if={@islands != []} islands={@islands} raids={@raids} class="mt-8" />
 
         <%!-- ⚠ OUTSIDE THE ISLANDS BLOCK ON PURPOSE. A raid is archipelago
@@ -246,6 +279,123 @@ defmodule BeamCampusWeb.DronexLive do
         {@value}<span :if={@of} class="text-base opacity-40">/{@of}</span>
       </div>
     </div>
+    """
+  end
+
+  # ── Choosing what to watch, and the standings ───────────────────
+
+  @doc """
+  Pick a fight to watch.
+
+  ⚠ WITH FOUR ISLANDS THERE ARE TWELVE DIRECTED PAIRS AND "THE NEWEST ONE" IS A
+  POOR ANSWER. The newest fight is very often a rout, and a visitor who arrives
+  during one concludes the whole exhibit is a rout. Worse, three islands can now
+  raid a fourth at the same moment — that is the point of the fourth island —
+  and a page that shows one fight would silently drop the other two.
+  """
+  attr :watchable, :list, required: true
+  attr :watching, :any, default: nil
+
+  def chooser(assigns) do
+    ~H"""
+    <section class="mt-8">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 class="text-sm font-semibold opacity-80">Fights to watch</h2>
+        <span class="text-xs opacity-40">{length(@watchable)} held</span>
+      </div>
+
+      <ul class="mt-2 grid gap-1 sm:grid-cols-2">
+        <li :for={f <- Enum.take(@watchable, 8)}>
+          <button
+            phx-click="watch"
+            phx-value-key={"#{elem(f.key, 0)}:#{elem(f.key, 1)}"}
+            data-watch={"#{elem(f.key, 0)}:#{elem(f.key, 1)}"}
+            class={[
+              "w-full rounded border p-2 text-left transition",
+              (@watching == "#{elem(f.key, 0)}:#{elem(f.key, 1)}" && "border-primary") ||
+                "border-base-300 hover:border-base-content/30"
+            ]}
+          >
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-mono text-xs">{f.title}</span>
+              <span class={[
+                "badge badge-xs",
+                (f.kind == :raid && "badge-error badge-outline") || "badge-ghost"
+              ]}>
+                {f.kind}
+              </span>
+            </div>
+            <div class="text-xs opacity-45">{f.why}</div>
+          </button>
+        </li>
+      </ul>
+
+      <p class="mt-2 text-xs opacity-40">
+        <%!-- ⚠ SAID OUT LOUD, BECAUSE A RANKING THAT WILL NOT EXPLAIN ITSELF IS
+              ASKING TO BE TRUSTED. This orders a list and measures nothing. --%>
+        Ordered by how interesting the fight is likely to be, not by how recent:
+        a raid over a training bout, both sides losing airframes over a rout, a
+        close finish, and a raider winning away from home over a defender
+        holding. The line under each is the strongest reason it is on this list.
+        It is a way of sorting a list and it measures nothing.
+      </p>
+    </section>
+    """
+  end
+
+  @doc """
+  The islands, ranked on the one number they all earn on identical terms.
+  """
+  attr :standings, :list, required: true
+
+  def leaderboard(assigns) do
+    ~H"""
+    <section class="mt-8">
+      <h2 class="text-sm font-semibold opacity-80">The archipelago, ranked</h2>
+
+      <div class="mt-2 overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr class="text-xs opacity-50">
+              <th>island</th>
+              <th class="text-right">benchmark</th>
+              <th class="text-right">generation</th>
+              <th class="text-right">roster</th>
+              <th class="text-right">raids</th>
+              <th class="text-right">held</th>
+              <th class="text-right">captures</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={{s, n} <- Enum.with_index(@standings)} data-standing={s.island}>
+              <td class="font-mono text-xs">
+                <span :if={n == 0} class="opacity-70">★</span> {s.island}
+              </td>
+              <td class="text-right font-mono">{s.score}%</td>
+              <td class="text-right font-mono opacity-60">{s.generation}</td>
+              <td class="text-right font-mono opacity-60">{s.roster}/{s.capacity}</td>
+              <td class="text-right font-mono opacity-60">{s.raids}</td>
+              <td class="text-right font-mono opacity-60">{s.defences}</td>
+              <td class="text-right font-mono opacity-60">{s.captures}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-2 text-xs opacity-40">
+        <%!-- ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME
+              COLUMNS, and saying so is the whole reason this caption exists. --%>
+        Ranked on the <strong>frozen benchmark</strong>
+        and deliberately not on
+        raids. The benchmark is the only number every island earns on identical
+        terms: the same scripted drills from the same fixed starts, flown as an
+        away game with no ground network at all, so it scores the controller and
+        never the terrain. Raid counts are shown because they are interesting and
+        are not comparable between islands — who you fought, how often, and
+        whether your neighbours were awake all move them, so an island that
+        raided a sleepy neighbour twenty times would top a table it never earned.
+      </p>
+    </section>
     """
   end
 

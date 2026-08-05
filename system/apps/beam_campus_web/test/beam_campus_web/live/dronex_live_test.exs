@@ -356,6 +356,81 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ "of them, and the pale discs"
   end
 
+  # ⚠ THE POINT OF THE FOURTH ISLAND IS SIMULTANEITY, so a page that can only
+  # ever draw one fight would silently drop the other two the moment it arrived.
+  test "concurrent raids are all offered, not just the newest", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "roster" => 90, "capacity" => 240})
+
+    for {id, attacker} <- [{"r1", "beam01"}, {"r2", "beam02"}, {"r3", "beam03"}] do
+      Board.put_raid(id, :raid, raid(attacker, "beam00"))
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    offered = Regex.scan(~r/data-watch="raid:([^"]*)"/, html) |> Enum.map(&List.last/1)
+    assert Enum.sort(offered) == ["r1", "r2", "r3"]
+  end
+
+  # The ranking orders a list and measures nothing, but it must at least put a
+  # raid above a training bout: a bout is one controller against a script.
+  test "a raid outranks a training bout, and says why", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "roster" => 90, "capacity" => 240})
+    Board.put("aaa", :bout, %{"island" => "beam00", "kind" => "training", "winner" => "draw"})
+    Board.put_raid("r1", :raid, raid("beam01", "beam00"))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    [first | _] = Regex.scan(~r/data-watch="([^:]*):/, html) |> Enum.map(&List.last/1)
+    assert first == "raid"
+    assert html =~ "a raid: evolved against evolved"
+  end
+
+  # ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME COLUMNS.
+  # Ranking on raids would let an island that raided a sleepy neighbour twenty
+  # times top a table it never earned; the benchmark is the only number every
+  # island earns on identical terms.
+  test "the leaderboard ranks on the frozen benchmark, not on raids", %{conn: conn} do
+    Board.put("aaa", :vitals, standing("beam00", [1, 1], 8, 40))
+    Board.put("bbb", :vitals, standing("beam01", [6, 6], 8, 0))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    ranked = Regex.scan(~r/data-standing="([^"]*)"/, html) |> Enum.map(&List.last/1)
+    # beam01 has 75% of the benchmark and no raids; beam00 has 12% and forty.
+    assert ranked == ["beam01", "beam00"]
+    assert html =~ "deliberately not on"
+  end
+
+  defp raid(attacker, island) do
+    %{
+      "island" => island,
+      "attacker_id" => attacker,
+      "kind" => "raid",
+      "winner" => "attacker",
+      "ticks" => 800,
+      "raiders" => 12,
+      "raiders_home" => 5,
+      "defenders" => 12,
+      "defenders_home" => 4,
+      "arena" => [1000, 1000, 300],
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => [], "k" => []}]
+    }
+  end
+
+  defp standing(name, wins, starts, raids) do
+    %{
+      "island" => name,
+      "roster" => 90,
+      "capacity" => 240,
+      "benchmark_rungs" => ["hoverer", "sniper"],
+      "benchmark_wins" => wins,
+      "benchmark_starts" => starts,
+      "raids" => raids,
+      "captures" => raids,
+      "generation" => 3
+    }
+  end
+
   defp unescape(s) do
     s
     |> String.replace("&quot;", "\"")

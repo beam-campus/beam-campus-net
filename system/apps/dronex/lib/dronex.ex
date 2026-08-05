@@ -140,4 +140,162 @@ defmodule Dronex do
   @doc "One island's latest fact of a given kind, or nil."
   def fact(row, kind) when is_map(row), do: Map.get(row.facts, kind)
   def fact(_row, _kind), do: nil
+
+  @doc """
+  Every fight the site could draw, best first.
+
+  ⚠ **THIS RANKING IS A HEURISTIC FOR ORDERING A LIST AND NOTHING ELSE.** It is
+  not a measurement, no register entry may cite it, and it decides nothing about
+  the world. It exists because with four islands there are up to twelve directed
+  pairs raiding each other and "the newest one" is a poor way to choose what a
+  visitor sees first: the newest fight is very often a rout.
+
+  What it rewards, said plainly so the list is not a black box:
+
+    * a **raid** over a training bout, always. A bout is one evolved controller
+      against a scripted drill; a raid is twelve evolved controllers against
+      twelve others bred on a different machine under pressures neither side
+      chose. That is the thing this archipelago exists to produce.
+    * **both sides bleeding.** A fight where one side lost nothing is a rout, and
+      a rout is the same picture every time.
+    * **closeness**, by how near the two survivor counts finished.
+    * **an attacker win**, because attacking is priced twice — airframes spent,
+      and no ground network in somebody else's airspace — so a raider that wins
+      did something harder than a defender that held.
+    * **length**, mildly. A fight that ran long was contested.
+
+  Each entry carries `why`, the single strongest reason it is here, so a visitor
+  can see the ranking's opinion rather than being asked to trust it.
+  """
+  def watchable do
+    (Enum.flat_map(raids(), &watchable_raid/1) ++ Enum.flat_map(islands(), &watchable_bout/1))
+    |> Enum.sort_by(& &1.score, :desc)
+  end
+
+  defp watchable_raid(%{id: id, parts: parts}) do
+    case Map.get(parts, :raid) do
+      [fact | _] -> [scored({:raid, id}, :raid, fact)]
+      _none -> []
+    end
+  end
+
+  defp watchable_bout(row) do
+    case fact(row, :bout) do
+      nil -> []
+      fact -> [scored({:bout, row.id}, :bout, fact)]
+    end
+  end
+
+  defp scored(key, kind, fact) do
+    reasons = reasons(kind, fact)
+
+    %{
+      key: key,
+      kind: kind,
+      fact: fact,
+      title: title(kind, fact),
+      score: Enum.sum(Enum.map(reasons, &elem(&1, 0))),
+      why: why(reasons)
+    }
+  end
+
+  # {points, reason}. The reason is shown; the points only order the list.
+  defp reasons(:bout, _fact), do: [{0, "a training bout against a scripted drill"}]
+
+  defp reasons(:raid, f) do
+    sent = num(f, "raiders")
+    home = num(f, "raiders_home")
+    held = num(f, "defenders")
+    stood = num(f, "defenders_home")
+
+    [
+      {1000, "a raid: evolved against evolved"},
+      bled(home < sent and stood < held),
+      close(abs(home - stood)),
+      upset(Map.get(f, "winner")),
+      contested(num(f, "ticks"))
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp bled(true), do: {300, "both sides lost airframes"}
+  defp bled(false), do: nil
+
+  defp close(0), do: {400, "it finished level"}
+  defp close(gap) when gap <= 3, do: {400 - gap * 60, "it finished within #{gap}"}
+  defp close(_wide), do: nil
+
+  defp upset("attacker"), do: {250, "the raider won, away and outnumbered by its ground"}
+  defp upset(_other), do: nil
+
+  defp contested(ticks) when ticks > 600, do: {120, "it ran long"}
+  defp contested(_short), do: nil
+
+  defp why([]), do: "a fight"
+  defp why(reasons), do: reasons |> Enum.max_by(&elem(&1, 0)) |> elem(1)
+
+  defp title(:raid, f), do: "#{name_of(Map.get(f, "attacker_id"))} → #{Map.get(f, "island")}"
+  defp title(:bout, f), do: "#{Map.get(f, "island")} against a drill"
+
+  defp name_of(nil), do: "somebody"
+
+  defp name_of(id) do
+    case island(id) do
+      nil -> String.slice(to_string(id), 0, 8)
+      row -> label(row)
+    end
+  end
+
+  @doc """
+  Islands ranked, and ranked on the FROZEN BENCHMARK rather than on raids.
+
+  ⚠ **THE RAID RECORD IS SHOWN AND IS DELIBERATELY NOT THE RANKING.** Raids are
+  not comparable between islands: who you fought, how often, and whether your
+  neighbours were awake all move the number, and an island that raided a weak
+  neighbour twenty times would top a table it never earned. The benchmark is the
+  only number every island earns on identical terms — the same scripted drills
+  from the same fixed starts, flown as an AWAY game with no ground network at
+  all, so it scores the controller and never the terrain.
+
+  That is also why the benchmark was built before any breeding existed: a rising
+  number against a moving exam is an artifact, and a leaderboard is exactly the
+  place that artifact would be laundered into a fact.
+  """
+  def leaderboard do
+    islands()
+    |> Enum.map(&standing/1)
+    |> Enum.sort_by(& &1.score, :desc)
+  end
+
+  defp standing(row) do
+    v = fact(row, :vitals) || %{}
+    rungs = length(Map.get(v, "benchmark_rungs", []))
+    starts = num(v, "benchmark_starts")
+    wins = Enum.sum(Map.get(v, "benchmark_wins", []))
+
+    %{
+      island: label(row),
+      id: row.id,
+      score: percent(wins, rungs * starts),
+      rungs: rungs,
+      generation: num(v, "generation"),
+      roster: num(v, "roster"),
+      capacity: num(v, "capacity"),
+      raids: num(v, "raids"),
+      captures: num(v, "captures"),
+      defences: num(v, "defences")
+    }
+  end
+
+  defp percent(_w, 0), do: 0
+  defp percent(w, n), do: div(w * 100, n)
+
+  defp num(map, key) when is_map(map) do
+    case Map.get(map, key) do
+      n when is_integer(n) -> n
+      _otherwise -> 0
+    end
+  end
+
+  defp num(_map, _key), do: 0
 end
