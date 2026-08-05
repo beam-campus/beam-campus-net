@@ -700,7 +700,19 @@ defmodule BeamCampusWeb.DronexLive do
               const x = f.d[k + 1], y = f.d[k + 2], z = f.d[k + 3]
               const yaw = f.d[k + 4], health = f.d[k + 5], state = f.d[k + 6]
               const attacker = id % 2 === 0
-              const colour = attacker ? "#4C8DFF" : "#E2556E"
+              // ⚠ RED IS THE RAIDER AND BLUE IS THE ISLAND HOLDING THE GROUND,
+              // which is the way round every air-defence display has drawn it
+              // for as long as there have been air-defence displays: blue is
+              // us, red is what is coming at us. It was the other way round
+              // until Raf pointed at it.
+              //
+              // "Us" is not arbitrary here. THE DEFENDER PUBLISHES THE
+              // RECORDING — it hosted the fight, it settled it, and the
+              // spectator is watching its airspace. So the island whose ground
+              // this is gets the friendly colour, and it lands in the same
+              // family as the teal masts standing on that ground, which reads
+              // correctly: the swarm and the towers are one defence.
+              const colour = attacker ? "#E2556E" : "#4C8DFF"
               const [px, py] = this.project(x, y, z)
               const [gx, gy] = this.project(x, y, 0)
 
@@ -800,8 +812,8 @@ defmodule BeamCampusWeb.DronexLive do
               against", which stopped being true the moment a raid was what got
               played: in a raid the red side is another island's evolved swarm,
               not a script. --%>
-        Blue is the attacking side, red the defending one, green a drone that
-        withdrew alive, faded a drone that was destroyed. The line is where a
+        Red is the raiding side and blue the island defending its own airspace,
+        green a drone that withdrew alive, faded a drone that was destroyed. The line is where a
         drone's nose points, which is the only direction it can see or shoot.
         Orange marks are guided interceptors and grey ones are unguided.
       </p>
