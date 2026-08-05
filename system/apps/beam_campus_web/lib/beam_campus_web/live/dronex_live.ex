@@ -147,9 +147,14 @@ defmodule BeamCampusWeb.DronexLive do
              counters and the frozen ladder all explain the fight; none of them
              replaces it, and for a while the fight was a small canvas below a
              picture of two circles and an arc. --%>
-        <.chooser :if={@watchable != []} watchable={@watchable} watching={@watching} />
-
+        <%!-- ⚠ THE FIGHT LEADS. The chooser was first, so the first thing a
+              visitor met was eight near-identical buttons asking them to choose
+              between fights they could not yet picture, above a footnote
+              admitting the ordering measures nothing. The page IS the canvas: it
+              should be moving before anything asks for a decision. --%>
         <.fight :if={@fight} fight={@fight} />
+
+        <.chooser :if={@watchable != []} watchable={@watchable} watching={@watching} />
 
         <%!-- ⚠ THE MAP SECOND. Every island has been a
              row in a list until now, which reads as several unrelated
@@ -300,7 +305,7 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <section class="mt-8">
       <div class="flex items-baseline justify-between gap-3">
-        <h2 class="text-sm font-semibold opacity-80">Fights to watch</h2>
+        <h2 class="text-sm font-semibold opacity-80">Watch another</h2>
         <span class="text-xs opacity-40">{length(@watchable)} held</span>
       </div>
 
@@ -358,7 +363,7 @@ defmodule BeamCampusWeb.DronexLive do
           <thead>
             <tr class="text-xs opacity-50">
               <th>island</th>
-              <th class="text-right">benchmark</th>
+              <th class="text-right">frozen exam</th>
               <th class="text-right">generation</th>
               <th class="text-right">roster</th>
               <th class="text-right">raids</th>
@@ -385,7 +390,13 @@ defmodule BeamCampusWeb.DronexLive do
       <p class="mt-2 text-xs opacity-40">
         <%!-- ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME
               COLUMNS, and saying so is the whole reason this caption exists. --%>
-        Ranked on the <strong>frozen benchmark</strong>
+        <%!-- ⚠ ONE PHRASE, NOT TWO. This said "frozen benchmark" while the
+              section above said "frozen exam", so a reader had to work out that
+              two names were one thing before reading either. --%>
+        Ranked on the <strong>frozen exam</strong>
+        — a fixed ladder of scripted
+        opponents that never changes, so a rising score means the drones got
+        better rather than the exam got easier —
         and deliberately not on
         raids. The benchmark is the only number every island earns on identical
         terms: the same scripted drills from the same fixed starts, flown as an
@@ -691,7 +702,7 @@ defmodule BeamCampusWeb.DronexLive do
 
             c.globalAlpha = 1
             c.strokeStyle = "#45C8D8"
-            c.lineWidth = 1.6
+            c.lineWidth = 2
             c.beginPath()
             c.moveTo(lx, ly); c.lineTo(tx, ty); c.lineTo(rx, ry)
             c.stroke()
@@ -710,7 +721,7 @@ defmodule BeamCampusWeb.DronexLive do
             // The head that does the looking.
             c.globalAlpha = 1
             c.fillStyle = "#9AE9F2"
-            c.beginPath(); c.arc(tx, ty, 3, 0, 6.284); c.fill()
+            c.beginPath(); c.arc(tx, ty, 3.5, 0, 6.284); c.fill()
 
             // A pad on the floor, so the tower is planted rather than hovering.
             const [bx, by] = this.project(x, y, z)
@@ -753,21 +764,85 @@ defmodule BeamCampusWeb.DronexLive do
           // floor, faint, plus the dome cut at the height the attackers are
           // actually flying. As they climb, those rings shrink and lift, which
           // shows the shape by moving through it rather than by drawing it.
-          towers() {
+          // ⚠ THE TOWERS PING. THEY DO NOT SIT INSIDE A WIREFRAME.
+          //
+          // Coverage is a DOME: a station tests slant range from the ground, so
+          // its radius at altitude z is sqrt(R² - z²), 350 m on the floor and
+          // 180 m at the 300 m ceiling. That shape was drawn statically four
+          // ways — ceiling rings, meridian cages, stacked shells, a live slice at
+          // the raiders' altitude — and every one turned to spaghetti, because
+          // the domes are 350 m across on a 1000 m arena and there are five.
+          //
+          // ⚠⚠ AND THE STATIC VERSION BURIED THE MASTS IN THEIR OWN COLOUR. The
+          // network's confirmed picture is teal too, and there are up to
+          // TWENTY-SIX tracks against five masts. "Where are the towers" kept
+          // the same answer for the third time running.
+          //
+          // ⚠⚠⚠ SO: A PULSE. An expanding ring costs nothing on a still frame,
+          // cannot accumulate into clutter, and MOVES — which is the one thing
+          // that pulls an eye across a canvas of twenty-four moving drones.
+          // Everything else here translates ballistically; nothing else pulses
+          // in place, and a stationary pulse is separable from any amount of
+          // moving clutter without being brighter than it. It also says what the
+          // thing IS: something that senses, rather than furniture with a circle
+          // round it.
+          //
+          // The ring expands to the station's real reach, so the animation
+          // teaches the coverage the wireframe was trying to state, and stations
+          // are phase-offset so the archipelago breathes rather than metronomes.
+          //
+          // ⚠⚠⚠⚠ AND IT IS SILENT WHEN THE NETWORK IS. A mast pings only while
+          // the ground holds something CONFIRMED, because the network says
+          // nothing until then. A quiet floor is the truth and not a gap in the
+          // drawing. REGISTER D.13 says that at the shipped settings it is never
+          // quiet, which is itself worth being able to see.
+          pings(loud) {
+            if (this.groundRange <= 0 || !loud) return
             const c = this.ctx
-            const R = this.groundRange
-            const z = this.raiderAltitude()
-            const r = Math.sqrt(Math.max(0, R * R - z * z))
+            const period = 44
+            this.stations().forEach(([x, y], n) => {
+              for (const offset of [0, 22]) {
+                const phase = (((this.i + n * 11 + offset) % period) + period) % period / period
+                if (phase < 0.02) continue
+                c.globalAlpha = 1
+                c.strokeStyle = "rgba(69,200,216," + (0.55 * (1 - phase)).toFixed(3) + ")"
+                c.lineWidth = 1.3
+                this.ring(x, y, this.groundRange * phase)
+                c.stroke()
+              }
+            })
+          },
 
-            // Every fill lands before any outline, so no dome is dimmed by its
-            // neighbour's wash.
-            for (const [x, y] of this.stations()) this.slice(x, y, 0, R, "rgba(69,200,216,0.035)")
-            for (const [x, y] of this.stations()) this.slice(x, y, 0, R, null, "rgba(69,200,216,0.15)")
-            if (z > 0) {
-              for (const [x, y] of this.stations()) this.slice(x, y, z, r, "rgba(69,200,216,0.05)")
-              for (const [x, y] of this.stations()) this.slice(x, y, z, r, null, "rgba(69,200,216,0.38)")
+          // The full footprint, faint, so a PAUSED frame still says how far a
+          // station reaches. Without it the extent is knowable only by watching,
+          // and a scrubbed-to frame would show masts standing in nothing.
+          reach() {
+            if (this.groundRange <= 0) return
+            const c = this.ctx
+            c.globalAlpha = 1
+            c.strokeStyle = "rgba(69,200,216,0.12)"
+            c.lineWidth = 1
+            for (const [x, y] of this.stations()) {
+              this.ring(x, y, this.groundRange)
+              c.stroke()
             }
-            for (const [x, y, sz] of this.stations()) this.mast(x, y, sz)
+          },
+
+          // Under the fight: the ground the fight is being fought over.
+          terrain(loud) {
+            this.reach()
+            this.pings(loud)
+          },
+
+          // ⚠ OVER THE FIGHT, AND THAT IS A REVERSAL. Terrain belongs underneath
+          // everything on principle — a mast cannot be shot at and does not move
+          // — and underneath is where twenty-four full-alpha drones, their
+          // trails, their altitude stalks and their heading lines painted over
+          // it. Principle lost to arithmetic: a thing that cannot be seen is not
+          // drawn. The pulses and the footprint stay below, so only the five
+          // small solid marks come through.
+          masts() {
+            for (const [x, y, z] of this.stations()) this.mast(x, y, z)
           },
 
           stations() {
@@ -778,37 +853,51 @@ defmodule BeamCampusWeb.DronexLive do
             return out
           },
 
-          // ⚠ THE ATTACKERS' HEIGHT, NOT EVERYBODY'S. "Am I being seen" is the
-          // raider's question, and averaging in a defender sitting on the deck
-          // would draw a slice nobody is flying through. Even ids are attackers.
-          raiderAltitude() {
-            const f = this.frames[this.i]
-            if (!f) return 0
-            const alt = []
-            for (let k = 0; k + this.stride <= f.d.length; k += this.stride) {
-              if (f.d[k] % 2 === 0) alt.push(f.d[k + 3])
-            }
-            if (!alt.length) return 0
-            alt.sort((a, b) => a - b)
-            return alt[Math.floor(alt.length / 2)]
-          },
-
-          // A horizontal circle at altitude `z`, as the polygon it projects to.
+          // A horizontal circle on the floor, as the polygon it projects to.
           // `project` shears and foreshortens, so a circle on the ground is not
           // a circle on screen, and an ellipse fitted by eye would be wrong at
-          // the edges of the arena where it matters most.
-          slice(x, y, z, r, fill, stroke) {
+          // the edges of the arena — which is exactly where the gaps are.
+          ring(x, y, r) {
             const c = this.ctx
-            c.globalAlpha = 1
             c.beginPath()
             for (let n = 0; n <= 40; n++) {
               const a = (n / 40) * 6.283185
-              const [px, py] = this.project(x + Math.cos(a) * r, y + Math.sin(a) * r, z)
+              const [px, py] = this.project(x + Math.cos(a) * r, y + Math.sin(a) * r, 0)
               n ? c.lineTo(px, py) : c.moveTo(px, py)
             }
             c.closePath()
-            if (fill) { c.fillStyle = fill; c.fill() }
-            if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1; c.stroke() }
+          },
+
+          // ⚠ WHAT THE GROUND THINKS IS THERE, WHICH IS NOT WHAT IS THERE.
+          //
+          // ⚠⚠ THIS FUNCTION WAS DELETED BY AN EDIT AND SHIPPED MISSING FOR A
+          // DAY, while the caption underneath went on telling visitors to hunt
+          // for rings that no code drew. The test that was supposed to protect
+          // it asserted the CAPTION. `dronex_live_test` now asserts that this
+          // hook consumes `f.k`, because a promise in prose and a mark on a
+          // canvas are different artifacts and only one of them was checked.
+          //
+          // Small and dim on purpose. These were once the same weight and colour
+          // as the masts, and there are up to twenty-six of them against five
+          // towers, which is how the towers stayed invisible after being redrawn
+          // to be visible. A track is a secondary mark: the ground itself has to
+          // be findable first.
+          //
+          // ⚠⚠⚠ NEVER JOINED TO A DRONE. A non-cooperative sensor never learns
+          // whose aircraft it is looking at, so the wire carries three numbers
+          // per track and no identity. Drawing the join would show a
+          // correspondence the network does not have.
+          believed(f) {
+            const c = this.ctx
+            const k = (f && f.k) || []
+            for (let n = 0; n + this.kstride <= k.length; n += this.kstride) {
+              const [px, py] = this.project(k[n], k[n + 1], k[n + 2])
+              c.globalAlpha = 0.32
+              c.strokeStyle = "#45C8D8"
+              c.lineWidth = 1
+              c.beginPath(); c.arc(px, py, 3, 0, 6.284); c.stroke()
+            }
+            c.globalAlpha = 1
           },
 
           // ⚠ A TRAIL IS THE FRAMES THAT ACTUALLY HAPPENED, NOT A SMOOTHED CURVE.
@@ -833,8 +922,11 @@ defmodule BeamCampusWeb.DronexLive do
             const f = this.frames[this.i]
             c.clearRect(0, 0, this.w, this.h)
             this.floor()
-            this.towers()
-            if (!f) return
+            this.terrain(!!(f && f.k && f.k.length))
+            if (!f) {
+              this.masts()
+              return
+            }
 
             for (let k = 0; k + this.mstride <= f.m.length; k += this.mstride) {
               const [px, py] = this.project(f.m[k + 1], f.m[k + 2], f.m[k + 3])
@@ -926,6 +1018,13 @@ defmodule BeamCampusWeb.DronexLive do
                 c.stroke()
               }
             }
+
+            // ⚠ LAST, AND BOTH FOR THE SAME REASON. The ground's belief and the
+            // masts themselves are small marks competing with twenty-four
+            // full-alpha aircraft; drawn first they are painted over and the
+            // page tells a visitor to look for something that is not there.
+            this.believed(f)
+            this.masts()
             c.globalAlpha = 1
           },
 

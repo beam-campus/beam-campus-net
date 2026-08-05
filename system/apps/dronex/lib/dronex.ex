@@ -1,4 +1,11 @@
 defmodule Dronex do
+
+  # ⚠ THE BASE SCORE IS EXCLUDED FROM THE REASON, and leaving it in made the
+  # chooser useless: every raid outranks every bout by this much, so every
+  # raid's "strongest reason" was the identical line "a raid: evolved against
+  # evolved" and seven rows explained nothing. A reason has to be the strongest
+  # DISTINGUISHING one, or a list of reasons is a list of the same reason.
+  @base 1000
   @moduledoc """
   Read-only view onto the islands of the drone-AI track.
 
@@ -195,7 +202,7 @@ defmodule Dronex do
       fact: fact,
       title: title(kind, fact),
       score: Enum.sum(Enum.map(reasons, &elem(&1, 0))),
-      why: why(reasons)
+      why: why(Enum.reject(reasons, &(elem(&1, 0) >= @base)))
     }
   end
 
@@ -209,7 +216,7 @@ defmodule Dronex do
     stood = num(f, "defenders_home")
 
     [
-      {1000, "a raid: evolved against evolved"},
+      {@base, "a raid: evolved against evolved"},
       bled(home < sent and stood < held),
       close(abs(home - stood)),
       upset(Map.get(f, "winner")),
@@ -231,7 +238,7 @@ defmodule Dronex do
   defp contested(ticks) when ticks > 600, do: {120, "it ran long"}
   defp contested(_short), do: nil
 
-  defp why([]), do: "a fight"
+  defp why([]), do: "a raid, and nothing else to say for it"
   defp why(reasons), do: reasons |> Enum.max_by(&elem(&1, 0)) |> elem(1)
 
   defp title(:raid, f), do: "#{name_of(Map.get(f, "attacker_id"))} → #{Map.get(f, "island")}"

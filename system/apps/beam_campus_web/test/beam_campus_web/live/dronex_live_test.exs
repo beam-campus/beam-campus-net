@@ -382,7 +382,13 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     [first | _] = Regex.scan(~r/data-watch="([^:]*):/, html) |> Enum.map(&List.last/1)
     assert first == "raid"
-    assert html =~ "a raid: evolved against evolved"
+
+    # ⚠ AND THE REASON MUST DISCRIMINATE. Every raid outscores every bout by the
+    # same base, so reporting the strongest reason including that base gave all
+    # seven raids the identical line "a raid: evolved against evolved" and the
+    # chooser explained nothing. This raid finished 5 home against 4.
+    assert html =~ "it finished within 1"
+    refute html =~ "a raid: evolved against evolved"
   end
 
   # ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME COLUMNS.
@@ -399,6 +405,32 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # beam01 has 75% of the benchmark and no raids; beam00 has 12% and forty.
     assert ranked == ["beam01", "beam00"]
     assert html =~ "deliberately not on"
+  end
+
+  # ⚠ THE CAPTION PROMISES A MARK. THIS ASSERTS SOMETHING DRAWS IT.
+  #
+  # `believed/1` was deleted by an unrelated edit and shipped missing for a day
+  # while the caption underneath went on telling visitors to hunt for teal rings
+  # that no code drew. The test that was supposed to protect it asserted the
+  # CAPTION, which survived the deletion untouched — so it stayed green through
+  # exactly the failure it existed to catch.
+  #
+  # A colocated hook is extracted at build time and never appears in the rendered
+  # HTML, so this reads the source. That is a guard probe and it is brittle on
+  # purpose: it fails loudly when the drawing goes away, which is better than the
+  # page failing quietly.
+  test "the replay hook actually draws what the caption promises" do
+    src = File.read!("lib/beam_campus_web/live/dronex_live.ex")
+
+    # The promise.
+    assert src =~ "what the towers have CONFIRMED"
+    # The drawing: a function that consumes the per-frame track array...
+    assert src =~ "believed(f) {"
+    assert src =~ "f.k"
+    # ...and a call site, because a defined-and-uncalled function draws nothing.
+    assert src =~ "this.believed(f)"
+    # And the masts, which vanished into the drone layer when drawn first.
+    assert src =~ "this.masts()"
   end
 
   defp raid(attacker, island) do
