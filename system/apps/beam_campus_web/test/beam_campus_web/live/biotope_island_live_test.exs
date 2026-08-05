@@ -134,7 +134,7 @@ defmodule BeamCampusWeb.BiotopeIslandLiveTest do
   test "renders inside the site layout", %{conn: conn} do
     Board.put_stats(stats())
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/beam01")
-    assert html =~ "Robo Rumble"
+    assert html =~ "ASociety"
   end
 
   # AN EXTINCT ISLAND PUBLISHES PERFECTLY WELL: plants regrow, the tick advances,

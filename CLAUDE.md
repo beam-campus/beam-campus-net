@@ -9,14 +9,24 @@ mirroring `macula-internal/macula-realm`'s operational practices.
   theory, the three asks (run a node / patron / open a door).
 - It is **not** the mesh, the identity service, or an event-sourced domain app.
   No `reckon_db` / `evoq` here, and no store.
-- **It IS a mesh CONSUMER, as of 2026-07-31.** `macula` belongs here now: the
-  Robo Rumble spectator (`apps/robo_rumbler`) subscribes to rumble facts and
-  renders them. The rule until now said "no macula here", which was a blanket
-  exclusion that had stopped being true, and a stale prohibition in a rules file
-  is worse than none: the next session reads it and undoes the work. The
-  constraint that actually matters is narrower and survives:
-  **subscribe and render, never publish, never hold a store.** The site is a
-  reader of the mesh, not a participant in it.
+- **It IS a mesh CONSUMER, as of 2026-07-31.** `macula` belongs here: the
+  biotope, ASociety and DroneX spectators subscribe to published facts and render
+  them. The rule until then said "no macula here", which was a blanket exclusion
+  that had stopped being true, and a stale prohibition in a rules file is worse
+  than none: the next session reads it and undoes the work. The constraint that
+  actually matters is narrower and survives: **subscribe and render, never
+  publish, never hold a store.** The site is a reader of the mesh, not a
+  participant in it.
+- ⚠ **AND NEVER REGENERATE.** The Robo Rumble spectator was removed on 2026-08-05
+  for breaking exactly this. It received two genomes and a start index and
+  **re-ran the duel locally**, which put a game engine inside a content website,
+  pinned `apps/robo_rumbler` and the service on beam03 to commits whose
+  fingerprints drifted with nothing comparing them, and made every viewer repeat
+  about 1,900 frames of identical work. Raf's correction was *aggregate and
+  visualize, never regenerate*. `apps/dronex` is the shape that replaces it: an
+  island publishes a whole engagement as a RECORDING and the page animates it,
+  which also buys scrub, pause and slow motion.
+  **The rumbler service is still running on beam03. Only the page is gone.**
 - Framing is the **position paper**'s: a commons, not a company. Copy says
   *commons / steward / federation / participation*, never *customer / product /
   market / exit*.

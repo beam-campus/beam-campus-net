@@ -190,9 +190,9 @@ defmodule BeamCampusWeb.ASocietyLiveTest do
 
   # ⚠ THE SITE NAV IS ITS OWN LIST, AND A WORKBENCH CARD DOES NOT FEED IT.
   # That is how this page shipped invisible: the card was added, a test asserted
-  # the card, and the dropdown in `layouts.ex` still listed Robo Rumble and
-  # Biotopes and nothing else. A page absent from the menu is a page nobody
-  # finds, whatever else points at it.
+  # the card, and the dropdown in `layouts.ex` listed the other tracks and
+  # nothing else. A page absent from the menu is a page nobody finds, whatever
+  # else points at it.
   test "ASociety is in the site navigation", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research")
 

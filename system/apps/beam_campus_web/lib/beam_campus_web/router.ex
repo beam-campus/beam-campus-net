@@ -29,8 +29,8 @@ defmodule BeamCampusWeb.Router do
     live "/research/workbench/deception-maze", DeceptionMazeLive, :index
     live "/research/workbench/red-queen", RedQueenLive, :index
     live "/research/workbench/neural-coevolution", NeuralCoevolutionLive, :index
-    live "/research/workbench/robo-rumble", RoboRumbleLive, :index
     live "/research/workbench/asociety", ASocietyLive, :index
+    live "/research/workbench/dronex", DronexLive, :index
     live "/research/workbench/biotope", BiotopeLive, :index
     live "/research/workbench/biotope/join", BiotopeJoinLive, :index
     # DECLARED BEFORE THE :island CATCH-ALL, because routes match in order and

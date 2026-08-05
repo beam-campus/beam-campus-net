@@ -91,7 +91,7 @@ defmodule BeamCampusWeb.BiotopeHistoryLiveTest do
   test "renders inside the site layout", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope/history")
 
-    assert html =~ "Robo Rumble"
+    assert html =~ "ASociety"
     assert html =~ ">Workbench<"
   end
 end

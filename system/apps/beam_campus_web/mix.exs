@@ -58,12 +58,10 @@ defmodule BeamCampusWeb.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:beam_campus, in_umbrella: true},
-      # The Robo Rumble spectator: subscribes to the rumbler's mesh facts and
-      # regenerates a published duel locally so the workbench can draw it.
-      {:robo_rumbler, in_umbrella: true},
       # The biotope spectator: subscribes to the islands' mesh facts and draws
-      # the last frame that arrived. Unlike the rumble spectator it regenerates
-      # nothing and shares no code with the service it reads.
+      # the last frame that arrived. It regenerates nothing and shares no code
+      # with the service it reads, which is the rule every spectator here now
+      # follows: the Robo Rumble page did the opposite and was removed for it.
       {:biotope, in_umbrella: true},
       # The artificial-cultures spectator. Same contract as the biotope: it
       # subscribes to published facts and takes no dependency on the island's
@@ -71,6 +69,10 @@ defmodule BeamCampusWeb.MixProject do
       # starts it in the right order; without this the page's calls resolve at
       # runtime, which compiles with warnings and orders the release wrong.
       {:asociety, in_umbrella: true},
+      # The drone-AI spectator. It PLAYS a published recording and never runs the
+      # engine, which it could not do anyway: it takes no dependency on the
+      # island's code, only on the fact and its fact_version.
+      {:dronex, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).

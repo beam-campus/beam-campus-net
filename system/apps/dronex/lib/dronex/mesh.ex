@@ -1,4 +1,4 @@
-defmodule Biotope.Mesh do
+defmodule Dronex.Mesh do
   @moduledoc """
   Holds the Macula SDK pool this app reads islands through.
 
@@ -19,10 +19,13 @@ defmodule Biotope.Mesh do
 
   ## The realm is public, the seeds are not defaulted
 
-  Biotope facts have their own realm, `net.beamcampus.biotope`, exactly so that a
+  Dronex facts have their own realm, `net.beamcampus.dronex`, exactly so that a
   public web container never holds the tag that routes sentinel sightings and
   warden facts. A realm id is sha256 of its name, so the tag is derived rather
-  than issued and naming it openly is the point.
+  than issued and naming it openly is the point:
+
+      net.beamcampus.dronex
+      686fbbf84c5c33455764f4c07c642bd1b79ef4efc78455f61ac12936ca3bffe3
 
   Seeds have no default. Naming a public realm costs nothing; dialling a
   production station from every dev clone does.
@@ -101,12 +104,12 @@ defmodule Biotope.Mesh do
   defp try_connect(%{seeds: seeds} = s) do
     case :macula.connect(seeds, %{}) do
       {:ok, pool} ->
-        Logger.info("[Biotope.Mesh] pool connected (#{length(seeds)} seeds), waiting for a link")
+        Logger.info("[Dronex.Mesh] pool connected (#{length(seeds)} seeds), waiting for a link")
         send(self(), :check_health)
         %{s | pool: pool}
 
       {:error, reason} ->
-        Logger.warning("[Biotope.Mesh] connect failed: #{inspect(reason)}")
+        Logger.warning("[Dronex.Mesh] connect failed: #{inspect(reason)}")
         Process.send_after(self(), :connect, @retry_ms)
         s
     end
@@ -127,7 +130,7 @@ defmodule Biotope.Mesh do
   end
 
   defp ready(true, s) do
-    Logger.info("[Biotope.Mesh] link healthy, ready to subscribe")
+    Logger.info("[Dronex.Mesh] link healthy, ready to subscribe")
     %{s | healthy: true}
   end
 
@@ -145,7 +148,7 @@ defmodule Biotope.Mesh do
   # The 64-hex realm tag, decoded to the 32 bytes the wire wants. A malformed tag
   # is treated as absent rather than crashing the site over a typo in an env var.
   defp realm do
-    :biotope
+    :dronex
     |> Application.get_env(:realm)
     |> decode_realm()
   end
@@ -161,12 +164,12 @@ defmodule Biotope.Mesh do
   end
 
   defp warn_bad_realm do
-    Logger.warning("[Biotope.Mesh] realm is not 64 hex characters, staying dark")
+    Logger.warning("[Dronex.Mesh] realm is not 64 hex characters, staying dark")
     nil
   end
 
   defp seeds do
-    :biotope
+    :dronex
     |> Application.get_env(:seeds, [])
     |> Enum.map(&to_string/1)
   end

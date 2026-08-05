@@ -23,8 +23,8 @@ defmodule BeamCampus.Umbrella.MixProject do
         steps: [:assemble, :tar],
         applications: [
           beam_campus: :permanent,
-          robo_rumbler: :permanent,
           biotope: :permanent,
+          dronex: :permanent,
           beam_campus_web: :permanent
         ]
       ]

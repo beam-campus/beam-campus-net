@@ -66,17 +66,9 @@ defmodule BeamCampusWeb.Layouts do
                 <li><.link navigate={~p"/research/notes"}>Notebook</.link></li>
                 <li><.link navigate={~p"/research/workbench"}>Workbench</.link></li>
                 <%!-- Its own entry rather than only a workbench card, because it is
-                      the one page here that is LIVE: everything else on the
-                      workbench is a simulation this node runs on demand, and this
-                      shows facts published by a machine in the lab as they land. --%>
-                <li>
-                  <.link navigate={~p"/research/workbench/robo-rumble"}>
-                    Robo Rumble <span class="opacity-50">· live</span>
-                  </.link>
-                </li>
-                <%!-- Same reason as Robo Rumble: an island is a world running on a
-                      machine in the lab right now, not a simulation this node
-                      starts when you open the page. --%>
+                      LIVE: everything else on the workbench is a simulation this
+                      node runs on demand, and an island is a world running on a
+                      machine in the lab right now. --%>
                 <li>
                   <.link navigate={~p"/research/workbench/biotope"}>
                     Biotopes <span class="opacity-50">· live</span>
@@ -87,6 +79,11 @@ defmodule BeamCampusWeb.Layouts do
                       actually deliver it. A workbench CARD was not enough: this
                       menu is its own list and a page absent from it is a page
                       nobody finds. --%>
+                <li>
+                  <.link navigate={~p"/research/workbench/dronex"}>
+                    DroneX <span class="opacity-50">· live</span>
+                  </.link>
+                </li>
                 <li>
                   <.link navigate={~p"/research/workbench/asociety"}>
                     ASociety <span class="opacity-50">· live</span>

@@ -10,6 +10,23 @@ defmodule BeamCampusWeb.WorkbenchLive do
 
   @experiments [
     %{
+      id: "dronex",
+      title: "DroneX: swarms bred on machines that will attack each other",
+      tag: "Drone AI \u00b7 mesh",
+      kind: :engine,
+      status: :interactive,
+      route: "/research/workbench/dronex",
+      programme: "Its own line",
+      # ⚠ ITS RECORD IS NOT IN faber-ecosystem either. This line keeps its own
+      # charter, design documents and register in hecate-dronex, with its own
+      # numbering. A card linking to the faber insight index would send a reader
+      # to a corpus that has never heard of it.
+      record_label: "hecate-dronex / charter",
+      record_url: "https://github.com/hecate-services/hecate-dronex/blob/main/CHARTER.md",
+      blurb:
+        "A quadcopter with a battery, a forward sensor that cannot see behind it, one knife-range weapon and four guided interceptors. Nothing about how it flies is written down. An island breeds controllers continuously, sits a frozen exam it never trains against, and every twenty seconds publishes one whole fight as a recording, which this page plays. It is not a raid yet: an island is still fighting its own drills."
+    },
+    %{
       id: "asociety",
       title: "ASociety: cultures on machines that decide who lands",
       tag: "Artificial cultures \u00b7 mesh",
@@ -39,19 +56,6 @@ defmodule BeamCampusWeb.WorkbenchLive do
       note: "/research/notes/too-loose-or-too-tight",
       blurb:
         "An island on a machine in the lab: plants grow, creatures forage, breed and starve, and it says what happened. Nothing has a brain yet, so the creatures walk at random \u2014 they are the null forager any later brain has to beat. This page subscribes and draws the last frame that arrived; it runs no world of its own and shares no code with the islands. Starvation outnumbers old age about seventy to one, which is another way of saying selection pressure exists."
-    },
-    %{
-      id: "robo-rumble",
-      title: "Robo Rumble: a field of forty, live from the mesh",
-      tag: "Tank duels · mesh",
-      kind: :engine,
-      status: :interactive,
-      route: "/research/workbench/robo-rumble",
-      programme: "P8 · Robo Rumble",
-      insight: "058-066",
-      note: "/research/notes/our-tank-lost-every-fight",
-      blurb:
-        "Forty trained tanks hold a field on a machine in the lab. Visitors send a genome, it fights all forty from eighty geometries in both seats, and the row is published to the mesh. This page subscribes to it, and re-runs the featured duels here: the fight is not shipped, it is regenerated from two genomes and a start index, because the engine is deterministic to the turn."
     },
     %{
       id: "neural-coevolution",

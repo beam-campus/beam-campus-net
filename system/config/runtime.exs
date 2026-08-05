@@ -9,25 +9,25 @@ import Config
 # Linode/Hetzner block outbound SMTP), self-hosted Hanko, TLS terminated by
 # Caddy in front of the release.
 
-# ── Robo Rumble spectator (all environments when configured) ─────────────
-# The site READS the mesh: it subscribes to the rumbler's facts and renders them.
-# It never publishes and holds no store.
+# ── Reading the mesh ──────────────────────────────────────────────────────
+# The site SUBSCRIBES and draws. It never publishes and holds no store.
 #
-# THE REALM IS PUBLIC AND SO IS ITS NAME. Rumble facts do not ride the Hecate
-# fleet realm; they have their own, `net.beamcampus.rumble`, precisely so that a
-# public web container never holds the tag that routes sentinel sightings and
-# warden facts. A realm id is sha256 of its name, so this tag is derived rather
-# than issued, and stating it openly is the point rather than a leak.
+# EVERY REALM HERE IS PUBLIC AND SO IS ITS NAME. These facts do not ride the
+# Hecate fleet realm; each track has its own, precisely so that a public web
+# container never holds the tag that routes sentinel sightings and warden facts.
+# A realm id is sha256 of its name, so the tags below are derived rather than
+# issued, and stating them openly is the point rather than a leak.
 #
 # The SEEDS have no default, though. Naming a public realm costs nothing; dialling
 # a production station from every dev clone does. Unset seeds means the site boots
-# normally, connects to nothing, and the workbench page shows its empty state.
+# normally, connects to nothing, and the page shows its empty state.
 # ── Biotopes (islands on the mesh) ───────────────────────────────────────
 # The site SUBSCRIBES and draws. It never publishes, never runs a world, and
 # takes no dependency on the island's code: the contract is the published fact
-# and its fact_version. The rumble did it the other way, sharing an engine
-# library between the service and the site, and the two ended up pinned to
-# different commits with a fingerprint that drifted and nothing comparing them.
+# and its fact_version. The removed Robo Rumble page did it the other way,
+# sharing an engine library between the service and the site, and the two ended
+# up pinned to different commits with a fingerprint that drifted and nothing
+# comparing them. That is why every spectator here now regenerates nothing.
 #
 # The REALM is defaulted because it is public by design: net.beamcampus.biotope,
 # whose tag is sha256 of that name, so it is derived rather than issued and
@@ -66,13 +66,21 @@ config :asociety,
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
 
-config :robo_rumbler,
+# ── DroneX (drone AI on the mesh) ─────────────────────────────────────────
+# The site SUBSCRIBES and PLAYS. A bout arrives as a recording of every frame,
+# already computed by the island that ran it, and this app animates it.
+#
+# ⚠ IT COULD NOT RUN THE FIGHT IF IT WANTED TO. There is no engine here and no
+# dependency on the island's code: the contract is the fact and its
+# fact_version. That is the shape that replaced the Robo Rumble page, which
+# received two genomes and regenerated the duel locally.
+config :dronex,
   realm:
-    System.get_env("BEAM_CAMPUS_RUMBLE_REALM") ||
-      "0a346d25957755075dabefcc88e03c050df86ce3b7dc5a5a63ff38f32462c352",
-  namespace: System.get_env("BEAM_CAMPUS_RUMBLE_NS") || "rumble-scratch",
+    System.get_env("BEAM_CAMPUS_DRONEX_REALM") ||
+      "686fbbf84c5c33455764f4c07c642bd1b79ef4efc78455f61ac12936ca3bffe3",
+  namespace: System.get_env("BEAM_CAMPUS_DRONEX_NS") || "dronex",
   seeds:
-    System.get_env("BEAM_CAMPUS_RUMBLE_SEEDS", "")
+    System.get_env("BEAM_CAMPUS_DRONEX_SEEDS", "")
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
 
