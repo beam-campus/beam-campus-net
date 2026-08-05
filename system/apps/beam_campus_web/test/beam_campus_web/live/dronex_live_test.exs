@@ -105,9 +105,17 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
+    # ⚠ ONE ROW PER DIRECTION, NOT ONE PER RAID. With two islands every raid
+    # renders the same sentence, and the page grew thirty-seven near-identical
+    # lines before anybody said so. The map already draws each raid as an arc;
+    # what a reader cannot get from the map is the flow and what it costs.
     assert html =~ "data-raid"
-    assert html =~ "in flight"
-    assert html =~ "beam01 sent 6 against beam02"
+    assert html =~ "beam01"
+    assert html =~ "6 airframes committed"
+
+    # No recording has arrived, so it is still out — and the page says so
+    # without claiming to know whether it is being fought or was abandoned.
+    assert html =~ "1 still out"
   end
 
   # And once the recording arrives it stops being in flight. The recording is
@@ -132,8 +140,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "fought"
-    refute html =~ "in flight"
+    # It counts toward the flow, and it is no longer out.
+    assert html =~ "data-raid"
+    assert html =~ "6 airframes committed"
+    refute html =~ "still out"
   end
 
   # A profile is a curve and never a total. A single number would need weights,

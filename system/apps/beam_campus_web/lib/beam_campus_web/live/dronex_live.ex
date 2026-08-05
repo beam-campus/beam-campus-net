@@ -462,21 +462,37 @@ defmodule BeamCampusWeb.DronexLive do
   defp pct(wins, starts), do: round(wins * 100 / starts)
 
   @doc """
-  Raids the archipelago has fought, newest first.
+  Where the archipelago's genetic traffic is going, and how much of it there is.
 
-  ⚠ **A raid in flight and a raid whose defender went dark look the same from
-  here, and that is the honest shape.** Both sides publish a commitment when the
-  price is paid; only the defender publishes the recording. So a raid with
-  commitments and no recording is either still being fought or was never
-  finished, and this page says "in flight" rather than pretending to know which.
-  The attacker's own timer settles that after five minutes.
+  ⚠ **A LIST OF RAIDS IS NOT INFORMATION, AND IT WAS ONE FOR AN HOUR.** With two
+  islands every raid renders the same sentence, so the page grew thirty-seven
+  near-identical lines that said "beam01 sent 6" over and over. The map above
+  already draws each raid as an arc; repeating them as text added length and no
+  meaning.
+
+  What a reader cannot get from the map is the **flow**: how much traffic runs
+  each way, what it costs, and whether anything is stuck. So this is one row per
+  DIRECTION, however many raids there have been, and a single line for the ones
+  still out.
+
+  ⚠⚠ **A raid in flight and a raid whose defender went dark look the same from
+  here.** Both sides publish a commitment when the price is paid; only the
+  defender publishes the recording. The page says "still out" rather than
+  pretending to know which, and the attacker's own timer settles it after five
+  minutes.
   """
   attr :raids, :list, required: true
 
   def raids(assigns) do
+    assigns =
+      assign(assigns,
+        flows: flows(assigns.raids),
+        out: Enum.count(assigns.raids, &(!Dronex.finished?(&1)))
+      )
+
     ~H"""
     <div :if={@raids != []} class="mt-8">
-      <h3 class="text-sm font-semibold opacity-70">Raids</h3>
+      <h3 class="text-sm font-semibold opacity-70">Where the genomes are going</h3>
       <p class="mt-1 text-xs opacity-50">
         A raid moves opponents rather than fitness: what the defender keeps is
         the attacker's genomes, which its own trainer then has to beat. Losing
@@ -487,31 +503,75 @@ defmodule BeamCampusWeb.DronexLive do
         <%!-- ⚠ `data-raid` EXISTS FOR THE TESTS AND IS WORTH THE ATTRIBUTE. Three
               times a refutation has been written against words that also appear
               in prose — "raid", then "fought", then "in flight", the last living
-              in the map's own caption. A marker only a rendered raid can produce
+              in the map's own caption. A marker only a rendered row can produce
               cannot collide with a sentence. --%>
-        <li :for={r <- @raids} data-raid={r.id} class="flex items-baseline gap-3 text-xs">
-          <span class={[
-            "badge badge-xs",
-            (Dronex.finished?(r) && "badge-ghost") || "badge-warning"
-          ]}>
-            {(Dronex.finished?(r) && "fought") || "in flight"}
+        <li :for={f <- @flows} data-raid={f.key} class="flex items-baseline gap-3 text-xs">
+          <span class="font-mono opacity-70">{f.from} &rarr; {f.to}</span>
+          <span class="opacity-50">
+            {f.raids} {(f.raids == 1 && "raid") || "raids"}, {f.airframes} airframes committed
           </span>
-          <span class="font-mono opacity-70">{raid_line(r)}</span>
         </li>
       </ul>
+
+      <p :if={@out > 0} class="mt-2 text-xs opacity-40">
+        {@out} still out. A raid whose defender has gone quiet looks exactly like
+        one still being fought, so this page does not guess: the attacker writes
+        the party off after five minutes.
+      </p>
     </div>
     """
   end
 
-  # Named from whichever commitments arrived. Both sides publish one, so a raid
-  # normally has both; one alone still names the pair, because a commitment
-  # carries the opponent as well as the publisher.
-  defp raid_line(r) do
-    case Dronex.sides(r) do
-      {nil, nil} -> "a raid nobody described"
-      {att, nil} -> "#{att["island"]} sent #{att["airframes"]}"
-      {nil, def_} -> "#{def_["island"]} defended with #{def_["airframes"]}"
-      {att, def_} -> "#{att["island"]} sent #{att["airframes"]} against #{def_["island"]}"
-    end
+  # One row per direction, newest direction first. A commitment names both ends,
+  # so a single arriving fact is enough to attribute the traffic — which matters,
+  # because the two commitments travel separately and one may never come.
+  defp flows(raids) do
+    raids
+    |> Enum.flat_map(&flow(&1))
+    |> Enum.group_by(& &1.key)
+    |> Enum.map(fn {key, rows} ->
+      %{
+        key: key,
+        from: hd(rows).from,
+        to: hd(rows).to,
+        raids: length(rows),
+        airframes: Enum.sum(Enum.map(rows, & &1.airframes))
+      }
+    end)
+    |> Enum.sort_by(& &1.raids, :desc)
   end
+
+  defp flow(raid) do
+    {att, def_} = Dronex.sides(raid)
+    named(att || def_)
+  end
+
+  # A raid nobody described is dropped rather than given a row that says nothing.
+  # It happens for recordings published before commitments existed.
+  defp named(nil), do: []
+
+  defp named(%{"role" => "attacker"} = c),
+    do: [
+      %{
+        key: "#{c["island_id"]}->#{c["opponent_id"]}",
+        from: c["island"],
+        to: short(c["opponent_id"]),
+        airframes: c["airframes"] || 0
+      }
+    ]
+
+  defp named(c),
+    do: [
+      %{
+        key: "#{c["opponent_id"]}->#{c["island_id"]}",
+        from: short(c["opponent_id"]),
+        to: c["island"],
+        airframes: c["airframes"] || 0
+      }
+    ]
+
+  # An island we have only ever seen named as somebody's opponent has an id and
+  # no nickname. A short digest is better than a blank.
+  defp short(nil), do: "?"
+  defp short(id), do: String.slice(id, 0, 8)
 end
