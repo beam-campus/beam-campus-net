@@ -523,7 +523,6 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # and the four of them fit comfortably.
   @open_sea 40
 
-
   def archipelago(assigns) do
     names = Enum.map(assigns.charts, fn {name, _chart} -> name end)
     placed = Biotope.Archipelago.place(names)
