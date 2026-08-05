@@ -339,6 +339,11 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  # `nil` when the island never said, which draws no towers and claims nothing.
+  defp tower_count(nil), do: nil
+  defp tower_count(ground) when is_list(ground), do: div(length(ground), 3)
+  defp tower_count(_other), do: nil
+
   attr :bout, :map, required: true
   attr :big, :boolean, default: false
 
@@ -351,9 +356,24 @@ defmodule BeamCampusWeb.DronexLive do
           Jason.encode!(%{
             arena: Map.get(b, "arena", [1000, 1000, 300]),
             frames: Map.get(b, "frames", []),
+            # ⚠ WHERE THE DEFENDER'S TOWERS STOOD, AND EMPTY WHEN THERE WERE
+            # NONE. A raider fights over somebody else's ground with no
+            # stations of its own, and that asymmetry is what makes attacking
+            # cost something. An older island publishes neither key and simply
+            # draws no towers, which is the correct picture of a fight that
+            # predates them.
+            ground: Map.get(b, "ground", []),
+            ground_range: Map.get(b, "ground_range", 0),
             stride: 7,
             mstride: 5
           }),
+        # ⚠ THREE STATES, NOT TWO, AND THE THIRD IS `nil'. An island running
+        # older code publishes neither key, and captioning its recording "no
+        # towers stood here" would be the page asserting something it was never
+        # told. Absent is not the same claim as empty: one means the fight was
+        # fought away from home, the other means nobody said.
+        towers: b |> Map.get("ground") |> tower_count(),
+        reach: Map.get(b, "ground_range", 0),
         winner: Map.get(b, "winner", "draw"),
         ticks: Map.get(b, "ticks", 0),
         kind: Map.get(b, "kind", "training"),
@@ -391,6 +411,8 @@ defmodule BeamCampusWeb.DronexLive do
             const d = JSON.parse(this.el.dataset.bout || "{}")
             this.arena = d.arena || [1000, 1000, 300]
             this.frames = d.frames || []
+            this.ground = d.ground || []
+            this.groundRange = d.ground_range || 0
             this.stride = d.stride || 7
             this.mstride = d.mstride || 5
             this.scrub = document.getElementById(this.el.id + "-scrub")
@@ -477,6 +499,68 @@ defmodule BeamCampusWeb.DronexLive do
             }
           },
 
+          // ⚠ THE DEFENDER'S GROUND STATIONS, AND THE HOLES BETWEEN THEM.
+          //
+          // Drawn under everything else, because they are terrain: they cannot
+          // be shot at, they do not move, and they have no health. What they do
+          // is see, and say what they saw on the same channel the drones use.
+          //
+          // The coverage ring is the honest reach the island published, not a
+          // decorative circle. Its whole job is to show WHERE THE GAPS ARE —
+          // between adjacent rings, and in the volume overhead, which no ring
+          // on the floor covers at all. Those gaps are the only counterplay an
+          // attacker has, so a picture without them would be a picture of the
+          // towers rather than a picture of the defence.
+          //
+          // An away fight has none of this and shows an empty floor, which is
+          // exactly the point: a raider gives up its ground support the moment
+          // it leaves home.
+          towers() {
+            const c = this.ctx
+            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
+              const x = this.ground[k], y = this.ground[k + 1], z = this.ground[k + 2]
+              this.coverage(x, y)
+
+              // A mast, drawn in the projection so it leans with the floor. The
+              // height is a drawing choice and is the one number here that the
+              // island did not publish — the stations themselves stand at z=0.
+              const [bx, by] = this.project(x, y, z)
+              const [tx, ty] = this.project(x, y, this.arena[2] * 0.10)
+              c.globalAlpha = 1
+              c.strokeStyle = "#8FA0B4"
+              c.lineWidth = 1.5
+              c.beginPath(); c.moveTo(bx, by); c.lineTo(tx, ty); c.stroke()
+
+              c.fillStyle = "#B9C7D6"
+              c.beginPath(); c.arc(tx, ty, 2.5, 0, 6.284); c.fill()
+
+              c.globalAlpha = 0.5
+              c.fillStyle = "#8FA0B4"
+              c.beginPath(); c.ellipse(bx, by, 4, 1.6, 0, 0, 6.284); c.fill()
+              c.globalAlpha = 1
+            }
+          },
+
+          // A circle on the ground is not a circle on screen: `project` shears
+          // and foreshortens, so the ring is drawn as a projected polygon rather
+          // than an ellipse fitted by eye. Thirty-two points is smooth at this
+          // size and is exact rather than approximately right.
+          coverage(x, y) {
+            if (this.groundRange <= 0) return
+            const c = this.ctx
+            c.globalAlpha = 1
+            c.strokeStyle = "rgba(226,85,110,0.22)"
+            c.lineWidth = 1
+            c.beginPath()
+            for (let n = 0; n <= 32; n++) {
+              const a = (n / 32) * 6.283185
+              const [px, py] = this.project(x + Math.cos(a) * this.groundRange,
+                                            y + Math.sin(a) * this.groundRange, 0)
+              n ? c.lineTo(px, py) : c.moveTo(px, py)
+            }
+            c.stroke()
+          },
+
           // ⚠ A TRAIL IS THE FRAMES THAT ACTUALLY HAPPENED, NOT A SMOOTHED CURVE.
           // Every point is a position the island computed and published; the
           // page joins them and fades them. Interpolating between frames would
@@ -499,6 +583,7 @@ defmodule BeamCampusWeb.DronexLive do
             const f = this.frames[this.i]
             c.clearRect(0, 0, this.w, this.h)
             this.floor()
+            this.towers()
             if (!f) return
 
             for (let k = 0; k + this.mstride <= f.m.length; k += this.mstride) {
@@ -619,6 +704,27 @@ defmodule BeamCampusWeb.DronexLive do
         withdrew alive, faded a drone that was destroyed. The line is where a
         drone's nose points, which is the only direction it can see or shoot.
         Orange marks are guided interceptors and grey ones are unguided.
+      </p>
+
+      <p class="mt-1 text-xs opacity-40">
+        <%!-- ⚠ SAID IN WORDS, NOT LEFT TO BE INFERRED FROM AN EMPTY FLOOR. An
+              away fight draws no towers, and a viewer cannot tell "this island
+              had no ground support" from "this page failed to load something"
+              unless the page says which. The absence is the interesting half. --%>
+        <%= if @towers && @towers > 0 do %>
+          The masts on the ground are the defending island's sensor stations, {@towers} of them, and the faint rings are how far each one reaches
+          ({@reach} m). They cannot be shot at and they do not move. What they do
+          is watch, and say what they have seen on the same channel the drones
+          talk on, so a swarm has to learn what the cue means before it is worth
+          anything. Look at the gaps between the rings, and at the volume
+          overhead that no ring on the floor covers: those are the way in.
+        <% end %>
+        <%= if @towers == 0 do %>
+          No towers stand on this floor. The attacking island's drones flew into
+          somebody else's airspace with no ground support at all, which is the
+          second price of raiding on top of the airframes it spent. An island's
+          sensors defend its own volume and nowhere else.
+        <% end %>
       </p>
 
       <p class="mt-1 text-xs opacity-40">

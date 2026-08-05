@@ -266,6 +266,85 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert arcs |> unescape() |> Jason.decode!() == []
   end
 
+  # ⚠ THE TOWERS MUST REACH THE PAGE, NOT MERELY THE WIRE. The island published
+  # `ground' for a while before anything read it, which draws exactly the same
+  # picture as not publishing it: an empty floor.
+  test "a fight at home draws the defending island's towers", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "roster" => 24, "capacity" => 240})
+
+    Board.put("aaa", :bout, %{
+      "island" => "beam01",
+      "kind" => "training",
+      "winner" => "attacker",
+      "ticks" => 110,
+      "arena" => [1000, 1000, 300],
+      "ground" => [500, 500, 0, 750, 500, 0],
+      "ground_range" => 350,
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    [_, payload] = Regex.run(~r/data-bout="([^"]*)"/, html)
+    bout = payload |> unescape() |> Jason.decode!()
+    assert bout["ground"] == [500, 500, 0, 750, 500, 0]
+    assert bout["ground_range"] == 350
+
+    # And the caption counts them, because a viewer should not have to count
+    # masts to know how many stations an island fields.
+    assert html =~ "2 of them"
+    assert html =~ "350 m"
+  end
+
+  # ⚠ AND AN AWAY FIGHT MUST SAY SO IN WORDS. An empty floor is indistinguishable
+  # from a page that failed to load something, and the absence is the interesting
+  # half: it is what makes attacking cost more than the airframes it spends.
+  test "a fight away from home says there were no towers", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "roster" => 24, "capacity" => 240})
+
+    Board.put("aaa", :bout, %{
+      "island" => "beam01",
+      "kind" => "training",
+      "winner" => "attacker",
+      "ticks" => 110,
+      "arena" => [1000, 1000, 300],
+      "ground" => [],
+      "ground_range" => 0,
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "No towers stand on this floor"
+    refute html =~ "of them, and the faint rings"
+  end
+
+  # An island running older code publishes neither key. It must draw a floor with
+  # no towers rather than crash, and it must not claim an away game either.
+  test "a bout from before the towers existed still draws", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "roster" => 24, "capacity" => 240})
+
+    Board.put("aaa", :bout, %{
+      "island" => "beam01",
+      "kind" => "training",
+      "winner" => "draw",
+      "ticks" => 110,
+      "arena" => [1000, 1000, 300],
+      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    [_, payload] = Regex.run(~r/data-bout="([^"]*)"/, html)
+    assert payload |> unescape() |> Jason.decode!() |> Map.get("ground") == []
+
+    # ⚠ AND IT CLAIMS NEITHER. Captioning an old recording "no towers stood
+    # here" would be the page asserting something it was never told: absent is
+    # not the same claim as empty.
+    refute html =~ "No towers stand on this floor"
+    refute html =~ "of them, and the faint rings"
+  end
+
   defp unescape(s) do
     s
     |> String.replace("&quot;", "\"")
