@@ -34,6 +34,8 @@ defmodule BeamCampusWeb.DronexLive do
 
   use BeamCampusWeb, :live_view
 
+  import BeamCampusWeb.DronexMap, only: [archipelago: 1]
+
   @redraw_ms 500
 
   @impl true
@@ -105,6 +107,12 @@ defmodule BeamCampusWeb.DronexLive do
         </.header>
 
         <.dronex_state state={@state} refused={@refused} />
+
+        <%!-- ⚠ THE MAP FIRST, AND THE PANELS BELOW IT. Every island has been a
+             row in a list until now, which reads as several unrelated
+             experiments. They are one archipelago, and the raids between them
+             are the only thing that makes that true rather than asserted. --%>
+        <.archipelago :if={@islands != []} islands={@islands} raids={@raids} class="mt-8" />
 
         <%!-- ⚠ OUTSIDE THE ISLANDS BLOCK ON PURPOSE. A raid is archipelago
              state, not island state, and a commitment can arrive before either
@@ -476,7 +484,12 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
 
       <ul class="mt-3 space-y-1">
-        <li :for={r <- @raids} class="flex items-baseline gap-3 text-xs">
+        <%!-- ⚠ `data-raid` EXISTS FOR THE TESTS AND IS WORTH THE ATTRIBUTE. Three
+              times a refutation has been written against words that also appear
+              in prose — "raid", then "fought", then "in flight", the last living
+              in the map's own caption. A marker only a rendered raid can produce
+              cannot collide with a sentence. --%>
+        <li :for={r <- @raids} data-raid={r.id} class="flex items-baseline gap-3 text-xs">
           <span class={[
             "badge badge-xs",
             (Dronex.finished?(r) && "badge-ghost") || "badge-warning"

@@ -74,12 +74,14 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # What actually matters is that no raid is CLAIMED: this island has fought
     # none, so the raids section is absent.
     #
-    # ⚠ AND THE REPLACEMENT HAD THE SAME FAULT ONCE. `refute html =~ "fought"`
-    # matched the sentence "An island announces that it can be fought", which is
-    # prose about availability and not a claim about this bout. A refutation has
-    # to name something only the thing being refuted would produce.
-    refute html =~ "in flight"
-    refute html =~ ~r/against\s+beam/
+    # ⚠ AND TWO REPLACEMENTS HAD THE SAME FAULT. `refute html =~ "fought"`
+    # matched "an island announces that it can be fought"; `refute html =~ "in
+    # flight"` matched the map caption's "a moving one is a raid in flight".
+    # Both are prose about the mechanism, not claims about this bout.
+    #
+    # `data-raid` is emitted by a rendered raid row and by nothing else, which is
+    # what a refutation needs: a marker no sentence can produce.
+    refute html =~ "data-raid"
   end
 
   # ⚠ A RAID IN FLIGHT AND A RAID WHOSE DEFENDER WENT DARK LOOK THE SAME FROM
@@ -103,9 +105,9 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
+    assert html =~ "data-raid"
     assert html =~ "in flight"
     assert html =~ "beam01 sent 6 against beam02"
-    refute html =~ "fought"
   end
 
   # And once the recording arrives it stops being in flight. The recording is
@@ -160,5 +162,106 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     assert html =~ "Not sat yet"
+  end
+
+  # ⚠ THE MAP IS ONE CANVAS, HOWEVER MANY ISLANDS JOIN. That is the whole reason
+  # the biotope's per-island grid was removed: one canvas, one hook and one
+  # animation loop, regardless of fleet size.
+  test "the archipelago is drawn as one canvas with every island on it", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam01"}, {"bbb", "beam02"}] do
+      Board.put(id, :vitals, %{
+        "island" => name,
+        "island_id" => id,
+        "roster" => 120,
+        "capacity" => 240,
+        "open" => true
+      })
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ ~s(id="dronex-archipelago")
+    assert html =~ "data-world-width"
+    assert html =~ "data-isles"
+    assert html =~ "data-arcs"
+
+    # Positions are a hash of a name, so any two viewers holding the same
+    # islands draw the same world. Both islands are on the one canvas.
+    [_, isles] = Regex.run(~r/data-isles="([^"]*)"/, html)
+    decoded = isles |> unescape() |> Jason.decode!()
+    assert length(decoded) == 2
+    assert Enum.map(decoded, & &1["name"]) |> Enum.sort() == ["beam01", "beam02"]
+
+    # The ring is how much roster is left: half a roster is half a ring, which
+    # is the price of being popular made visual rather than tabular.
+    assert Enum.all?(decoded, &(&1["fill"] == 0.5))
+    assert Enum.all?(decoded, & &1["open"])
+  end
+
+  # ⚠ AN ARC NEEDS BOTH ENDS, AND ONE COMMITMENT NAMES BOTH. The two commitments
+  # travel separately and one of them may never arrive, so a single fact has to
+  # be enough to draw the arc.
+  test "a raid is drawn as an arc from attacker to defender", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam01"}, {"bbb", "beam02"}] do
+      Board.put(id, :vitals, %{
+        "island" => name,
+        "island_id" => id,
+        "roster" => 100,
+        "capacity" => 240
+      })
+    end
+
+    Board.put_raid("r9", :committed, %{
+      "island" => "beam01",
+      "island_id" => "aaa",
+      "raid_id" => "r9",
+      "role" => "attacker",
+      "opponent_id" => "bbb",
+      "airframes" => 6
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    [_, arcs] = Regex.run(~r/data-arcs="([^"]*)"/, html)
+    [arc] = arcs |> unescape() |> Jason.decode!()
+
+    # In flight, because no recording has arrived, and as many marks as the
+    # sortie so the cost is visible on the arc itself.
+    assert arc["live"]
+    assert arc["marks"] == 6
+    assert arc["x1"] != arc["x2"] or arc["y1"] != arc["y2"]
+  end
+
+  # An island nobody has heard vitals from has no place on the map, so an arc to
+  # it is dropped rather than drawn to a guessed position.
+  test "an arc to an island the map has never heard of is dropped", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam01",
+      "island_id" => "aaa",
+      "roster" => 100,
+      "capacity" => 240
+    })
+
+    Board.put_raid("r10", :committed, %{
+      "island_id" => "aaa",
+      "raid_id" => "r10",
+      "role" => "attacker",
+      "opponent_id" => "never-heard-of",
+      "airframes" => 6
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    [_, arcs] = Regex.run(~r/data-arcs="([^"]*)"/, html)
+    assert arcs |> unescape() |> Jason.decode!() == []
+  end
+
+  defp unescape(s) do
+    s
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&amp;", "&")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> String.replace("&#39;", "'")
   end
 end
