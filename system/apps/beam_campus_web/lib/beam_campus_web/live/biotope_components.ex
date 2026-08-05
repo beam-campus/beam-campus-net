@@ -19,6 +19,32 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # bar or with the numbers clipped off.
   @pad %{left: 46, right: 12, top: 10, bottom: 20}
 
+  # ⚠ DEEP BLUE-BLACK, AND DELIBERATELY NOT THE WATER COLOUR.
+  #
+  # `#2B6CB0' is what the legend keys as WATER, and water is a MODELLED thing:
+  # cells inside an island that hold water and that a creature cannot cross.
+  # The space between islands is the opposite of that — the page says so in as
+  # many words, that the sea between them is not simulated and holds nothing,
+  # because islands are a graph joined by migration rather than one plane.
+  #
+  # Painting the backdrop `#2B6CB0' would make the thing that holds nothing look
+  # exactly like the thing that holds something, and a reader would be right to
+  # infer a sea a creature could drown in. There isn't one.
+  #
+  # So: dark enough that the modelled water pops against it, blue enough that
+  # the map reads as one world rather than as a void, which `bg-black/40' did.
+  #
+  # ⚠⚠ SOLID, AND DARK IN BOTH THEMES. `bg-black/40' was a wash, so under the
+  # light theme it became a mid grey over a near-white base and every mark lost
+  # contrast. The marks are chosen against darkness — mid-tone green, blue, pink
+  # and violet — so this panel stays dark whichever theme the page is in, the
+  # way a photograph does.
+  # ⚠ A FUNCTION, NOT A MODULE ATTRIBUTE. Inside a `~H` sigil `@backdrop' means
+  # `assigns.backdrop', not the attribute — so the attribute version compiled to
+  # a missing assign on both canvases and the compiler reported it as "set but
+  # never used", which is the only reason it was caught.
+  defp backdrop, do: "bg-[#0a1220]"
+
   @doc """
   The faces of this feature, and the way back up.
 
@@ -424,7 +450,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
         phx-update="ignore"
         width={@size}
         height={@size}
-        class="w-full h-auto rounded bg-black/40"
+        class={["w-full h-auto rounded", backdrop()]}
         data-size={@size}
         data-cell={Float.round(@cell, 2)}
         data-rim={@rim}
@@ -496,6 +522,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
   # 90% of it empty; at 40 a skipped column costs about a seventh of an island
   # and the four of them fit comfortably.
   @open_sea 40
+
 
   def archipelago(assigns) do
     names = Enum.map(assigns.charts, fn {name, _chart} -> name end)
@@ -771,7 +798,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           id={@id}
           phx-hook=".Archipelago"
           phx-update="ignore"
-          class="w-full rounded bg-black/40 cursor-grab touch-none"
+          class={["w-full rounded cursor-grab touch-none", backdrop()]}
           style="aspect-ratio: 16 / 10"
           data-world-width={@width}
           data-world-height={@height}
