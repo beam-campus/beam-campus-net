@@ -276,6 +276,7 @@ defmodule BeamCampusWeb.BiotopeLive do
                  the bottom of the page or absent from it. -->
             <.compare
               series={@series}
+              labels={@labels}
               get={& &1.kinds}
               label="distinct kinds alive"
               hint="architectures, not ancestors: founder lines reads 1 either way"
@@ -283,6 +284,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             />
             <.compare
               series={@series}
+              labels={@labels}
               get={&hundredth(&1.hidden_mean)}
               label="hidden nodes per creature"
               hint="leaving zero is the difference between reflex and deliberation"
@@ -290,6 +292,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             />
             <.compare
               series={@series}
+              labels={@labels}
               get={& &1.population}
               label="creatures"
               role="creatures"
@@ -297,6 +300,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             />
             <.compare
               series={@series}
+              labels={@labels}
               get={& &1.ground_total}
               label="energy in the ground"
               role="ground"
@@ -304,6 +308,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             />
             <.compare
               series={@series}
+              labels={@labels}
               get={& &1.dissipated}
               label="burnt as heat"
               hint="the Second Law: this can only rise"
@@ -311,6 +316,7 @@ defmodule BeamCampusWeb.BiotopeLive do
             />
             <.compare
               series={@series}
+              labels={@labels}
               get={& &1.depth}
               label="generations deep"
               hint="zero means every creature alive is a founder"

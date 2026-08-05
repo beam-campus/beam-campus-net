@@ -1152,6 +1152,19 @@ defmodule BeamCampusWeb.BiotopeComponents do
   attr :series, :list, required: true
   attr :get, :any, required: true
   attr :label, :string, required: true
+
+  # ⚠ THE KEY IS A DIGEST AND NOBODY WANTS TO READ ONE. Every one of these
+  # charts was titled with a 32-character hex island id, six charts by three
+  # islands, eighteen of them down the page, while the fleet table two screens
+  # up had been showing `beam01' the whole time.
+  #
+  # ⚠⚠ THE LABEL IS FOR THE HEADING ONLY AND THE DOM ID STAYS ON THE KEY. A
+  # nickname is what an island calls ITSELF and may be shared: `Biotope.label/1'
+  # says so outright, and a page showing two islands called `beam01' is telling
+  # the truth. Keying the chart id on the label would collide those two into one
+  # element, so the digest keeps doing the job it is good at and the label does
+  # the job it is good at.
+  attr :labels, :map, default: %{}
   attr :role, :string, default: "derived"
   attr :hint, :string, default: nil
   attr :suffix, :string, default: ""
@@ -1172,7 +1185,7 @@ defmodule BeamCampusWeb.BiotopeComponents do
           :for={{name, samples} <- @series}
           samples={samples}
           get={@get}
-          label={name}
+          label={Map.get(@labels, name, name)}
           id={slug(@label) <> "-" <> slug(name)}
           role={@role}
           suffix={@suffix}

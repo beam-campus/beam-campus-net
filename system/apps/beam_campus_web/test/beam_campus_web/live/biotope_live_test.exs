@@ -404,4 +404,28 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     |> String.replace("&gt;", ">")
     |> String.replace("&amp;", "&")
   end
+
+  # ⚠ THE COMPARISON CHARTS WERE TITLED WITH A 32-CHARACTER DIGEST. Six charts by
+  # three islands: eighteen unreadable headings down the page, while the fleet
+  # table two screens up had been showing `beam01' the whole time. The board
+  # files an island under its `island_id' precisely because a nickname may be
+  # shared, and every component that shows a key to a human has to translate it
+  # back.
+  test "the history charts are titled with the island's name, never its id", %{conn: conn} do
+    id = "2b7e0fa5416006092a59d0d3c20eb39e"
+
+    Board.put_stats(%{
+      "island" => "beam01",
+      "island_id" => id,
+      "tick" => 9,
+      "population" => 3
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "beam01"
+    # The digest may still appear in an href and in a DOM id, which is right:
+    # those key on identity. It must not appear as a HEADING.
+    refute html =~ ~r{<h3[^>]*>\s*#{id}\s*</h3>}
+  end
 end
