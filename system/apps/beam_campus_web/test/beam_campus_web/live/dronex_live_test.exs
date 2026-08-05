@@ -298,6 +298,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
       "kind" => "raid",
       "winner" => "defender",
       "ticks" => 240,
+      "raiders" => 12,
+      "raiders_home" => 3,
+      "defenders" => 12,
+      "defenders_home" => 8,
       "arena" => [1000, 1000, 300],
       "frames" => [%{"t" => 0, "d" => [0, 100, 100, 80, 0, 100, 0], "m" => []}]
     })
@@ -307,6 +311,13 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "A raid, fought in somebody else&#39;s airspace"
     assert html =~ "240 tick"
     refute html =~ "A training bout"
+
+    # ⚠ BOTH SIDES OF THE LEDGER. The fight reported only "won by defender" and
+    # a tick count; a score that shows what a raid cost one side and not the
+    # other is not a score, and both pay airframes on the same terms.
+    assert html =~ "3 / 12"
+    assert html =~ "8 / 12"
+    assert html =~ "defender"
   end
 
   # And an island that has never been raided still has something to watch, rather

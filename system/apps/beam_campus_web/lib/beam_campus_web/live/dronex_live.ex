@@ -275,9 +275,15 @@ defmodule BeamCampusWeb.DronexLive do
 
       <p class="mt-1 text-xs opacity-50">
         {(@raid? &&
-            "Six evolved controllers against six others, bred on a different machine under selection pressures neither side chose. The attacker flew in; the defender ran the fight and keeps every genome that attacked it.") ||
+            "Twelve evolved controllers against twelve others, bred on a different machine under selection pressures neither side chose. The attacker flew in; the defender ran the fight and keeps every genome that attacked it.") ||
           "One evolved controller against a scripted drill. No island has been raided yet, so this is what there is to watch."}
       </p>
+
+      <%!-- ⚠ A SCORE SHOWING ONE SIDE IS NOT A SCORE. The fight reported "raid
+            bout · 240 ticks · won by defender", which is thin and wrong about
+            what it was looking at. Both sides pay airframes on the same terms,
+            so both are counted. --%>
+      <.scoreline :if={@raid?} raid={@bout} />
 
       <.replay bout={@bout} big={@raid?} />
     </section>
@@ -285,6 +291,53 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   def fight(assigns), do: ~H""
+
+  attr :raid, :map, required: true
+
+  defp scoreline(assigns) do
+    r = assigns.raid
+
+    assigns =
+      assign(assigns,
+        sent: num(r, "raiders"),
+        home: num(r, "raiders_home"),
+        held: num(r, "defenders"),
+        held_home: num(r, "defenders_home"),
+        winner: Map.get(r, "winner", "draw"),
+        ticks: num(r, "ticks")
+      )
+
+    ~H"""
+    <div class="mt-3 grid gap-3 sm:grid-cols-3">
+      <div class="rounded border border-base-300 p-3">
+        <div class="text-xs uppercase tracking-wide opacity-50">attacker</div>
+        <div class="mt-1 font-mono text-lg">{@home} / {@sent}</div>
+        <div class="text-xs opacity-40">came home</div>
+      </div>
+
+      <div class="rounded border border-base-300 p-3">
+        <div class="text-xs uppercase tracking-wide opacity-50">defender</div>
+        <div class="mt-1 font-mono text-lg">{@held_home} / {@held}</div>
+        <div class="text-xs opacity-40">still flying</div>
+      </div>
+
+      <div class="rounded border border-base-300 p-3">
+        <div class="text-xs uppercase tracking-wide opacity-50">outcome</div>
+        <div class="mt-1 font-mono text-lg">{@winner}</div>
+        <div class="text-xs opacity-40">{@ticks} ticks</div>
+      </div>
+    </div>
+
+    <p class="mt-2 text-xs opacity-40">
+      <%!-- ⚠ WITHDRAWN IS NOT DEAD, and a score that could not tell them apart
+            would price a successful retreat the same as a casualty, which is
+            what the withdraw actuator exists to make a real choice. --%>
+      Coming home counts a drone that broke off and left as well as one that
+      survived the fight: withdrawing is a decision, not a casualty. Every drone
+      that does not come home has to be bred back, on both sides.
+    </p>
+    """
+  end
 
   attr :bout, :map, required: true
   attr :big, :boolean, default: false
