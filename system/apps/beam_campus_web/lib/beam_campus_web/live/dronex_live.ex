@@ -533,13 +533,24 @@ defmodule BeamCampusWeb.DronexLive do
                 c.beginPath(); c.moveTo(tx, ty); c.lineTo(nx2, ny2); c.stroke()
               })
 
-              // The shadow is where it is on the ground; the stalk is how high.
-              // Together they are the only cue that survives a still frame.
-              c.globalAlpha = 0.16
-              c.fillStyle = "#000"
-              c.beginPath(); c.ellipse(gx, gy, 4, 1.6, 0, 0, 6.284); c.fill()
+              // ⚠ A GROUND MARK, NOT A SHADOW, AND THE DIFFERENCE IS THAT ONE OF
+              // THEM IS VISIBLE. This drew black at alpha 0.16 — on a #0a1220
+              // floor, which is near enough black that it painted nothing at
+              // all. It was inherited from a canvas with a lighter background
+              // and was probably never visible there either.
+              //
+              // On a dark floor the thing under a drone has to be LIGHTER than
+              // the floor, not darker. It carries the drone's own colour, which
+              // also says whose it is when a dozen of them overlap.
+              c.globalAlpha = 0.30
+              c.fillStyle = colour
+              c.beginPath(); c.ellipse(gx, gy, 4.5, 1.8, 0, 0, 6.284); c.fill()
+
+              // The stalk is how high. Altitude and distance share a screen axis
+              // in any oblique view, so this is the only thing that tells a
+              // drone overhead from one far across the arena.
               c.strokeStyle = colour
-              c.globalAlpha = 0.22
+              c.globalAlpha = 0.35
               c.lineWidth = 1
               c.beginPath(); c.moveTo(gx, gy); c.lineTo(px, py); c.stroke()
 
@@ -616,9 +627,9 @@ defmodule BeamCampusWeb.DronexLive do
               drone high overhead from one far across the arena. --%>
         The fight is three-dimensional and so is this view: the floor is a
         thousand metres square, the ceiling three hundred up, and each drone is
-        joined to its own shadow by a stalk showing how high it is. The tail
-        behind it is where it actually was — every point a position the island
-        computed, joined and faded, never a smoothed curve.
+        joined to its mark on the ground by a stalk showing how high it is. The
+        tail behind it is where it actually was — every point a position the
+        island computed, joined and faded, never a smoothed curve.
       </p>
     </figure>
     """
