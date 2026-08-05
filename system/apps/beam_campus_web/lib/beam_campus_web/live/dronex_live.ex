@@ -61,7 +61,13 @@ defmodule BeamCampusWeb.DronexLive do
 
   defp load(socket) do
     islands = Dronex.islands()
-    assign(socket, islands: islands, state: Dronex.state(), refused: Dronex.refused())
+
+    assign(socket,
+      islands: islands,
+      raids: Dronex.raids(),
+      state: Dronex.state(),
+      refused: Dronex.refused()
+    )
   end
 
   # The island being watched: whichever was clicked, else the first that has
@@ -99,6 +105,13 @@ defmodule BeamCampusWeb.DronexLive do
         </.header>
 
         <.dronex_state state={@state} refused={@refused} />
+
+        <%!-- ⚠ OUTSIDE THE ISLANDS BLOCK ON PURPOSE. A raid is archipelago
+             state, not island state, and a commitment can arrive before either
+             island's vitals do — the two travel on different topics at
+             different rates. Nested inside, the first raid of a cold start
+             would be invisible. --%>
+        <.raids raids={@raids} />
 
         <div :if={@islands != []} class="mt-8">
           <div class="flex flex-wrap gap-2">
@@ -153,6 +166,31 @@ defmodule BeamCampusWeb.DronexLive do
       <.stat label="rounds bred" value={num(@v, "rounds")} />
       <.stat label="admitted" value={num(@v, "admissions")} />
     </div>
+
+    <%!-- ⚠ CAPTURES IS THE ONE THAT SAYS WHETHER ANY OF THIS IS HAPPENING.
+          Raids and defences can both climb while it stays zero — an island
+          refusing every raid on an engine mismatch looks identical from
+          outside — and then the archipelago is several separate experiments
+          with a light show on top. --%>
+    <div class="mt-4 grid gap-4 sm:grid-cols-4">
+      <.stat label="raids sent" value={num(@v, "raids")} />
+      <.stat label="raids defended" value={num(@v, "defences")} />
+      <.stat label="genomes captured" value={num(@v, "captures")} />
+      <.stat label="airframes lost" value={num(@v, "raids_lost")} />
+    </div>
+
+    <p class="mt-3 text-xs opacity-50">
+      <span class={["badge badge-sm", (@v["open"] && "badge-success") || "badge-ghost"]}>
+        {(@v["open"] && "open for battle") || "closed for battle"}
+      </span>
+      <%!-- Being open is the resting state: an island that does nothing stays a
+            target, and closing is an act. So `closed' means either a decision or
+            an island ground down to its roster floor, and the roster above says
+            which. --%>
+      An island announces that it can be fought, and re-announces while it can.
+      Staying open is what happens if it does nothing; closing is a decision, and
+      an island at its floor closes whether it wants to or not.
+    </p>
 
     <div class="mt-4">
       <h3 class="text-sm font-semibold opacity-70">The frozen exam</h3>
@@ -414,4 +452,53 @@ defmodule BeamCampusWeb.DronexLive do
 
   defp pct(_wins, 0), do: 0
   defp pct(wins, starts), do: round(wins * 100 / starts)
+
+  @doc """
+  Raids the archipelago has fought, newest first.
+
+  ⚠ **A raid in flight and a raid whose defender went dark look the same from
+  here, and that is the honest shape.** Both sides publish a commitment when the
+  price is paid; only the defender publishes the recording. So a raid with
+  commitments and no recording is either still being fought or was never
+  finished, and this page says "in flight" rather than pretending to know which.
+  The attacker's own timer settles that after five minutes.
+  """
+  attr :raids, :list, required: true
+
+  def raids(assigns) do
+    ~H"""
+    <div :if={@raids != []} class="mt-8">
+      <h3 class="text-sm font-semibold opacity-70">Raids</h3>
+      <p class="mt-1 text-xs opacity-50">
+        A raid moves opponents rather than fitness: what the defender keeps is
+        the attacker's genomes, which its own trainer then has to beat. Losing
+        drones is the price, and they have to be bred back.
+      </p>
+
+      <ul class="mt-3 space-y-1">
+        <li :for={r <- @raids} class="flex items-baseline gap-3 text-xs">
+          <span class={[
+            "badge badge-xs",
+            (Dronex.finished?(r) && "badge-ghost") || "badge-warning"
+          ]}>
+            {(Dronex.finished?(r) && "fought") || "in flight"}
+          </span>
+          <span class="font-mono opacity-70">{raid_line(r)}</span>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  # Named from whichever commitments arrived. Both sides publish one, so a raid
+  # normally has both; one alone still names the pair, because a commitment
+  # carries the opponent as well as the publisher.
+  defp raid_line(r) do
+    case Dronex.sides(r) do
+      {nil, nil} -> "a raid nobody described"
+      {att, nil} -> "#{att["island"]} sent #{att["airframes"]}"
+      {nil, def_} -> "#{def_["island"]} defended with #{def_["airframes"]}"
+      {att, def_} -> "#{att["island"]} sent #{att["airframes"]} against #{def_["island"]}"
+    end
+  end
 end

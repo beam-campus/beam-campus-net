@@ -54,7 +54,7 @@ defmodule Dronex.WatchBouts do
   @pubsub BeamCampus.PubSub
   @channel "dronex"
 
-  @kinds [:vitals, :bout]
+  @kinds [:vitals, :bout, :raid, :committed]
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -172,9 +172,16 @@ defmodule Dronex.WatchBouts do
 
   defp keep_ticking(s), do: rearm(s)
 
-  defp rearm(%{timer: nil} = s), do: %{s | timer: Process.send_after(self(), :subscribe, @retry_ms)}
+  defp rearm(%{timer: nil} = s),
+    do: %{s | timer: Process.send_after(self(), :subscribe, @retry_ms)}
+
   defp rearm(s), do: s
 
+  # ⚠ THE LEAF IS NOT ALWAYS THE KIND. Two of these carry longer names on the
+  # wire than the atom the reader files them under, and the island owns that
+  # contract: `dronex_facts:topic/1` is the one place the names are decided and a
+  # test on that side compares them against what the service asks authority for.
+  defp topic_for(:committed), do: "#{namespace()}/island_committed_to_battle"
   defp topic_for(kind), do: "#{namespace()}/#{kind}"
 
   defp namespace, do: Application.get_env(:dronex, :namespace, "society")
@@ -191,6 +198,20 @@ defmodule Dronex.WatchBouts do
     s
   end
 
+  # ⚠ A RAID IS FILED UNDER THE RAID AND EVERYTHING ELSE UNDER THE ISLAND, because
+  # a raid is the only fact here that is about TWO islands. Both sides publish a
+  # commitment naming one `raid_id`, and the defender publishes the recording;
+  # filed under whoever published, the attacker's half would have no home and a
+  # raid in flight would look like two unrelated events.
+  defp store(_id, kind, fact) when kind in [:raid, :committed] do
+    by_raid(Map.get(fact, "raid_id"), kind, fact)
+  end
+
   defp store(id, kind, fact) when is_binary(id), do: Board.put(id, kind, fact)
   defp store(_missing, _kind, _fact), do: :ok
+
+  defp by_raid(raid_id, kind, fact) when is_binary(raid_id),
+    do: Board.put_raid(raid_id, kind, fact)
+
+  defp by_raid(_missing, _kind, _fact), do: :ok
 end

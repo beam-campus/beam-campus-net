@@ -27,10 +27,27 @@ defmodule Dronex.WatchBouts.Board do
   table is an unbounded memory leak with a stranger holding the tap. The board
   caps the islands it will hold and counts what it turned away, and the page
   shows a non-zero count rather than quietly lying about how many islands exist.
+
+  ## Raids are filed under the RAID, not under an island
+
+  A raid is the only fact here that is about **two** islands. Both sides publish
+  a commitment naming the same `raid_id`, and the defender publishes the
+  recording. Filed under the publisher, the attacker's half of the story would
+  have no home and a raid in flight would look like two unrelated events.
+
+  So raids live under `{:raid, raid_id}` and carry whatever has arrived so far:
+  one commitment, then usually the other, then the recording when the fight ends.
+  A raid with one commitment and no recording is one in flight — or one whose
+  defender went dark, which is the same shape, and is exactly why both sides
+  emit one.
+
+  Islands are few and long-lived; raids are many and are moments, so they are
+  capped separately and the oldest go first.
   """
 
   @table :dronex_board
   @max_islands 64
+  @max_raids 64
 
   @doc "Create the table. Idempotent, so a subscriber restart does not lose the board."
   def init do
@@ -73,6 +90,57 @@ defmodule Dronex.WatchBouts.Board do
 
   defp room_for?(key), do: existing(key) != nil or map_size(rows()) < @max_islands
 
+  @doc """
+  File a commitment or a recording against the raid it names.
+
+  Merged rather than replaced: the attacker's commitment, the defender's
+  commitment and the recording arrive separately and none of them is complete on
+  its own.
+  """
+  @spec put_raid(binary(), atom(), map()) :: :ok
+  def put_raid(raid_id, kind, fact) when is_binary(raid_id) and is_atom(kind) do
+    key = {:raid, raid_id}
+    row = existing(key) || %{id: raid_id, parts: %{}, last_seen: nil}
+
+    :ets.insert(
+      @table,
+      {key,
+       %{
+         row
+         | parts: Map.update(row.parts, kind, [fact], &[fact | &1]),
+           last_seen: System.system_time(:millisecond)
+       }}
+    )
+
+    evict_oldest_raids()
+    :ok
+  end
+
+  @doc "Raids the board is holding, newest first."
+  def raids do
+    @table
+    |> :ets.tab2list()
+    |> Enum.flat_map(fn
+      {{:raid, _id}, row} -> [row]
+      _other -> []
+    end)
+    |> Enum.sort_by(& &1.last_seen, :desc)
+  end
+
+  # Oldest first, because a raid from an hour ago is not what anybody is looking
+  # at, and a public realm is writable by anyone who can reach a station.
+  defp evict_oldest_raids do
+    case raids() do
+      rows when length(rows) > @max_raids ->
+        rows
+        |> Enum.drop(@max_raids)
+        |> Enum.each(&:ets.delete(@table, {:raid, &1.id}))
+
+      _within ->
+        :ok
+    end
+  end
+
   defp fresh(key), do: %{id: key, name: nil, facts: %{}, last_seen: nil}
 
   defp existing(key) do
@@ -113,10 +181,15 @@ defmodule Dronex.WatchBouts.Board do
 
   def quiet_for(_never), do: nil
 
+  # ⚠ ISLANDS ONLY. One table holds three shapes now — the `:refused` counter
+  # under an atom, islands under a binary id, and raids under `{:raid, id}` — and
+  # an island row has `:facts` while a raid row has `:parts`. Letting a raid
+  # through here raised `key :facts not found` from inside the page, which is the
+  # right kind of loud, but the filter belongs where the keys are known.
   defp rows do
     @table
     |> :ets.tab2list()
-    |> Enum.reject(fn {k, _v} -> is_atom(k) end)
+    |> Enum.filter(fn {k, _v} -> is_binary(k) end)
     |> Map.new()
   end
 end

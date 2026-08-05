@@ -65,7 +65,73 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "training"
     assert html =~ "won by attacker"
     assert html =~ "beam01"
-    refute html =~ "raid"
+
+    # ⚠ A TRAINING BOUT MUST NOT BE DRESSED AS A RAID. The assertion used to be
+    # `refute html =~ "raid"`, which stopped being about that the moment the page
+    # grew raid counters and a raids section — the word appears legitimately now,
+    # and a blunt refute would have forced deleting a check worth keeping.
+    #
+    # What actually matters is that no raid is CLAIMED: this island has fought
+    # none, so the raids section is absent.
+    #
+    # ⚠ AND THE REPLACEMENT HAD THE SAME FAULT ONCE. `refute html =~ "fought"`
+    # matched the sentence "An island announces that it can be fought", which is
+    # prose about availability and not a claim about this bout. A refutation has
+    # to name something only the thing being refuted would produce.
+    refute html =~ "in flight"
+    refute html =~ ~r/against\s+beam/
+  end
+
+  # ⚠ A RAID IN FLIGHT AND A RAID WHOSE DEFENDER WENT DARK LOOK THE SAME FROM
+  # HERE, and the page says "in flight" rather than pretending to know which.
+  # Only the defender publishes the recording; both sides publish a commitment,
+  # which is why a paid cost always leaves a trace even when the fight does not.
+  test "a raid with commitments and no recording is shown as in flight", %{conn: conn} do
+    for {role, island, opponent} <- [
+          {"attacker", "beam01", "bbb"},
+          {"defender", "beam02", "aaa"}
+        ] do
+      Board.put_raid("r1", :committed, %{
+        "island" => island,
+        "island_id" => island,
+        "raid_id" => "r1",
+        "role" => role,
+        "opponent_id" => opponent,
+        "airframes" => 6
+      })
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "in flight"
+    assert html =~ "beam01 sent 6 against beam02"
+    refute html =~ "fought"
+  end
+
+  # And once the recording arrives it stops being in flight. The recording is
+  # published by the defender, so it is filed under the same raid rather than
+  # under whoever published it.
+  test "a raid with a recording is shown as fought", %{conn: conn} do
+    Board.put_raid("r2", :committed, %{
+      "island" => "beam01",
+      "raid_id" => "r2",
+      "role" => "attacker",
+      "opponent_id" => "bbb",
+      "airframes" => 6
+    })
+
+    Board.put_raid("r2", :raid, %{
+      "raid_id" => "r2",
+      "kind" => "raid",
+      "winner" => "defender",
+      "raiders" => 6,
+      "raiders_home" => 2
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "fought"
+    refute html =~ "in flight"
   end
 
   # A profile is a curve and never a total. A single number would need weights,

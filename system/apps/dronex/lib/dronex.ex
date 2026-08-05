@@ -80,6 +80,28 @@ defmodule Dronex do
   defp judge(true, true, true), do: :silent
   defp judge(true, true, false), do: :watching
 
+  @doc """
+  Raids the site knows about, newest first.
+
+  Each carries whatever has arrived: one commitment, usually both, and the
+  recording once the fight is over. A raid with commitments and no recording is
+  one in flight — or one whose defender went dark, which looks the same from
+  here and is exactly why both sides publish.
+  """
+  defdelegate raids, to: Dronex.WatchBouts.Board
+
+  @doc "Whether a raid has been fought and drawn, as opposed to still being out."
+  def finished?(%{parts: parts}), do: Map.has_key?(parts, :raid)
+  def finished?(_other), do: false
+
+  @doc "The two sides of a raid, as `{attacker_row, defender_row}` where known."
+  def sides(%{parts: parts}) do
+    commitments = Map.get(parts, :committed, [])
+
+    {Enum.find(commitments, &(&1["role"] == "attacker")),
+     Enum.find(commitments, &(&1["role"] == "defender"))}
+  end
+
   @doc "One island's latest fact of a given kind, or nil."
   def fact(row, kind) when is_map(row), do: Map.get(row.facts, kind)
   def fact(_row, _kind), do: nil
