@@ -339,6 +339,11 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  defp ceiling_reach(reach, b) do
+    ceiling = b |> Map.get("arena", [1000, 1000, 300]) |> Enum.at(2)
+    round(:math.sqrt(max(0, reach * reach - ceiling * ceiling)))
+  end
+
   # `nil` when the island never said, which draws no towers and claims nothing.
   defp tower_count(nil), do: nil
   defp tower_count(ground) when is_list(ground), do: div(length(ground), 3)
@@ -374,6 +379,12 @@ defmodule BeamCampusWeb.DronexLive do
         # fought away from home, the other means nobody said.
         towers: b |> Map.get("ground") |> tower_count(),
         reach: Map.get(b, "ground_range", 0),
+        # The dome's radius where the arena stops it, from the published reach
+        # and the published ceiling. Derived rather than written down, because
+        # placement evolves at phase 3 and a number typed into a caption would
+        # go quietly wrong the day it does.
+        ceiling: b |> Map.get("arena", [1000, 1000, 300]) |> Enum.at(2),
+        ceiling_reach: ceiling_reach(Map.get(b, "ground_range", 0), b),
         winner: Map.get(b, "winner", "draw"),
         ticks: Map.get(b, "ticks", 0),
         kind: Map.get(b, "kind", "training"),
@@ -515,21 +526,6 @@ defmodule BeamCampusWeb.DronexLive do
           // So: a splayed lattice mast with cross-braces and a base pad, in a
           // colour no aircraft uses. Silhouette first, colour second — a
           // recolour alone would still have been a drone.
-          towers() {
-            const c = this.ctx
-            // Coverage under every mast, so no tower is dimmed by its
-            // neighbour's wash.
-            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
-              this.coverage(this.ground[k], this.ground[k + 1], true)
-            }
-            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
-              this.coverage(this.ground[k], this.ground[k + 1], false)
-            }
-            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
-              this.mast(this.ground[k], this.ground[k + 1], this.ground[k + 2])
-            }
-          },
-
           // A lattice tower: two legs splayed from a base, tied by braces, with
           // a sensor head. The height and the splay are drawing choices — the
           // island publishes a position on the ground and nothing else — but the
@@ -577,35 +573,92 @@ defmodule BeamCampusWeb.DronexLive do
             c.globalAlpha = 1
           },
 
-          // ⚠ COVERAGE IS AN AREA, NOT A LINE. Five outlines crossing each other
-          // read as stray flight paths; five faint DISCS read as ground that is
-          // watched, and the dark between them reads as ground that is not. The
-          // holes are the whole point — they are the only way in.
+          // ⚠ COVERAGE IS A DOME, NOT A DISC, and the disc was a lie about the
+          // geometry rather than a simplification of it.
           //
-          // Overlaps brighten, and that is honest rather than an artifact of
-          // stacking alpha: where two stations see the same volume, a target is
-          // confirmed in about half the ticks one station needs, because
-          // agreement across stations is itself the evidence.
-          coverage(x, y, fill) {
-            if (this.groundRange <= 0) return
+          // A station tests SLANT range: the straight line from a mast standing
+          // on the ground to a drone in the air. Its detection volume is a
+          // hemisphere, so its radius at altitude z is sqrt(R² - z²) — 350 m on
+          // the floor and 180 m at the 300 m ceiling. A floor disc claims the
+          // coverage a drone meets at the ceiling is the same as at ground
+          // level, and it is barely half of it.
+          //
+          // Measured over the published placement, five stations, 1000 m arena:
+          //
+          //   on the floor    84% of the arena covered, 46% by two or more
+          //   at the ceiling  42% covered,               8% by two or more
+          //
+          // ⚠⚠ SO THE COUNTERPLAY IS ALTITUDE, and the disc said the opposite.
+          // Climbing roughly halves the chance of being seen at all and very
+          // nearly removes the chance of being seen by two stations at once —
+          // which matters more than it looks, because agreement across stations
+          // confirms a target in about half the ticks one station needs, and the
+          // network is silent until a track is confirmed. Flying high does not
+          // just delay detection, it delays CONFIRMATION.
+          //
+          // ⚠⚠⚠ FIVE WIREFRAME DOMES ARE UNREADABLE. Four rendered attempts said
+          // so: ceiling rings, meridian cages and stacked shells all turn into
+          // spaghetti, because the domes are 350 m across on a 1000 m arena and
+          // there are five of them. What works is a SLICE — the footprint on the
+          // floor, faint, plus the dome cut at the height the attackers are
+          // actually flying. As they climb, those rings shrink and lift, which
+          // shows the shape by moving through it rather than by drawing it.
+          towers() {
+            const c = this.ctx
+            const R = this.groundRange
+            const z = this.raiderAltitude()
+            const r = Math.sqrt(Math.max(0, R * R - z * z))
+
+            // Every fill lands before any outline, so no dome is dimmed by its
+            // neighbour's wash.
+            for (const [x, y] of this.stations()) this.slice(x, y, 0, R, "rgba(69,200,216,0.035)")
+            for (const [x, y] of this.stations()) this.slice(x, y, 0, R, null, "rgba(69,200,216,0.15)")
+            if (z > 0) {
+              for (const [x, y] of this.stations()) this.slice(x, y, z, r, "rgba(69,200,216,0.05)")
+              for (const [x, y] of this.stations()) this.slice(x, y, z, r, null, "rgba(69,200,216,0.38)")
+            }
+            for (const [x, y, sz] of this.stations()) this.mast(x, y, sz)
+          },
+
+          stations() {
+            const out = []
+            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
+              out.push([this.ground[k], this.ground[k + 1], this.ground[k + 2]])
+            }
+            return out
+          },
+
+          // ⚠ THE ATTACKERS' HEIGHT, NOT EVERYBODY'S. "Am I being seen" is the
+          // raider's question, and averaging in a defender sitting on the deck
+          // would draw a slice nobody is flying through. Even ids are attackers.
+          raiderAltitude() {
+            const f = this.frames[this.i]
+            if (!f) return 0
+            const alt = []
+            for (let k = 0; k + this.stride <= f.d.length; k += this.stride) {
+              if (f.d[k] % 2 === 0) alt.push(f.d[k + 3])
+            }
+            if (!alt.length) return 0
+            alt.sort((a, b) => a - b)
+            return alt[Math.floor(alt.length / 2)]
+          },
+
+          // A horizontal circle at altitude `z`, as the polygon it projects to.
+          // `project` shears and foreshortens, so a circle on the ground is not
+          // a circle on screen, and an ellipse fitted by eye would be wrong at
+          // the edges of the arena where it matters most.
+          slice(x, y, z, r, fill, stroke) {
             const c = this.ctx
             c.globalAlpha = 1
             c.beginPath()
             for (let n = 0; n <= 40; n++) {
               const a = (n / 40) * 6.283185
-              const [px, py] = this.project(x + Math.cos(a) * this.groundRange,
-                                            y + Math.sin(a) * this.groundRange, 0)
+              const [px, py] = this.project(x + Math.cos(a) * r, y + Math.sin(a) * r, z)
               n ? c.lineTo(px, py) : c.moveTo(px, py)
             }
             c.closePath()
-            if (fill) {
-              c.fillStyle = "rgba(69,200,216,0.055)"
-              c.fill()
-            } else {
-              c.strokeStyle = "rgba(69,200,216,0.30)"
-              c.lineWidth = 1
-              c.stroke()
-            }
+            if (fill) { c.fillStyle = fill; c.fill() }
+            if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1; c.stroke() }
           },
 
           // ⚠ A TRAIL IS THE FRAMES THAT ACTUALLY HAPPENED, NOT A SMOOTHED CURVE.
@@ -759,12 +812,16 @@ defmodule BeamCampusWeb.DronexLive do
               had no ground support" from "this page failed to load something"
               unless the page says which. The absence is the interesting half. --%>
         <%= if @towers && @towers > 0 do %>
-          The teal lattice masts are the defending island's sensor stations, {@towers} of them, and the pale discs are how far each one reaches
-          ({@reach} m). They cannot be shot at and they do not move. What they do
-          is watch, and say what they have seen on the same channel the drones
-          talk on, so a swarm has to learn what the cue means before it is worth
-          anything. Look at the dark ground between the discs, and at the volume
-          overhead that no ring on the floor covers: those are the way in.
+          The teal lattice masts are the defending island's sensor stations, {@towers} of them. A station measures the straight-line distance to a
+          drone, so what it watches is a DOME and not a circle: {@reach} m across
+          the ground, and only {@ceiling_reach} m up at the {@ceiling} m ceiling.
+          The faint pool is that footprint on the floor; the brighter ring is the
+          same dome cut at the height the raiders are flying, so it tightens and
+          lifts as they climb. That is the way past a network — height costs a
+          raider nothing and takes it out of reach of two stations at once, and
+          stations that agree confirm a target in about half the ticks a single
+          one needs. The towers say nothing at all until a track is confirmed, so
+          height does not just delay being seen. It delays being spoken about.
         <% end %>
         <%= if @towers == 0 do %>
           No towers stand on this floor. The attacking island's drones flew into

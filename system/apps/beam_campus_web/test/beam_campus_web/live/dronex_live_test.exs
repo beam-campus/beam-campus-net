@@ -294,7 +294,9 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # masts to know how many stations an island fields.
     assert html =~ "2 of them"
     assert html =~ "teal lattice masts"
-    assert html =~ "350 m"
+    assert html =~ "350 m across"
+    # sqrt(350^2 - 300^2) = 180: the dome is barely half as wide at the ceiling.
+    assert html =~ "180 m up"
   end
 
   # ⚠ AND AN AWAY FIGHT MUST SAY SO IN WORDS. An empty floor is indistinguishable
