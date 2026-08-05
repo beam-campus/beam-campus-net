@@ -127,6 +127,13 @@ defmodule BeamCampusWeb.BiotopeLive do
       # announced itself and published no chart yet is a name, not a place, and
       # drawing an empty disc for it would say it is barren rather than silent.
       charts: for(n <- names, chart = chart_of(rows, n), do: {n, chart}),
+      # ⚠ WHO IS COUNTED BUT NOT DRAWN, AND SAYING SO IS NOT OPTIONAL. An island
+      # that publishes counts and no chart is real and is missing from the map,
+      # and a map that silently omits a live node is worse than one that admits
+      # it. The per-island grid used to carry this as a card reading "counts but
+      # no picture"; the card did not scale and the fact does, so it is one line
+      # under the map now however many islands are quiet.
+      headless: for(n <- names, is_nil(chart_of(rows, n)), do: n),
       rows: rows,
       liveness: Map.new(names, &{&1, Biotope.liveness(&1)}),
       refused: Biotope.refused(),
@@ -244,23 +251,28 @@ defmodule BeamCampusWeb.BiotopeLive do
             nothing, because islands are a graph joined by migration rather than
             one plane, and no creature walks across.
           </p>
-        </div>
-
-        <div :if={@names != []} class="mt-10">
-          <.caption
-            label="the islands now"
-            keys={[{"#2F7D52", "ground"}, {"#C2557A", "died here"}, {"#8B7CE8", "scent"}]}
-          />
-          <.boards names={@shown} rows={@rows} labels={@labels} class="mt-2" />
           <p class="mt-2 text-xs opacity-40">
-            a creature's size is its body and its colour is <span data-colouring>feeding rate</span>. Press
+            drag to move, scroll to zoom, double-click to fit the whole world. A
+            creature's size is its body and its colour is <span data-colouring>feeding rate</span>; press
             <kbd class="rounded border px-1">K</kbd>
-            to colour every board by KIND instead, where a kind is a body plan and
-            a brain, and two dots of one colour are two creatures built the same
-            way. Every disc is drawn to the same absolute scale, so they can be
-            read against each other.
+            to colour by KIND instead, where a kind is a body plan and a brain,
+            so two dots of one colour are two creatures built the same way.
+            Every island is drawn to the same absolute scale, so a grazed one
+            really does look grazed beside a rich one. For one island on its own,
+            with its full instrument panel, follow its name in the table above.
           </p>
         </div>
+        
+    <!-- ⚠ A COUNT, NOT A LIST OF NAMES, AND THAT IS THE SECOND TIME THE SAME
+             LESSON LANDED TODAY. The first draft named every headless island,
+             which leaked the names the fleet table's paging deliberately holds
+             back AND grew a line per node, which is exactly the shape that was
+             just removed for not scaling. A number is true at any fleet size and
+             the table below already says which islands exist. -->
+        <p :if={@headless != []} class="mt-3 text-xs opacity-50">
+          Counts but no picture for {length(@headless)} of them, which is what a
+          headless run does: they are in the table and not on the map.
+        </p>
 
         <section :if={@names != []} class="mt-12">
           <h2 class="text-sm font-semibold opacity-70">Where they have been</h2>

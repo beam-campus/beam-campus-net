@@ -597,10 +597,19 @@ defmodule BeamCampusWeb.BiotopeComponents do
               this.paint(1)
             }, {passive: false})
             this.el.addEventListener("dblclick", () => { this.fitWorld(); this.paint(1) })
+            // ⚠ THE WORD ON THE PAGE IS UPDATED HERE TOO, AND IT USED NOT TO BE.
+            // Only the per-island `.Disc' hook rewrote `[data-colouring]', which
+            // was invisible while both were on the page. The moment the island
+            // grid was removed this map became the only thing listening for K,
+            // so the colours would have changed while the caption went on saying
+            // "feeding rate" for ever.
             this.toggle = (e) => {
               if (e.type === "keydown" && e.key !== "k" && e.key !== "K") return
               if (e.type === "keydown" && e.target.tagName === "INPUT") return
               this.kinds = !this.kinds
+              document.querySelectorAll("[data-colouring]").forEach((el) => {
+                el.textContent = this.kinds ? "kind" : "feeding rate"
+              })
               this.paint(1)
             }
             window.addEventListener("keydown", this.toggle)
@@ -1705,49 +1714,6 @@ defmodule BeamCampusWeb.BiotopeComponents do
     do: String.replace_suffix(host, ".macula.io", "")
 
   defp short_station(host), do: to_string(host)
-
-  @doc """
-  Every island's board, side by side and the same size.
-
-  THE ONE THING THAT GENUINELY WANTS TO BE PER-ISLAND, and the reason the fleet
-  page is worth loading at all. They compare honestly because nothing here is
-  scaled to its own frame: a body maps to a radius by the same absolute rule on
-  every disc and the ground uses one ramp, so a grazed board really does look
-  grazed beside a rich one.
-  """
-  attr :names, :list, required: true
-  attr :rows, :map, required: true
-  # An island is filed under its identity, which is a digest. This is what to
-  # call it where a person will read it.
-  attr :labels, :map, default: %{}
-  attr :size, :integer, default: 240
-  attr :class, :string, default: ""
-
-  def boards(assigns) do
-    ~H"""
-    <div class={["grid gap-5 sm:grid-cols-2 lg:grid-cols-3", @class]}>
-      <figure :for={name <- @names}>
-        <.disc
-          :if={chart_of(@rows[name])}
-          id={"disc-" <> name}
-          chart={chart_of(@rows[name])}
-          size={@size}
-        />
-        <p :if={is_nil(chart_of(@rows[name]))} class="rounded bg-base-300 p-4 text-xs opacity-60">
-          Counts but no picture. This island may have its chart turned off, which
-          is what a headless run does.
-        </p>
-        <figcaption class="mt-1 flex items-baseline justify-between gap-2 text-xs">
-          <span class="font-medium">{Map.get(@labels, name, name)}</span>
-          <span class="font-mono opacity-60">{cell(@rows[name], "population")} creatures</span>
-        </figcaption>
-      </figure>
-    </div>
-    """
-  end
-
-  defp chart_of(nil), do: nil
-  defp chart_of(row), do: row[:chart]
 
   @doc """
   The two halves of the energy books, over time, as two charts sharing a clock.

@@ -135,12 +135,21 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     assert html =~ "412"
     assert html =~ "78"
 
-    # The board is a canvas fed by packed numbers. Two creatures at four values
+    # The map is a canvas fed by packed numbers. Two creatures at four values
     # each, one ground cell at four, and the green is an integer now rather than
     # a colour string, because markup is the wrong carrier for a particle field.
+    #
+    # ⚠ THE CARRIER MOVED AND THE PROPERTIES DID NOT. Until 2026-08-05 each
+    # island had its own canvas with `data-creatures', `data-ground' and
+    # `data-water' of its own. The per-island grid was removed — it drew the
+    # same picture as the one-world map, one canvas and one animation loop per
+    # island — so every island now travels inside the map's single `data-isles'.
+    # Same numbers, same packing, one attribute.
     assert html =~ "<canvas"
-    [_, creatures] = Regex.run(~r/data-creatures="([^"]*)"/, html)
-    [_, ground] = Regex.run(~r/data-ground="([^"]*)"/, html)
+    [_, isles] = Regex.run(~r/data-isles="([^"]*)"/, html)
+    isle = isles |> unescape() |> Jason.decode!() |> hd()
+    creatures = Jason.encode!(isle["creatures"])
+    ground = Jason.encode!(isle["ground"])
     # SIX values per creature: id, x, y, radius, feeding colour, kind colour.
     # Both colourings travel in one frame so pressing K is a repaint and not a
     # refetch, and a viewer never asks the island for a different picture of the
@@ -153,8 +162,18 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     # island's own chart and it still was not on the mesh fact this page reads.
     # Position only, stride two: a cell is wet or it is not, so two cells are
     # four numbers and there is no amount to shade.
-    [_, water] = Regex.run(~r/data-water="([^"]*)"/, html)
-    assert length(Jason.decode!(water)) == 4
+    assert length(isle["water"]) == 4
+  end
+
+  # `data-isles' carries JSON through an HTML attribute, so the markup arrives
+  # entity-escaped. Only the entities Phoenix emits for an attribute value.
+  defp unescape(s) do
+    s
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&amp;", "&")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> String.replace("&#39;", "'")
   end
 
   # ⚠ PAINT ORDER IS A CORRECTNESS PROPERTY AND NOT A MATTER OF TASTE.
@@ -427,5 +446,58 @@ defmodule BeamCampusWeb.BiotopeLiveTest do
     # The digest may still appear in an href and in a DOM id, which is right:
     # those key on identity. It must not appear as a HEADING.
     refute html =~ ~r{<h3[^>]*>\s*#{id}\s*</h3>}
+  end
+
+  # ⚠ ONE CANVAS, NOT ONE PER ISLAND. The per-island grid was removed on
+  # 2026-08-05: it ran the same painter over the same data as the one-world map,
+  # which had only just started working, and it cost a canvas, a hook and a
+  # requestAnimationFrame loop per island. One world costs one of each however
+  # many nodes join. The close-up did not disappear, it moved to the island page,
+  # which draws the same disc at twice the size beside twenty other instruments.
+  test "the fleet page draws one world rather than one canvas per island", %{conn: conn} do
+    for name <- ["beam00", "beam01"] do
+      Board.put_stats(%{
+        "island" => name,
+        "island_id" => name <> "-id",
+        "tick" => 9,
+        "population" => 3
+      })
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    refute html =~ ~s(id="disc-)
+    refute html =~ "the islands now"
+  end
+
+  # ⚠ AND THE THING THE GRID EXPLAINED MOVED WITH IT. K recolours by kind, and
+  # only the per-island hook used to rewrite the caption that says so. Removing
+  # the grid without moving both the prose and that rewrite would have left the
+  # colours changing under a caption that always said "feeding rate".
+  test "the map still explains how to read a creature", %{conn: conn} do
+    Board.put_stats(%{
+      "island" => "beam01",
+      "island_id" => "beam01-id",
+      "tick" => 9,
+      "population" => 3
+    })
+
+    # The map renders only for islands that have sent a picture, so the prose it
+    # carries needs one too.
+    Board.put_chart(%{
+      "island" => "beam01",
+      "island_id" => "beam01-id",
+      "tick" => 9,
+      "radius" => 3,
+      "creatures" => [],
+      "ground" => [],
+      "water" => []
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/biotope")
+
+    assert html =~ "data-colouring"
+    assert html =~ "feeding rate"
+    assert html =~ "<kbd"
   end
 end
