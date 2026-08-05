@@ -501,64 +501,111 @@ defmodule BeamCampusWeb.DronexLive do
 
           // ⚠ THE DEFENDER'S GROUND STATIONS, AND THE HOLES BETWEEN THEM.
           //
-          // Drawn under everything else, because they are terrain: they cannot
-          // be shot at, they do not move, and they have no health. What they do
-          // is see, and say what they saw on the same channel the drones use.
+          // Terrain, drawn under everything else: they cannot be shot at, they
+          // do not move, and they have no health. What they do is watch, and say
+          // what they saw on the same channel the drones use.
           //
-          // The coverage ring is the honest reach the island published, not a
-          // decorative circle. Its whole job is to show WHERE THE GAPS ARE —
-          // between adjacent rings, and in the volume overhead, which no ring
-          // on the floor covers at all. Those gaps are the only counterplay an
-          // attacker has, so a picture without them would be a picture of the
-          // towers rather than a picture of the defence.
+          // ⚠⚠ A TOWER MUST NOT BE DRAWN IN THE DRONES' VOCABULARY, and the
+          // first version was. It was a thin vertical stalk with a dot on top —
+          // which is EXACTLY the mark this page already uses for a drone joined
+          // to its shadow. Five of them sat in the middle of the fight and read
+          // as five more aircraft, so the honest answer to "where are the
+          // towers" was "nowhere": nothing on the canvas said tower.
           //
-          // An away fight has none of this and shows an empty floor, which is
-          // exactly the point: a raider gives up its ground support the moment
-          // it leaves home.
+          // So: a splayed lattice mast with cross-braces and a base pad, in a
+          // colour no aircraft uses. Silhouette first, colour second — a
+          // recolour alone would still have been a drone.
           towers() {
             const c = this.ctx
+            // Coverage under every mast, so no tower is dimmed by its
+            // neighbour's wash.
             for (let k = 0; k + 3 <= this.ground.length; k += 3) {
-              const x = this.ground[k], y = this.ground[k + 1], z = this.ground[k + 2]
-              this.coverage(x, y)
-
-              // A mast, drawn in the projection so it leans with the floor. The
-              // height is a drawing choice and is the one number here that the
-              // island did not publish — the stations themselves stand at z=0.
-              const [bx, by] = this.project(x, y, z)
-              const [tx, ty] = this.project(x, y, this.arena[2] * 0.10)
-              c.globalAlpha = 1
-              c.strokeStyle = "#8FA0B4"
-              c.lineWidth = 1.5
-              c.beginPath(); c.moveTo(bx, by); c.lineTo(tx, ty); c.stroke()
-
-              c.fillStyle = "#B9C7D6"
-              c.beginPath(); c.arc(tx, ty, 2.5, 0, 6.284); c.fill()
-
-              c.globalAlpha = 0.5
-              c.fillStyle = "#8FA0B4"
-              c.beginPath(); c.ellipse(bx, by, 4, 1.6, 0, 0, 6.284); c.fill()
-              c.globalAlpha = 1
+              this.coverage(this.ground[k], this.ground[k + 1], true)
+            }
+            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
+              this.coverage(this.ground[k], this.ground[k + 1], false)
+            }
+            for (let k = 0; k + 3 <= this.ground.length; k += 3) {
+              this.mast(this.ground[k], this.ground[k + 1], this.ground[k + 2])
             }
           },
 
-          // A circle on the ground is not a circle on screen: `project` shears
-          // and foreshortens, so the ring is drawn as a projected polygon rather
-          // than an ellipse fitted by eye. Thirty-two points is smooth at this
-          // size and is exact rather than approximately right.
-          coverage(x, y) {
+          // A lattice tower: two legs splayed from a base, tied by braces, with
+          // a sensor head. The height and the splay are drawing choices — the
+          // island publishes a position on the ground and nothing else — but the
+          // SHAPE is the whole point, because it is what a viewer reads before
+          // any colour or caption reaches them.
+          mast(x, y, z) {
+            const c = this.ctx
+            const top = this.arena[2] * 0.17
+            const leg = this.arena[0] * 0.022
+            const [lx, ly] = this.project(x - leg, y, z)
+            const [rx, ry] = this.project(x + leg, y, z)
+            const [tx, ty] = this.project(x, y, top)
+
+            c.globalAlpha = 1
+            c.strokeStyle = "#45C8D8"
+            c.lineWidth = 1.6
+            c.beginPath()
+            c.moveTo(lx, ly); c.lineTo(tx, ty); c.lineTo(rx, ry)
+            c.stroke()
+
+            // Braces. Two ties across the legs say "structure" in a way a bare
+            // V does not, and they cost four line segments.
+            c.lineWidth = 1
+            c.globalAlpha = 0.75
+            for (const f of [0.34, 0.64]) {
+              c.beginPath()
+              c.moveTo(lx + (tx - lx) * f, ly + (ty - ly) * f)
+              c.lineTo(rx + (tx - rx) * f, ry + (ty - ry) * f)
+              c.stroke()
+            }
+
+            // The head that does the looking.
+            c.globalAlpha = 1
+            c.fillStyle = "#9AE9F2"
+            c.beginPath(); c.arc(tx, ty, 3, 0, 6.284); c.fill()
+
+            // A pad on the floor, so the tower is planted rather than hovering.
+            const [bx, by] = this.project(x, y, z)
+            c.fillStyle = "#45C8D8"
+            c.globalAlpha = 0.55
+            c.beginPath()
+            c.moveTo(bx - 6, by); c.lineTo(bx, by - 2.4)
+            c.lineTo(bx + 6, by); c.lineTo(bx, by + 2.4)
+            c.closePath(); c.fill()
+            c.globalAlpha = 1
+          },
+
+          // ⚠ COVERAGE IS AN AREA, NOT A LINE. Five outlines crossing each other
+          // read as stray flight paths; five faint DISCS read as ground that is
+          // watched, and the dark between them reads as ground that is not. The
+          // holes are the whole point — they are the only way in.
+          //
+          // Overlaps brighten, and that is honest rather than an artifact of
+          // stacking alpha: where two stations see the same volume, a target is
+          // confirmed in about half the ticks one station needs, because
+          // agreement across stations is itself the evidence.
+          coverage(x, y, fill) {
             if (this.groundRange <= 0) return
             const c = this.ctx
             c.globalAlpha = 1
-            c.strokeStyle = "rgba(226,85,110,0.22)"
-            c.lineWidth = 1
             c.beginPath()
-            for (let n = 0; n <= 32; n++) {
-              const a = (n / 32) * 6.283185
+            for (let n = 0; n <= 40; n++) {
+              const a = (n / 40) * 6.283185
               const [px, py] = this.project(x + Math.cos(a) * this.groundRange,
                                             y + Math.sin(a) * this.groundRange, 0)
               n ? c.lineTo(px, py) : c.moveTo(px, py)
             }
-            c.stroke()
+            c.closePath()
+            if (fill) {
+              c.fillStyle = "rgba(69,200,216,0.055)"
+              c.fill()
+            } else {
+              c.strokeStyle = "rgba(69,200,216,0.30)"
+              c.lineWidth = 1
+              c.stroke()
+            }
           },
 
           // ⚠ A TRAIL IS THE FRAMES THAT ACTUALLY HAPPENED, NOT A SMOOTHED CURVE.
@@ -712,11 +759,11 @@ defmodule BeamCampusWeb.DronexLive do
               had no ground support" from "this page failed to load something"
               unless the page says which. The absence is the interesting half. --%>
         <%= if @towers && @towers > 0 do %>
-          The masts on the ground are the defending island's sensor stations, {@towers} of them, and the faint rings are how far each one reaches
+          The teal lattice masts are the defending island's sensor stations, {@towers} of them, and the pale discs are how far each one reaches
           ({@reach} m). They cannot be shot at and they do not move. What they do
           is watch, and say what they have seen on the same channel the drones
           talk on, so a swarm has to learn what the cue means before it is worth
-          anything. Look at the gaps between the rings, and at the volume
+          anything. Look at the dark ground between the discs, and at the volume
           overhead that no ring on the floor covers: those are the way in.
         <% end %>
         <%= if @towers == 0 do %>

@@ -293,6 +293,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # And the caption counts them, because a viewer should not have to count
     # masts to know how many stations an island fields.
     assert html =~ "2 of them"
+    assert html =~ "teal lattice masts"
     assert html =~ "350 m"
   end
 
@@ -316,7 +317,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     assert html =~ "No towers stand on this floor"
-    refute html =~ "of them, and the faint rings"
+    refute html =~ "of them, and the pale discs"
   end
 
   # An island running older code publishes neither key. It must draw a floor with
@@ -342,7 +343,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # here" would be the page asserting something it was never told: absent is
     # not the same claim as empty.
     refute html =~ "No towers stand on this floor"
-    refute html =~ "of them, and the faint rings"
+    refute html =~ "of them, and the pale discs"
   end
 
   defp unescape(s) do
