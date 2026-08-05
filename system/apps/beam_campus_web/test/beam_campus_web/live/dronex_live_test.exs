@@ -280,7 +280,9 @@ defmodule BeamCampusWeb.DronexLiveTest do
       "arena" => [1000, 1000, 300],
       "ground" => [500, 500, 0, 750, 500, 0],
       "ground_range" => 350,
-      "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+      "frames" => [
+        %{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => [], "k" => [480, 505, 95]}
+      ]
     })
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
@@ -289,6 +291,12 @@ defmodule BeamCampusWeb.DronexLiveTest do
     bout = payload |> unescape() |> Jason.decode!()
     assert bout["ground"] == [500, 500, 0, 750, 500, 0]
     assert bout["ground_range"] == 350
+
+    # ⚠ AND THE NETWORK'S BELIEF TRAVELS WITH THE TRUTH. Without it a viewer
+    # cannot tell "the raiders got through" from "the raiders were never
+    # confirmed", which are different findings about the same defeat.
+    assert [%{"k" => [480, 505, 95]}] = bout["frames"]
+    assert html =~ "what the towers have CONFIRMED"
 
     # And the caption counts them, because a viewer should not have to count
     # masts to know how many stations an island fields.

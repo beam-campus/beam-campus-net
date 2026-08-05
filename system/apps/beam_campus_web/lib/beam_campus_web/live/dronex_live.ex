@@ -812,6 +812,16 @@ defmodule BeamCampusWeb.DronexLive do
               against", which stopped being true the moment a raid was what got
               played: in a raid the red side is another island's evolved swarm,
               not a script. --%>
+        The hollow teal rings are what the towers have CONFIRMED — the network's
+        belief, not the truth. Watch for the three disagreements: a ring lagging
+        the drone it is about, a ring with nothing near it (a ghost the network
+        confirmed), and a drone with no ring at all, which is an aircraft the
+        towers have not found and cannot cue anyone onto. A ring is never joined
+        to a drone, because a non-cooperative sensor never learns whose aircraft
+        it is looking at.
+      </p>
+
+      <p class="mt-1 text-xs opacity-40">
         Red is the raiding side and blue the island defending its own airspace,
         green a drone that withdrew alive, faded a drone that was destroyed. The line is where a
         drone's nose points, which is the only direction it can see or shoot.
