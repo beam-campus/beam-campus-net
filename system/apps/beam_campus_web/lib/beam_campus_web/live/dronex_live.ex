@@ -420,26 +420,90 @@ defmodule BeamCampusWeb.DronexLive do
             this.el.width = this.w * p
             this.el.height = this.h * p
             this.ctx.setTransform(p, 0, 0, p, 0, 0)
+            // How far the ground plane is sheared and squashed, and how much of
+            // the canvas the 300 m column is allowed. Chosen so a drone at the
+            // ceiling clears the far edge of the floor rather than sitting on it.
+            this.SHEAR = 0.42
+            this.TILT = 0.62
+            this.LIFT = 0.42
+            this.TRAIL = 10
+            this.pad = 10
           },
 
-          // Top-down. Altitude is mark SIZE plus a shadow on the floor, because a
-          // flat plan of a fight in a 300 m column throws away the axis the
-          // drones spend most of their thrust on.
-          at(x, y) {
-            return [x / this.arena[0] * this.w, y / this.arena[1] * this.h]
+          // ⚠ AN OBLIQUE PROJECTION, BECAUSE THE FIGHT IS THREE-DIMENSIONAL AND
+          // THE DRAWING WAS NOT. The physics has always been 3D — x, y, z, a
+          // vertical thrust axis and a 300 m ceiling — and this drew a flat plan
+          // with altitude encoded as mark SIZE. The design said that was so
+          // "height reads without a second view". It did not read at all: a
+          // swarm climbing over another looked like a swarm sitting on it.
+          //
+          // So the ground plane is sheared and foreshortened, altitude becomes a
+          // real vertical offset, and every drone is joined to its own shadow by
+          // a stalk. Nothing is invented — it is the same three numbers the
+          // island computed, projected differently.
+          project(x, y, z) {
+            const [ax, ay, az] = this.arena
+            const nx = x / ax, ny = y / ay, nz = z / az
+            const sx = (nx + ny * this.SHEAR) / (1 + this.SHEAR)
+            const sy = (this.LIFT + ny * this.TILT - nz * this.LIFT) / (this.TILT + this.LIFT)
+            return [this.pad + sx * (this.w - 2 * this.pad),
+                    this.pad + sy * (this.h - 2 * this.pad)]
+          },
+
+          // The floor, drawn as the quad it projects to, with altitude rules
+          // above it. THE RULES ARE A READING AID ONLY: the physics is
+          // continuous and obeys nothing here.
+          floor() {
+            const c = this.ctx
+            const corners = [[0, 0], [this.arena[0], 0],
+                             [this.arena[0], this.arena[1]], [0, this.arena[1]]]
+            c.strokeStyle = "rgba(255,255,255,0.10)"
+            c.lineWidth = 1
+            c.beginPath()
+            corners.forEach(([x, y], n) => {
+              const [px, py] = this.project(x, y, 0)
+              n ? c.lineTo(px, py) : c.moveTo(px, py)
+            })
+            c.closePath()
+            c.stroke()
+
+            c.strokeStyle = "rgba(255,255,255,0.045)"
+            for (let b = 1; b <= 3; b++) {
+              const z = (this.arena[2] * b) / 4
+              c.beginPath()
+              const a = this.project(0, this.arena[1], z)
+              const d = this.project(this.arena[0], this.arena[1], z)
+              c.moveTo(a[0], a[1]); c.lineTo(d[0], d[1]); c.stroke()
+            }
+          },
+
+          // ⚠ A TRAIL IS THE FRAMES THAT ACTUALLY HAPPENED, NOT A SMOOTHED CURVE.
+          // Every point is a position the island computed and published; the
+          // page joins them and fades them. Interpolating between frames would
+          // be the site inventing motion it was never told about, which is the
+          // one thing this player must never do.
+          trail(id) {
+            const back = []
+            for (let n = Math.max(0, this.i - this.TRAIL); n < this.i; n++) {
+              const f = this.frames[n]
+              if (!f) continue
+              for (let k = 0; k + this.stride <= f.d.length; k += this.stride) {
+                if (f.d[k] === id) { back.push([f.d[k + 1], f.d[k + 2], f.d[k + 3]]); break }
+              }
+            }
+            return back
           },
 
           paint() {
             const c = this.ctx
             const f = this.frames[this.i]
             c.clearRect(0, 0, this.w, this.h)
-            c.strokeStyle = "rgba(255,255,255,0.10)"
-            c.lineWidth = 1
-            c.strokeRect(0.5, 0.5, this.w - 1, this.h - 1)
+            this.floor()
             if (!f) return
 
             for (let k = 0; k + this.mstride <= f.m.length; k += this.mstride) {
-              const [px, py] = this.at(f.m[k + 1], f.m[k + 2])
+              const [px, py] = this.project(f.m[k + 1], f.m[k + 2], f.m[k + 3])
+              c.globalAlpha = 1
               c.fillStyle = f.m[k + 4] ? "#E8A33D" : "#9AA3AF"
               c.beginPath()
               c.arc(px, py, f.m[k + 4] ? 2.5 : 1.5, 0, 6.284)
@@ -447,43 +511,66 @@ defmodule BeamCampusWeb.DronexLive do
             }
 
             for (let k = 0; k + this.stride <= f.d.length; k += this.stride) {
-              const [px, py] = this.at(f.d[k + 1], f.d[k + 2])
-              const alt = f.d[k + 3] / this.arena[2]
-              const yaw = f.d[k + 4]
-              const health = f.d[k + 5]
-              const state = f.d[k + 6]
-              const attacker = f.d[k] % 2 === 0
-              const r = 3 + alt * 5
+              const id = f.d[k]
+              const x = f.d[k + 1], y = f.d[k + 2], z = f.d[k + 3]
+              const yaw = f.d[k + 4], health = f.d[k + 5], state = f.d[k + 6]
+              const attacker = id % 2 === 0
+              const colour = attacker ? "#4C8DFF" : "#E2556E"
+              const [px, py] = this.project(x, y, z)
+              const [gx, gy] = this.project(x, y, 0)
 
-              // The shadow is where it is; the mark is how high.
-              c.globalAlpha = 0.18
+              // Where it has been. Velocity is invisible on a still frame
+              // without this, and a swarm that is manoeuvring looks like a
+              // swarm that is hovering.
+              const back = this.trail(id)
+              c.strokeStyle = colour
+              c.lineWidth = 1.5
+              back.forEach((p, n) => {
+                const [tx, ty] = this.project(p[0], p[1], p[2])
+                const next = n + 1 < back.length ? back[n + 1] : [x, y, z]
+                const [nx2, ny2] = this.project(next[0], next[1], next[2])
+                c.globalAlpha = 0.05 + 0.30 * (n / Math.max(1, back.length))
+                c.beginPath(); c.moveTo(tx, ty); c.lineTo(nx2, ny2); c.stroke()
+              })
+
+              // The shadow is where it is on the ground; the stalk is how high.
+              // Together they are the only cue that survives a still frame.
+              c.globalAlpha = 0.16
               c.fillStyle = "#000"
-              c.beginPath(); c.arc(px, py, 3, 0, 6.284); c.fill()
+              c.beginPath(); c.ellipse(gx, gy, 4, 1.6, 0, 0, 6.284); c.fill()
+              c.strokeStyle = colour
+              c.globalAlpha = 0.22
+              c.lineWidth = 1
+              c.beginPath(); c.moveTo(gx, gy); c.lineTo(px, py); c.stroke()
 
               c.globalAlpha = state === 2 ? 0.25 : 1
-              const colour = attacker ? "#4C8DFF" : "#E2556E"
+              const r = 4
               c.fillStyle = state === 1 ? "#7BC47F" : colour
               c.beginPath(); c.arc(px, py, r, 0, 6.284); c.fill()
 
-              // Where its nose points, which is where it can see and shoot.
               if (state === 0) {
-                const a = yaw / 256 * 6.28318
+                // Where its nose points, which is where it can see and shoot.
+                // Yaw is a heading in the ground plane, so it is drawn there and
+                // projected, not swung around the screen.
+                const a = (yaw / 256) * 6.28318
+                const nose = this.project(x + Math.cos(a) * this.arena[0] * 0.05,
+                                          y + Math.sin(a) * this.arena[1] * 0.05, z)
                 c.strokeStyle = c.fillStyle
                 c.lineWidth = 1.5
-                c.beginPath()
-                c.moveTo(px, py)
-                c.lineTo(px + Math.cos(a) * (r + 6), py + Math.sin(a) * (r + 6))
-                c.stroke()
-                // Health as an arc over the mark, so a losing drone reads at a glance.
+                c.beginPath(); c.moveTo(px, py); c.lineTo(nose[0], nose[1]); c.stroke()
+
+                // Health as an arc over the mark, so a losing drone reads at a
+                // glance rather than needing a table.
                 c.strokeStyle = "rgba(255,255,255,0.65)"
                 c.lineWidth = 2
                 c.beginPath()
-                c.arc(px, py, r + 3, -1.57, -1.57 + 6.28318 * health / 100)
+                c.arc(px, py, r + 3, -1.5708, -1.5708 + 6.2832 * (health / 100))
                 c.stroke()
               }
-              c.globalAlpha = 1
             }
-          }
+            c.globalAlpha = 1
+          },
+
         }
       </script>
 
@@ -513,11 +600,25 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Blue is the island's own controller, red the scripted drill it is being
-        measured against, green a drone that withdrew alive, faded a drone that
-        was destroyed. The line is where a drone's nose points, which is the only
-        direction it can see or shoot. Orange marks are guided interceptors and
-        grey ones are unguided.
+        <%!-- ⚠ THE CAPTION USED TO SAY "the scripted drill it is being measured
+              against", which stopped being true the moment a raid was what got
+              played: in a raid the red side is another island's evolved swarm,
+              not a script. --%>
+        Blue is the attacking side, red the defending one, green a drone that
+        withdrew alive, faded a drone that was destroyed. The line is where a
+        drone's nose points, which is the only direction it can see or shoot.
+        Orange marks are guided interceptors and grey ones are unguided.
+      </p>
+
+      <p class="mt-1 text-xs opacity-40">
+        <%!-- Altitude and distance share a screen axis in any oblique view, so
+              the stalk is not decoration: it is the only thing that tells a
+              drone high overhead from one far across the arena. --%>
+        The fight is three-dimensional and so is this view: the floor is a
+        thousand metres square, the ceiling three hundred up, and each drone is
+        joined to its own shadow by a stalk showing how high it is. The tail
+        behind it is where it actually was — every point a position the island
+        computed, joined and faded, never a smoothed curve.
       </p>
     </figure>
     """
