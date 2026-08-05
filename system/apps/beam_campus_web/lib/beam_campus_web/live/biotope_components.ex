@@ -598,7 +598,15 @@ defmodule BeamCampusWeb.BiotopeComponents do
           // beam01 and creature 7 on beam03 are different animals, and keying on
           // the number alone would slide marks between islands, across the sea,
           // which is the one movement this world does not have.
+          // ⚠ A NODE JOINING MAKES THE WORLD BIGGER, and the viewport has to be
+          // told. Re-framing on EVERY update would be worse than not doing it:
+          // it would yank the camera back mid-drag on every tick. So the extent
+          // is re-read each time and the camera is re-framed only when the world
+          // actually changed size.
           updated() {
+            const was = this.world
+            this.fit()
+            if (!was || was.w !== this.world.w || was.h !== this.world.h) this.fitWorld()
             this.was = this.now || new Map()
             this.read()
             this.now = new Map()
@@ -618,13 +626,54 @@ defmodule BeamCampusWeb.BiotopeComponents do
             if (e < 1) requestAnimationFrame(() => this.animate())
           },
 
+          // ⚠ TWO DIFFERENT SIZES, AND CONFLATING THEM IS WHY THIS WAS BLANK.
+          // The CANVAS is `w-full' with a 16/10 aspect ratio, so how big it is
+          // on screen is CSS's business and is read from the layout. The WORLD
+          // is however much land the islands occupy, which grows as nodes join
+          // and has nothing to do with the viewport. `data-world-width' and
+          // `data-world-height' carry the second one.
+          //
+          // This used to read `dataset.width'/`dataset.height', which are not
+          // attributes that exist here — the element carries `data-world-*'.
+          // Both came back NaN, the backing store was sized to NaN, and the
+          // canvas was blank even before `mounted()' threw.
           fit() {
             const p = window.devicePixelRatio || 1
-            this.w = parseInt(this.el.dataset.width)
-            this.h = parseInt(this.el.dataset.height)
+            const r = this.el.getBoundingClientRect()
+            this.dpr = p
+            this.w = Math.max(1, Math.round(r.width))
+            this.h = Math.max(1, Math.round(r.height))
             this.el.width = this.w * p
             this.el.height = this.h * p
-            this.ctx.setTransform(p, 0, 0, p, 0, 0)
+            this.world = {
+              w: parseInt(this.el.dataset.worldWidth) || this.w,
+              h: parseInt(this.el.dataset.worldHeight) || this.h
+            }
+          },
+
+          // ⚠ THE CAMERA, WHICH WAS MAINTAINED AND NEVER APPLIED. `this.cam' was
+          // set up in `mounted()' and moved by every drag and every wheel event,
+          // and nothing ever read it: `paint()' drew in raw world coordinates.
+          // So even had the canvas been sized, dragging and zooming would have
+          // done nothing at all.
+          //
+          // The mapping is `screen = (world + cam.xy) * cam.k', which is the one
+          // the drag and wheel handlers were already written against. `at/2' is
+          // its inverse and is what makes zoom hold the point under the cursor.
+          at(px, py) {
+            return {x: px / this.cam.k - this.cam.x, y: py / this.cam.k - this.cam.y}
+          },
+
+          // Frame the whole world in the viewport. Called at mount, on resize
+          // and on double-click, and it was never defined — so `mounted()' threw
+          // `this.fitWorld is not a function' before its first paint and the
+          // element stayed empty for good. A hook that raises in `mounted' fails
+          // silently as far as the page is concerned.
+          fitWorld() {
+            const k = Math.min(this.w / this.world.w, this.h / this.world.h)
+            this.cam.k = Math.min(4, Math.max(0.1, k))
+            this.cam.x = (this.w / this.cam.k - this.world.w) / 2
+            this.cam.y = (this.h / this.cam.k - this.world.h) / 2
           },
 
           read() {
@@ -633,8 +682,15 @@ defmodule BeamCampusWeb.BiotopeComponents do
 
           paint(ease) {
             const c = this.ctx
+            const p = this.dpr, k = this.cam.k
+            // Cleared under the identity transform, because clearing under the
+            // camera would clear whatever rectangle the camera happens to be
+            // looking at rather than the canvas.
+            c.setTransform(p, 0, 0, p, 0, 0)
             c.clearRect(0, 0, this.w, this.h)
+            c.setTransform(p * k, 0, 0, p * k, p * k * this.cam.x, p * k * this.cam.y)
             for (const isle of this.isles) this.island(isle, ease)
+            c.setTransform(p, 0, 0, p, 0, 0)
           },
 
           island(isle, ease) {
