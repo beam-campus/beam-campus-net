@@ -58,7 +58,7 @@ defmodule BeamCampusWeb.DronexLive do
      # site's generic title, so four different workbench pages are one bookmark.
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
-     |> assign(fight: nil, payload: nil, frame_count: 0)
+     |> assign(fight: nil, payload: nil, frame_count: 0, losses: nil)
      # `nil` means the map has not told us what it is showing. Before the first
      # report, and for anyone who never moves it, that has to mean EVERYTHING.
      |> assign(panel: :fights, in_view: nil)
@@ -183,7 +183,8 @@ defmodule BeamCampusWeb.DronexLive do
   # The comparison is on the fact and not just the key, because a raid's
   # commitments arrive before its recording does — same key, and the second
   # arrival is the one worth drawing.
-  defp put_fight(socket, nil), do: assign(socket, fight: nil, payload: nil, frame_count: 0)
+  defp put_fight(socket, nil),
+    do: assign(socket, fight: nil, payload: nil, frame_count: 0, losses: nil)
 
   defp put_fight(%{assigns: %{fight: %{key: k, fact: f}}} = socket, %{key: k, fact: f}),
     do: socket
@@ -194,7 +195,11 @@ defmodule BeamCampusWeb.DronexLive do
     assign(socket,
       fight: entry,
       payload: encode(entry.fact, frames),
-      frame_count: length(frames)
+      frame_count: length(frames),
+      # ⚠ WALKED ONCE, WITH THE PAYLOAD. This reads every drone in every frame;
+      # doing it per render would be that walk twice a second for a number that
+      # only changes when the fight does.
+      losses: Dronex.AccountForLosses.account(frames)
     )
   end
 
@@ -862,6 +867,7 @@ defmodule BeamCampusWeb.DronexLive do
   attr :fight, :any, default: nil
   attr :payload, :any, default: nil
   attr :frame_count, :integer, default: 0
+  attr :losses, :any, default: nil
   attr :watchable, :list, required: true
   attr :watching, :any, default: nil
   attr :focused, :any, default: nil
@@ -896,7 +902,13 @@ defmodule BeamCampusWeb.DronexLive do
             belongs next to the thing it changes. --%>
       <div :if={@panel == :fights} class="mt-2 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
         <div class="lg:col-span-2">
-          <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
+          <.fight
+            :if={@fight}
+            fight={@fight}
+            payload={@payload}
+            frame_count={@frame_count}
+            losses={@losses}
+          />
         </div>
 
         <div class="lg:col-span-1">
@@ -1053,6 +1065,7 @@ defmodule BeamCampusWeb.DronexLive do
   attr :fight, :any, required: true
   attr :payload, :string, required: true
   attr :frame_count, :integer, required: true
+  attr :losses, :any, default: nil
 
   def fight(%{fight: %{kind: kind, fact: b}} = assigns) do
     assigns = assign(assigns, bout: b, raid?: kind == :raid)
@@ -1060,11 +1073,81 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <section>
       <.replay bout={@bout} payload={@payload} count={@frame_count} big={@raid?} />
+      <.losses :if={@losses && @losses.weapon_share} losses={@losses} />
     </section>
     """
   end
 
   def fight(assigns), do: ~H""
+
+  @doc """
+  What destroyed the drones in the fight above, read back off its frames.
+
+  ⚠ **NOT A CHART OF WHO WON.** The winner of these engagements is close to a
+  coin flip and a picture of it would decorate that. This is about the MECHANISM:
+  weapon damage is quantised at 25 and 50 points because `HIT_DAMAGE` and
+  `INTERCEPTOR_DAMAGE` are exact multiples of 100 of a 10000 start, and a ram is
+  continuous — so the part of a health drop that is not a multiple of 25 cannot
+  have come from a gun.
+  """
+  attr :losses, :map, required: true
+
+  def losses(assigns) do
+    ~H"""
+    <div class="mt-4">
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="text-xs font-semibold opacity-70">What destroyed them</span>
+        <span class="font-mono text-xs opacity-50">
+          {@losses.deaths} lost · {@losses.total} points of damage
+        </span>
+      </div>
+
+      <%!-- ⚠ ONE BAR, TWO PARTS, AND A 2px GAP so the boundary is a boundary and
+            not a colour change. --%>
+      <div class="mt-2 flex h-3 w-full gap-0.5 overflow-hidden rounded">
+        <div
+          class="bg-primary"
+          style={"width: #{@losses.weapon_share}%"}
+          title={"#{@losses.weapon_share}% of damage fell in exact 25 or 50 point steps — weapons"}
+        >
+        </div>
+        <div
+          class="bg-warning"
+          style={"width: #{@losses.other_share}%"}
+          title={"#{@losses.other_share}% could not have come from a weapon — collisions or the arena edge"}
+        >
+        </div>
+      </div>
+
+      <div class="mt-1 flex flex-wrap justify-between gap-x-4 text-xs">
+        <span><span class="text-primary">■</span> weapons {@losses.weapon_share}%</span>
+        <span><span class="text-warning">■</span> not weapons {@losses.other_share}%</span>
+      </div>
+
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">
+          How this is known, and what it cannot say
+        </summary>
+        <p class="mt-2 text-xs opacity-50">
+          A weapon takes exactly 25 or 50 points, always, because the constants are
+          exact multiples of 100 of a 10000 start and the quantum survives
+          fractional health. A collision takes a continuous amount. So the part of
+          a fall that is not a multiple of 25 <strong>cannot</strong>
+          be a gun. Munitions never hit a friendly — the engine filters same-side
+          before any geometry — but collisions ignore sides entirely, so a swarm
+          can shred itself by flying tight.
+          <span class="mt-2 block">
+            ⚠ It cannot separate a ram from the ground. Confirming a collision
+            means finding another drone within one metre, and the frames publish
+            whole metres, so "touching" and "two metres apart" read the same. And
+            a collision that happens to take exactly 25 points is counted as a
+            weapon, which makes the second bar a floor rather than a ceiling.
+          </span>
+        </p>
+      </details>
+    </div>
+    """
+  end
 
   attr :bout, :map, required: true
   attr :payload, :string, required: true
