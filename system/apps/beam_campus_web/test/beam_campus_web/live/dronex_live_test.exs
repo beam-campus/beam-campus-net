@@ -185,12 +185,33 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
 
+    # ⚠ FIGHTS IS THE DEFAULT, because it is the chooser for the canvas beside
+    # it. Neither of the other two is rendered until asked for.
+    refute html =~ "fields at most"
+    refute html =~ "hoverer"
+
+    html = render_click(view, "show_panel", %{"panel" => "vitals"})
     assert html =~ "fields at most"
     refute html =~ "hoverer"
 
     html = render_click(view, "show_panel", %{"panel" => "exam"})
     assert html =~ "hoverer"
     refute html =~ "fields at most"
+  end
+
+  # ⚠ THE FIGHT ITSELF IS NEVER BEHIND A TAB. Switching to the numbers must not
+  # take the canvas away: a raid belongs to two islands and the player is not
+  # one island's property.
+  test "the player survives every tab", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put_raid("r1", :raid, raid("bbb", "beam00") |> Map.put("island_id", "aaa"))
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
+    assert html =~ "dronex-replay"
+
+    for panel <- ["vitals", "exam", "fights"] do
+      assert render_click(view, "show_panel", %{"panel" => panel}) =~ "dronex-replay"
+    end
   end
 
   # An island that has not sat the exam is different from one that sat it and
@@ -483,7 +504,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     html = render_click(view, "focus_island", %{"id" => "aaa"})
     assert Enum.sort(watch_keys(html)) == ["away", "home"]
-    assert html =~ "Fights involving beam00"
+    assert html =~ "involving beam00"
 
     # ⚠ AND IT LETS GO. Clicking the focused island again clears it; a filter
     # with no way out is a trap, and on a canvas there is no obvious "off".
@@ -514,8 +535,8 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "lg:grid lg:grid-cols-4"
-    assert html =~ "lg:col-span-3"
+    assert html =~ "lg:grid lg:grid-cols-3"
+    assert html =~ "lg:col-span-2"
 
     # ⚠ AND 4/3 WHEN RAILED. `project` normalises the world into the unit square
     # and stretches it to whatever canvas it is given, so a wide canvas flattens
@@ -549,9 +570,11 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ ~s(phx-click="choose")
 
     html = render_click(view, "focus_island", %{"id" => "bbb"})
-    assert html =~ "Fights involving beam01"
-    # and the vitals panel followed the same selection
-    assert html =~ "fields at most"
+    assert html =~ "involving beam01"
+
+    # ⚠ AND THE SAME SELECTION SCOPES THE OTHER TABS, which is the point of them
+    # sharing a panel: one island, three views, no second copy of the state.
+    assert render_click(view, "show_panel", %{"panel" => "vitals"}) =~ "fields at most"
   end
 
   # ── The table follows the map ───────────────────────────────────

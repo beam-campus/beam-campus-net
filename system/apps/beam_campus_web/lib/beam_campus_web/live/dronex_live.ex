@@ -61,7 +61,7 @@ defmodule BeamCampusWeb.DronexLive do
      |> assign(fight: nil, payload: nil, frame_count: 0)
      # `nil` means the map has not told us what it is showing. Before the first
      # report, and for anyone who never moves it, that has to mean EVERYTHING.
-     |> assign(panel: :vitals, in_view: nil)
+     |> assign(panel: :fights, in_view: nil)
      |> load()}
   end
 
@@ -78,8 +78,9 @@ defmodule BeamCampusWeb.DronexLive do
      |> load()}
   end
 
+  defp panel_of("vitals"), do: :vitals
   defp panel_of("exam"), do: :exam
-  defp panel_of(_vitals), do: :vitals
+  defp panel_of(_fights), do: :fights
 
   @impl true
   def handle_info({:dronex_changed, _kind}, socket), do: {:noreply, mark_dirty(socket)}
@@ -132,9 +133,9 @@ defmodule BeamCampusWeb.DronexLive do
   # compile-time path strings, which reads as a problem with the sigil.
   defp dronex_path(island, panel), do: ~p"/research/workbench/dronex?#{query(island, panel)}"
 
-  defp query(nil, :vitals), do: []
+  defp query(nil, :fights), do: []
   defp query(nil, panel), do: [panel: panel]
-  defp query(island, :vitals), do: [island: island]
+  defp query(island, :fights), do: [island: island]
   defp query(island, panel), do: [island: island, panel: panel]
 
   defp toggled(same, same), do: nil
@@ -300,41 +301,37 @@ defmodule BeamCampusWeb.DronexLive do
           focused={@focused}
         />
 
-        <%!-- ⚠ THE RAIL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
-              max-w-5xl, so at a 768px viewport a four-column split would leave
-              the replay ~552px and the rail ~184px and cramp both. Below `lg'
-              everything stacks exactly as it did. --%>
-        <div class="lg:grid lg:grid-cols-4 lg:items-start lg:gap-4">
-          <div class="lg:col-span-3">
+        <%!-- ⚠ THE PANEL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
+              max-w-5xl, so at a 768px viewport this split would cramp both
+              halves. Below `lg' everything stacks.
+              ⚠⚠ A THIRD RATHER THAN A QUARTER, because this column stopped being
+              a list of buttons. It now carries the stat tiles and the exam
+              profile too, and 184px could hold neither. --%>
+        <div class="lg:grid lg:grid-cols-3 lg:items-start lg:gap-4">
+          <div class="lg:col-span-2">
             <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
           </div>
 
+          <%!-- ⚠ THE CHOOSER SITS BESIDE THE THING IT CHOOSES, and that is why
+                the TABS moved up here rather than this list moving down to them.
+                Three panels were scoped by one selection and lived in two places
+                with different chrome: the fights beside the player, the numbers
+                and the exam a screen below. Consolidating them is right; doing it
+                by pushing the fights list down would have separated a control
+                from the canvas it drives, so you would pick a fight in one place
+                and watch it change in another. --%>
           <div class="lg:col-span-1">
-            <.chooser
-              :if={@watchable != [] || @focused}
+            <.island_panel
+              :if={@shown}
+              row={@shown}
+              panel={@panel}
+              selected?={@focus != nil}
               watchable={@watchable}
               watching={@watching}
               focused={@focused}
             />
           </div>
         </div>
-
-        <%!-- ⚠ TABS FOR ATTRIBUTES, NEVER FOR THE FIGHT, and the distinction is
-             the data model rather than taste. What is below belongs to ONE
-             island: its roster, its generation, its exam. A RAID belongs to two,
-             which is why the board keys raids by `raid_id' and not under a
-             publisher — "filed under the publisher, the attacker's half of the
-             story would have no home". Making the fight a per-island tab would
-             recreate at the presentation layer exactly the filing error the
-             storage layer refuses to make, and "beam03's last fight" is not a
-             well-formed question when beam03 raided msi00 and msi00 raided
-             beam03 in the same minute.
-             ⚠⚠ THIS IS NOT THE TAB ROW THAT WAS REMOVED. That one was four
-             buttons that chose an ISLAND, duplicating the table and the map:
-             three controls for one piece of state, two wired to a stale copy of
-             it. These tabs choose a VIEW. The island selection still has exactly
-             one home. --%>
-        <.island_panel :if={@shown} row={@shown} panel={@panel} selected?={@focus != nil} />
 
         <p class="mt-10 text-sm opacity-60">
           A bout arrives as a recording: every frame, already computed by the
@@ -364,7 +361,7 @@ defmodule BeamCampusWeb.DronexLive do
       )
 
     ~H"""
-    <div :if={@panel == :vitals} class="mt-6 grid gap-4 sm:grid-cols-4">
+    <div :if={@panel == :vitals} class="mt-4 grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
       <.stat label="roster" value={num(@v, "roster")} of={num(@v, "capacity")} />
       <.stat label="generation" value={num(@v, "generation")} />
       <.stat label="rounds bred" value={num(@v, "rounds")} />
@@ -390,7 +387,7 @@ defmodule BeamCampusWeb.DronexLive do
           refusing every raid on an engine mismatch looks identical from
           outside — and then the archipelago is several separate experiments
           with a light show on top. --%>
-    <div :if={@panel == :vitals} class="mt-4 grid gap-4 sm:grid-cols-4">
+    <div :if={@panel == :vitals} class="mt-3 grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
       <.stat label="raids sent" value={num(@v, "raids")} />
       <.stat label="raids defended" value={num(@v, "defences")} />
       <.stat label="genomes captured" value={num(@v, "captures")} />
@@ -469,11 +466,11 @@ defmodule BeamCampusWeb.DronexLive do
 
   def chooser(assigns) do
     ~H"""
-    <section class="mt-8">
+    <div class="mt-2">
       <div class="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 class="text-sm font-semibold opacity-80">
-          {(@focused && "Fights involving #{Dronex.label(@focused)}") || "Watch another"}
-        </h2>
+        <span class="text-xs opacity-60">
+          {(@focused && "involving #{Dronex.label(@focused)}") || "every island"}
+        </span>
         <span class="text-xs opacity-40">
           {length(@watchable)} held
           <%!-- ⚠ A FILTER YOU CANNOT LEAVE IS A TRAP, and clicking open sea is
@@ -535,7 +532,7 @@ defmodule BeamCampusWeb.DronexLive do
         holding. The line under each is the strongest reason it is on this list.
         It is a way of sorting a list and it measures nothing.
       </p>
-    </section>
+    </div>
     """
   end
 
@@ -620,41 +617,78 @@ defmodule BeamCampusWeb.DronexLive do
   defp visible(standings, in_view), do: Enum.filter(standings, &MapSet.member?(in_view, &1.id))
 
   @doc """
-  One island's numbers, behind tabs, because they are ABOUT one island.
+  Everything one selection scopes, in one place, beside the fight.
 
-  The two grids of counters and the frozen-exam profile are attributes of a
-  single node and nothing else on this page is. They stacked to roughly a screen
-  of their own, below a fight they were supposed to explain.
+  ## ⚠ THE FIGHT IS NOT A TAB HERE. A LIST OF FIGHTS IS.
+
+  The distinction is the data model rather than taste, and it is worth keeping
+  because the two look alike. A RAID belongs to two islands — the board keys
+  raids by `raid_id` precisely because "filed under the publisher, the
+  attacker's half of the story would have no home" — so a tab claiming to hold
+  *beam03's last fight* would be a filing error the storage layer refuses to
+  make. "beam03's last fight" is not well formed when beam03 raided msi00 and
+  msi00 raided beam03 in the same minute.
+
+  A list of fights **involving** an island is a different claim and a true one.
+  It is participation, not ownership, and it is as much a view of one island as
+  its roster is. So the fight stays on the canvas and the CHOOSER for it sits
+  here, first, because choosing is what this column is for.
+
+  ## And these are not the tab row that was removed
+
+  That one was four buttons that chose an ISLAND, duplicating the table and the
+  map: three controls for one piece of state, two of them wired to a stale copy.
+  These choose a VIEW. The island selection still has exactly one home.
   """
   attr :row, :map, required: true
-  attr :panel, :atom, default: :vitals
+  attr :panel, :atom, default: :fights
   attr :selected?, :boolean, default: false
+  attr :watchable, :list, required: true
+  attr :watching, :any, default: nil
+  attr :focused, :any, default: nil
 
   def island_panel(assigns) do
     ~H"""
-    <section class="mt-8">
-      <div class="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 class="text-sm font-semibold opacity-80">{Dronex.label(@row)}</h2>
+    <section class="mt-8 lg:mt-0">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-sm font-semibold opacity-80">
+          {(@focused && Dronex.label(@focused)) || "The archipelago"}
+        </h2>
 
-        <span :if={!@selected?} class="text-xs opacity-40">
-          shown because nothing is selected · pick an island above
-        </span>
+        <span :if={!@selected?} class="text-xs opacity-40">every island</span>
       </div>
 
       <div role="tablist" class="tabs tabs-bordered mt-2">
         <button
-          :for={{id, label} <- [{:vitals, "Vitals"}, {:exam, "Frozen exam"}]}
+          :for={{id, label} <- [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}]}
           role="tab"
           aria-selected={to_string(@panel == id)}
           phx-click="show_panel"
           phx-value-panel={id}
-          class={["tab", @panel == id && "tab-active"]}
+          class={["tab tab-sm", @panel == id && "tab-active"]}
         >
           {label}
         </button>
       </div>
 
-      <.vitals row={@row} panel={@panel} />
+      <.chooser
+        :if={@panel == :fights}
+        watchable={@watchable}
+        watching={@watching}
+        focused={@focused}
+      />
+
+      <%!-- ⚠ THE NUMBERS FOLLOW THE SELECTION AND NOT THE FIGHT. With nothing
+            selected this shows a default island and says so, because an empty
+            panel explains nothing — but the fights tab beside it is showing the
+            WHOLE archipelago at that moment, and a reader must not take the two
+            for one island's story. --%>
+      <p :if={@panel != :fights and !@selected?} class="mt-2 text-xs opacity-40">
+        {Dronex.label(@row)}, shown because nothing is selected. Pick an island
+        above.
+      </p>
+
+      <.vitals :if={@panel != :fights} row={@row} panel={@panel} />
     </section>
     """
   end
