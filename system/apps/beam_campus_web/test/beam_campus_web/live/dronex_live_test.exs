@@ -79,9 +79,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # flight"` matched the map caption's "a moving one is a raid in flight".
     # Both are prose about the mechanism, not claims about this bout.
     #
-    # `data-raid` is emitted by a rendered raid row and by nothing else, which is
-    # what a refutation needs: a marker no sentence can produce.
-    refute html =~ "data-raid"
+    # The marker moved when the flows list went into the map's arcs, but the
+    # requirement did not: a refutation needs something no sentence can produce.
+    # A chooser row for a raid is that.
+    refute html =~ "data-watch=\"raid:"
   end
 
   # ⚠ A RAID IN FLIGHT AND A RAID WHOSE DEFENDER WENT DARK LOOK THE SAME FROM
@@ -89,13 +90,19 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # Only the defender publishes the recording; both sides publish a commitment,
   # which is why a paid cost always leaves a trace even when the fight does not.
   test "a raid with commitments and no recording is shown as in flight", %{conn: conn} do
-    for {role, island, opponent} <- [
-          {"attacker", "beam01", "bbb"},
-          {"defender", "beam02", "aaa"}
+    # ⚠ THE MAP ONLY PLACES ISLANDS IT HAS HEARD VITALS FROM, so an arc needs
+    # both ends to exist before it can be drawn at all. That is deliberate — an
+    # island known only as somebody's opponent has no position to draw to.
+    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
+    Board.put("bbb", :vitals, %{"island" => "beam02", "island_id" => "bbb"})
+
+    for {role, id, island, opponent} <- [
+          {"attacker", "aaa", "beam01", "bbb"},
+          {"defender", "bbb", "beam02", "aaa"}
         ] do
       Board.put_raid("r1", :committed, %{
         "island" => island,
-        "island_id" => island,
+        "island_id" => id,
         "raid_id" => "r1",
         "role" => role,
         "opponent_id" => opponent,
@@ -105,25 +112,25 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    # ⚠ ONE ROW PER DIRECTION, NOT ONE PER RAID. With two islands every raid
-    # renders the same sentence, and the page grew thirty-seven near-identical
-    # lines before anybody said so. The map already draws each raid as an arc;
-    # what a reader cannot get from the map is the flow and what it costs.
-    assert html =~ "data-raid"
+    # ⚠ RE-ANCHORED ONTO THE MAP. The flows list that used to carry this was
+    # merged into the arcs — an arc that thickens with traffic says what the
+    # list said, where the traffic is drawn. The guarantee is unchanged and is
+    # now the arc's own `live` flag: a raid nobody has published a recording for
+    # is still out, and the map animates it rather than drawing it as history.
     assert html =~ "beam01"
-    assert html =~ "6 airframes committed"
-
-    # No recording has arrived, so it is still out — and the page says so
-    # without claiming to know whether it is being fought or was abandoned.
-    assert html =~ "1 still out"
+    assert [%{"live" => true} | _] = arcs(html)
   end
 
   # And once the recording arrives it stops being in flight. The recording is
   # published by the defender, so it is filed under the same raid rather than
   # under whoever published it.
   test "a raid with a recording is shown as fought", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
+    Board.put("bbb", :vitals, %{"island" => "beam02", "island_id" => "bbb"})
+
     Board.put_raid("r2", :committed, %{
       "island" => "beam01",
+      "island_id" => "aaa",
       "raid_id" => "r2",
       "role" => "attacker",
       "opponent_id" => "bbb",
@@ -140,10 +147,8 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    # It counts toward the flow, and it is no longer out.
-    assert html =~ "data-raid"
-    assert html =~ "6 airframes committed"
-    refute html =~ "still out"
+    # It counts toward the traffic on that route, and it is no longer in flight.
+    assert [%{"live" => false, "count" => 1}] = arcs(html)
   end
 
   # A profile is a curve and never a total. A single number would need weights,
@@ -385,7 +390,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # same base, so reporting the strongest reason including that base gave all
     # seven raids the identical line "a raid: evolved against evolved" and the
     # chooser explained nothing. This raid finished 5 home against 4.
-    assert html =~ "it finished within 1"
+    # ⚠ THE COUNTS ARE IN THE REASON. Six of eight rows once read "it finished
+    # within 1", which is true of all six and says nothing about which to click.
+    # This raid finished 5 home against 4 still up.
+    assert html =~ "close: 5 home against 4 still up"
     refute html =~ "a raid: evolved against evolved"
   end
 
@@ -492,6 +500,37 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "lg:aspect-[4/3]"
   end
 
+  # ⚠ FOUR WORKBENCH PAGES WERE ONE BOOKMARK. Without a page_title the tab, the
+  # history entry and every shared link read as the site's generic title.
+  test "the page names itself", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+    assert html =~ "DroneX ·" or (html =~ "<title" and html =~ "DroneX")
+  end
+
+  # The one selection: picking an island scopes the fights AND the vitals panel.
+  # It used to be two independent selections with two rows of controls.
+  test "one island selection scopes both the fights and the vitals", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put("bbb", :vitals, %{"island" => "beam01", "island_id" => "bbb", "roster" => 12})
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    # No separate tab row survives to set a second copy of this state.
+    refute html =~ ~s(phx-click="choose")
+
+    html = render_click(view, "focus_island", %{"id" => "bbb"})
+    assert html =~ "Fights at beam01"
+    # and the vitals panel followed the same selection
+    assert html =~ "fields at most"
+  end
+
+  # The map's arcs, decoded. They are the only place a raid's in-flight state is
+  # drawn now that the flows list has gone into them.
+  defp arcs(html) do
+    [_, raw] = Regex.run(~r/data-arcs="([^"]*)"/, html)
+    raw |> unescape() |> Jason.decode!()
+  end
+
   defp watch_keys(html) do
     ~r/data-watch="raid:([^"]*)"/ |> Regex.scan(html) |> Enum.map(&List.last/1)
   end
@@ -582,7 +621,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # `close/1` compares the two survivor counts and cannot be computed from one
     # side alone, and neither can `bled/1`, which is what this raid earns: 3 of
     # 12 home against 8 of 12 still flying.
-    assert html =~ "both sides lost airframes"
+    assert html =~ "both sides bled — 3 home, 8 still up"
   end
 
   # And an island that has never been raided still has something to watch, rather

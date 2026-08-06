@@ -298,14 +298,29 @@ defmodule BeamCampusWeb.DronexMap do
             const c = this.ctx
             const mx = (a.x1 + a.x2) / 2, my = (a.y1 + a.y2) / 2 - a.lift
 
-            c.strokeStyle = a.live ? "rgba(232,120,140,0.55)" : "rgba(160,180,220,0.16)"
-            c.lineWidth = a.live ? 2 : 1
+            // Thickness is traffic. A route flown once is a hairline; one flown
+            // a dozen times is a rope, and the difference is the thing the list
+            // under this map used to spell out in words.
+            const n = a.count || 1
+            c.strokeStyle = a.live ? "rgba(232,120,140,0.55)" : "rgba(160,180,220,0.22)"
+            c.lineWidth = a.live ? 2 : Math.min(7, 1 + Math.log2(n) * 2)
             c.beginPath()
             c.moveTo(a.x1, a.y1)
             c.quadraticCurveTo(mx, my, a.x2, a.y2)
             c.stroke()
 
-            if (!a.live) return
+            if (!a.live) {
+              // The count, once it is worth saying. A "1" on every hairline
+              // would be noise on a map whose whole job is now to be glanceable.
+              if (n > 1) {
+                const bx = (a.x1 + 2 * mx + a.x2) / 4, by = (a.y1 + 2 * my + a.y2) / 4
+                c.fillStyle = "rgba(200,215,240,0.55)"
+                c.font = "11px ui-monospace, monospace"
+                c.textAlign = "center"
+                c.fillText(String(n), bx, by - 3)
+              }
+              return
+            }
 
             // As many marks as the sortie, spaced along the curve.
             for (let n = 0; n < a.marks; n++) {
@@ -392,10 +407,30 @@ defmodule BeamCampusWeb.DronexMap do
   # commitment carries its own id and its opponent's, so a single arriving fact
   # is enough to draw the arc — which matters, because the two commitments travel
   # separately and one of them may never come.
+  # ⚠ ONE ARC PER PAIR, WEIGHTED, RATHER THAN ONE PER RAID. Twenty-four
+  # overlapping identical curves said nothing about which route is busy, and the
+  # list underneath the map existed to say it in words. An arc that thickens with
+  # traffic carries it where the traffic is drawn, and the list goes.
+  #
+  # Raids still in flight stay SEPARATE and unaggregated: their marks travel the
+  # curve, and merging them into a weighted line would stop the one animated
+  # thing on this map from animating.
   defp arcs(raids, at, known) do
-    raids
-    |> Enum.flat_map(&arc(&1, at, known))
-    |> Enum.take(24)
+    {live, done} =
+      raids
+      |> Enum.flat_map(&arc(&1, at, known))
+      |> Enum.split_with(& &1.live)
+
+    (live ++ weighted(done)) |> Enum.take(24)
+  end
+
+  defp weighted(arcs) do
+    arcs
+    |> Enum.group_by(&{&1.x1, &1.y1, &1.x2, &1.y2})
+    |> Enum.map(fn {_route, flown} ->
+      %{hd(flown) | marks: 0} |> Map.put(:count, length(flown))
+    end)
+    |> Enum.sort_by(& &1.count, :desc)
   end
 
   defp arc(raid, at, known) do

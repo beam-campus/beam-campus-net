@@ -235,20 +235,27 @@ defmodule Dronex do
 
     [
       {@base, "a raid: evolved against evolved"},
-      bled(home < sent and stood < held),
-      close(abs(home - stood)),
+      bled(home < sent and stood < held, home, stood),
+      close(abs(home - stood), home, stood),
       upset(Map.get(f, "winner")),
       contested(num(f, "ticks"))
     ]
     |> Enum.reject(&is_nil/1)
   end
 
-  defp bled(true), do: {300, "both sides lost airframes"}
-  defp bled(false), do: nil
+  # ⚠ THE NUMBERS ARE IN THE REASON, and without them the list flattens. Six of
+  # eight rows read "it finished within 1" at once, which is true of all six and
+  # tells a visitor nothing about which to click. The counts vary even when the
+  # verdict does not, so a reason that carries them discriminates for free.
+  defp bled(true, home, stood), do: {300, "both sides bled — #{home} home, #{stood} still up"}
+  defp bled(false, _home, _stood), do: nil
 
-  defp close(0), do: {400, "it finished level"}
-  defp close(gap) when gap <= 3, do: {400 - gap * 60, "it finished within #{gap}"}
-  defp close(_wide), do: nil
+  defp close(0, home, stood), do: {400, "level at #{home} apiece — #{home} v #{stood}"}
+
+  defp close(gap, home, stood) when gap <= 3,
+    do: {400 - gap * 60, "close: #{home} home against #{stood} still up"}
+
+  defp close(_wide, _home, _stood), do: nil
 
   defp upset("attacker"), do: {250, "the raider won, away and outnumbered by its ground"}
   defp upset(_other), do: nil

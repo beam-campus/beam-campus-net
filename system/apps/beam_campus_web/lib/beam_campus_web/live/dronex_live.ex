@@ -41,7 +41,14 @@ defmodule BeamCampusWeb.DronexLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Dronex.subscribe()
-    {:ok, socket |> assign(dirty?: false, chosen: nil, watching: nil, focus: nil) |> load()}
+
+    {:ok,
+     socket
+     # Without this the tab, the history entry and every shared link read as the
+     # site's generic title, so four different workbench pages are one bookmark.
+     |> assign(page_title: "DroneX")
+     |> assign(dirty?: false, watching: nil, focus: nil)
+     |> load()}
   end
 
   @impl true
@@ -59,8 +66,6 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @impl true
-  def handle_event("choose", %{"id" => id}, socket), do: {:noreply, assign(socket, chosen: id)}
-
   # ⚠ THE PICKED FIGHT SURVIVES A REDRAW, which is the whole point of holding it
   # in the socket rather than recomputing "the best one" every second. Facts
   # arrive continuously from four islands; a visitor who clicked a fight and had
@@ -121,17 +126,25 @@ defmodule BeamCampusWeb.DronexLive do
   # `{:raid, "abc"}` is not something a DOM attribute can carry back.
   defp tag({kind, id}), do: "#{kind}:#{id}"
 
-  # The island being watched: whichever was clicked, else the first that has
-  # actually published a bout, else the first at all.
-  defp showing(islands, chosen) do
-    Enum.find(islands, fn i -> i.id == chosen end) ||
+  # ⚠ ONE SELECTED ISLAND, NOT TWO. This page had `chosen' for the vitals tabs
+  # and `focus' for the fights filter — two independent selections of the same
+  # kind of thing, so a visitor could be reading beam03's vitals while watching
+  # beam01's fights, with two rows of controls and no hint they were unrelated.
+  # There is now one selection, set from the map or a leaderboard row, and it
+  # scopes both.
+  #
+  # Unselected still shows something: the first island that has actually
+  # published a bout, else the first at all, because an empty panel explains
+  # nothing.
+  defp showing(islands, focus) do
+    Enum.find(islands, fn i -> i.id == focus end) ||
       Enum.find(islands, &Dronex.fact(&1, :bout)) ||
       List.first(islands)
   end
 
   @impl true
   def render(assigns) do
-    shown = showing(assigns.islands, assigns.chosen)
+    shown = showing(assigns.islands, assigns.focus)
 
     assigns = assign(assigns, shown: shown, bout: shown && Dronex.fact(shown, :bout))
 
@@ -199,23 +212,19 @@ defmodule BeamCampusWeb.DronexLive do
              are the only thing that makes that true rather than asserted. --%>
         <.leaderboard :if={@leaderboard != []} standings={@leaderboard} focus={@focus} />
 
-        <%!-- ⚠ OUTSIDE THE ISLANDS BLOCK ON PURPOSE. A raid is archipelago
-             state, not island state, and a commitment can arrive before either
-             island's vitals do — the two travel on different topics at
-             different rates. Nested inside, the first raid of a cold start
-             would be invisible. --%>
-        <.raids raids={@raids} />
-
+        <%!-- ⚠ THE TAB ROW IS GONE WITH THE SECOND SELECTION IT DROVE. Four
+             buttons that chose an island sat under a table whose rows already
+             chose an island, above a map where clicking an island chose an
+             island — three controls for one piece of state, two of which were
+             wired to a different copy of it. --%>
         <div :if={@islands != []} class="mt-8">
-          <div class="flex flex-wrap gap-2">
-            <button
-              :for={i <- @islands}
-              phx-click="choose"
-              phx-value-id={i.id}
-              class={["btn btn-sm", @shown && i.id == @shown.id && "btn-primary"]}
-            >
-              {Dronex.label(i)}
-            </button>
+          <div class="flex items-baseline justify-between gap-3">
+            <h2 class="text-sm font-semibold opacity-80">
+              {(@shown && Dronex.label(@shown)) || "An island"}
+            </h2>
+            <span class="text-xs opacity-40">
+              {(@focus && "selected") || "pick an island on the map or in the table"}
+            </span>
           </div>
 
           <.vitals :if={@shown} row={@shown} />
@@ -254,6 +263,20 @@ defmodule BeamCampusWeb.DronexLive do
       <.stat label="rounds bred" value={num(@v, "rounds")} />
       <.stat label="admitted" value={num(@v, "admissions")} />
     </div>
+
+    <%!-- ⚠ ONE LINE, BECAUSE THESE ARE THE ONLY TILES ON THE PAGE THAT FORGET
+          THEIR AUDIENCE. "roster 210/240" arrives with nothing saying what 240
+          is, and "admitted" reads as a membership count rather than as the
+          survival rate of a breeding attempt. A visitor who cannot read the
+          numbers cannot tell a healthy island from a dying one, which is the
+          one thing this grid exists to show. --%>
+    <p class="mt-2 text-xs opacity-40">
+      An island fields at most {num(@v, "capacity")} drone controllers at once;
+      the roster is how many it currently holds, and it falls when a raid costs
+      airframes. A round is one attempt to breed a better controller than the
+      worst one on the roster, and <em>admitted</em> counts the attempts that beat
+      it — most do not.
+    </p>
 
     <%!-- ⚠ CAPTURES IS THE ONE THAT SAYS WHETHER ANY OF THIS IS HAPPENING.
           Raids and defences can both climb while it stays zero — an island
@@ -438,10 +461,15 @@ defmodule BeamCampusWeb.DronexLive do
                   canvas cannot be tabbed to, so the map alone would have put the
                   page's navigation out of reach of anyone not using a mouse.
                   These rows do the same thing and are buttons. --%>
+            <%!-- A clickable row that does not react to a pointer is a
+                  clickable row nobody discovers. --%>
             <tr
               :for={{s, n} <- Enum.with_index(@standings)}
               data-standing={s.island}
-              class={["cursor-pointer", @focus == s.id && "bg-base-200"]}
+              class={[
+                "cursor-pointer hover:bg-base-200/60",
+                @focus == s.id && "bg-base-200"
+              ]}
             >
               <td class="font-mono text-xs">
                 <button phx-click="focus_island" phx-value-id={s.id} class="text-left">
@@ -1048,7 +1076,14 @@ defmodule BeamCampusWeb.DronexLive do
 
       <div class="mt-2 flex items-center gap-3">
         <button id="dronex-replay-play" class="btn btn-xs">play / pause</button>
-        <input id="dronex-replay-scrub" type="range" min="0" value="0" class="range range-xs grow" />
+        <input
+          id="dronex-replay-scrub"
+          type="range"
+          min="0"
+          value="0"
+          class="range range-xs grow"
+          aria-label="scrub through the recording"
+        />
         <span class="text-xs opacity-40">{@count} frames</span>
       </div>
     </figure>
@@ -1109,97 +1144,9 @@ defmodule BeamCampusWeb.DronexLive do
   pretending to know which, and the attacker's own timer settles it after five
   minutes.
   """
-  attr :raids, :list, required: true
-
-  def raids(assigns) do
-    assigns =
-      assign(assigns,
-        flows: flows(assigns.raids),
-        out: Enum.count(assigns.raids, &(!Dronex.finished?(&1)))
-      )
-
-    ~H"""
-    <div :if={@raids != []} class="mt-8">
-      <h3 class="text-sm font-semibold opacity-70">Where the genomes are going</h3>
-      <p class="mt-1 text-xs opacity-50">
-        A raid moves opponents rather than fitness: what the defender keeps is
-        the attacker's genomes, which its own trainer then has to beat. Losing
-        drones is the price, and they have to be bred back.
-      </p>
-
-      <ul class="mt-3 space-y-1">
-        <%!-- ⚠ `data-raid` EXISTS FOR THE TESTS AND IS WORTH THE ATTRIBUTE. Three
-              times a refutation has been written against words that also appear
-              in prose — "raid", then "fought", then "in flight", the last living
-              in the map's own caption. A marker only a rendered row can produce
-              cannot collide with a sentence. --%>
-        <li :for={f <- @flows} data-raid={f.key} class="flex items-baseline gap-3 text-xs">
-          <span class="font-mono opacity-70">{f.from} &rarr; {f.to}</span>
-          <span class="opacity-50">
-            {f.raids} {(f.raids == 1 && "raid") || "raids"}, {f.airframes} airframes committed
-          </span>
-        </li>
-      </ul>
-
-      <p :if={@out > 0} class="mt-2 text-xs opacity-40">
-        {@out} still out. A raid whose defender has gone quiet looks exactly like
-        one still being fought, so this page does not guess: the attacker writes
-        the party off after five minutes.
-      </p>
-    </div>
-    """
-  end
-
-  # One row per direction, newest direction first. A commitment names both ends,
-  # so a single arriving fact is enough to attribute the traffic — which matters,
-  # because the two commitments travel separately and one may never come.
-  defp flows(raids) do
-    raids
-    |> Enum.flat_map(&flow(&1))
-    |> Enum.group_by(& &1.key)
-    |> Enum.map(fn {key, rows} ->
-      %{
-        key: key,
-        from: hd(rows).from,
-        to: hd(rows).to,
-        raids: length(rows),
-        airframes: Enum.sum(Enum.map(rows, & &1.airframes))
-      }
-    end)
-    |> Enum.sort_by(& &1.raids, :desc)
-  end
-
-  defp flow(raid) do
-    {att, def_} = Dronex.sides(raid)
-    named(att || def_)
-  end
-
-  # A raid nobody described is dropped rather than given a row that says nothing.
-  # It happens for recordings published before commitments existed.
-  defp named(nil), do: []
-
-  defp named(%{"role" => "attacker"} = c),
-    do: [
-      %{
-        key: "#{c["island_id"]}->#{c["opponent_id"]}",
-        from: c["island"],
-        to: short(c["opponent_id"]),
-        airframes: c["airframes"] || 0
-      }
-    ]
-
-  defp named(c),
-    do: [
-      %{
-        key: "#{c["opponent_id"]}->#{c["island_id"]}",
-        from: short(c["opponent_id"]),
-        to: c["island"],
-        airframes: c["airframes"] || 0
-      }
-    ]
-
-  # An island we have only ever seen named as somebody's opponent has an id and
-  # no nickname. A short digest is better than a blank.
-  defp short(nil), do: "?"
-  defp short(id), do: String.slice(id, 0, 8)
+  # ⚠ THE FLOWS LIST IS GONE INTO THE MAP'S ARCS. It said, in words, which pair
+  # had raided which and how often — exactly what an arc that thickens with
+  # traffic now says where the traffic is drawn. Keeping both meant the map was
+  # decoration with a table underneath doing its job. `short/1' went with it: it
+  # existed to shorten an id for that list and had no other caller.
 end
