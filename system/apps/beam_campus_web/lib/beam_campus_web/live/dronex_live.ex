@@ -279,7 +279,7 @@ defmodule BeamCampusWeb.DronexLive do
            table seven columns in a third of that, on screens with 1900px going
            spare. A workbench whose main content is a canvas and a data table
            earns the extra 256px. --%>
-      <div class="mx-auto max-w-7xl px-4 py-10">
+      <div class="workbench mx-auto max-w-7xl px-4 py-10">
         <.header>
           DroneX
           <:subtitle>
@@ -312,15 +312,17 @@ defmodule BeamCampusWeb.DronexLive do
              it, so the page's primary navigation was the only thing on it
              without a title, and the two halves of one control were separated by
              the thing they control. --%>
-        <.one_world
-          :if={@islands != []}
-          islands={@islands}
-          raids={@raids}
-          standings={@ranked}
-          in_view={@in_view}
-          focus={@focus}
-          focused={@focused}
-        />
+        <div class="settle" style="animation-delay: 40ms">
+          <.one_world
+            :if={@islands != []}
+            islands={@islands}
+            raids={@raids}
+            standings={@ranked}
+            in_view={@in_view}
+            focus={@focus}
+            focused={@focused}
+          />
+        </div>
 
         <%!-- ⚠ THE PANEL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
               max-w-5xl, so at a 768px viewport this split would cramp both
@@ -343,21 +345,23 @@ defmodule BeamCampusWeb.DronexLive do
               merely filters. Vitals and Exam also get the full width, which
               they wanted — a rung profile in a third of a column was cramped
               before any history chart was added to it. --%>
-        <.island_panel
-          :if={@shown}
-          row={@shown}
-          panel={@panel}
-          selected?={@focus != nil}
-          fight={@fight}
-          payload={@payload}
-          frame_count={@frame_count}
-          losses={@losses}
-          coverage={@coverage}
-          watchable={@watchable}
-          watching={@watching}
-          focused={@focused}
-          islands={@islands}
-        />
+        <div class="settle" style="animation-delay: 120ms">
+          <.island_panel
+            :if={@shown}
+            row={@shown}
+            panel={@panel}
+            selected?={@focus != nil}
+            fight={@fight}
+            payload={@payload}
+            frame_count={@frame_count}
+            losses={@losses}
+            coverage={@coverage}
+            watchable={@watchable}
+            watching={@watching}
+            focused={@focused}
+            islands={@islands}
+          />
+        </div>
 
         <p class="mt-10 text-sm opacity-60">
           A bout arrives as a recording: every frame, already computed by the
@@ -407,15 +411,16 @@ defmodule BeamCampusWeb.DronexLive do
         rather than a database, so a restart begins it again.
       </p>
 
-      <.trend
-        :if={@enough?}
-        label={"#{@label} over time"}
-        unit={@unit}
-        samples={@samples}
-        pick={@metric}
-        ceiling={@ceiling}
-        span={span_of(@samples)}
-      />
+      <div :if={@enough?} class="instrument p-3">
+        <.trend
+          label={"#{@label} over time"}
+          unit={@unit}
+          samples={@samples}
+          pick={@metric}
+          ceiling={@ceiling}
+          span={span_of(@samples)}
+        />
+      </div>
 
       <details :if={@enough?} class="mt-2">
         <summary class="cursor-pointer text-xs opacity-40">The samples, as a table</summary>
@@ -635,7 +640,7 @@ defmodule BeamCampusWeb.DronexLive do
             expected picture is a descending staircase and a bulge in the middle
             is visible instantly. beam01 wins 40 at 'hoverer', 9 at 'chaser' and
             29 at 'sniper': non-monotonic, and invisible in six long bars. --%>
-      <div :if={@starts > 0} class="mt-3 flex items-end gap-1.5" style="height: 4.5rem">
+      <div :if={@starts > 0} class="instrument mt-3 flex items-end gap-1.5 p-3" style="height: 6rem">
         <div :for={{rung, wins} <- Enum.zip(@rungs, @wins)} class="flex w-12 flex-col items-center">
           <span class="font-mono text-[10px] tabular-nums opacity-50">{wins}</span>
           <div class="mt-0.5 flex h-12 w-full items-end rounded-sm bg-base-300/60">
@@ -700,7 +705,7 @@ defmodule BeamCampusWeb.DronexLive do
     <div class="mt-6">
       <h3 class="text-sm font-semibold opacity-70">Every island, every drill</h3>
 
-      <div class="mt-2 overflow-x-auto">
+      <div class="instrument mt-2 overflow-x-auto p-3">
         <table class="text-xs">
           <thead>
             <tr>

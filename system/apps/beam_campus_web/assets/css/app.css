@@ -237,3 +237,92 @@
   --chart-seq-4: #65abd0;
   --chart-seq-5: #8cc6e6;
 }
+
+/* ==========================================================================
+   THE WORKBENCH READS AS AN INSTRUMENT, NOT AS A DASHBOARD
+   ==========================================================================
+
+   ⚠ PAGE CRAFT, NOT BRAND. Nothing here invents a hue or a typeface — those
+   live in beam-campus-artwork and are copied into the theme block above. This
+   is composition, surface, motion and scale, which is the page's own.
+
+   The workbench draws a live world: a map of islands, a replay of an
+   engagement, a network's belief about where the drones were. Those are SCREENS
+   and the panels around them had been drawn as cards on a document, so a canvas
+   showing a fight and a table showing its scoreline sat on different materials
+   and read as unrelated. One surface makes the exhibit one console.
+
+   ⚠⚠ RESTRAINT IS THE POINT. This is a research commons, and an instrument that
+   decorates itself is asking to be doubted. No shadows, no gradients on data, no
+   rounded slabs — a hairline, a darker glass, and one pass of grain fine enough
+   that you notice the surface rather than the effect.
+   ========================================================================== */
+
+.instrument {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0.375rem;
+  background: color-mix(in oklab, var(--color-base-300) 62%, #0a1220);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 9%, transparent);
+}
+
+/* Grain, at the density where it reads as a surface and not as noise. Drawn
+   above the panel and below its content, and never on prose. */
+.instrument::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-base-content) 3.5%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+[data-theme="light"] .instrument {
+  background: color-mix(in oklab, var(--color-base-200) 88%, #0a1220);
+}
+
+/* ⚠ ONE ORCHESTRATED ARRIVAL, NOT SCATTERED MICRO-INTERACTIONS. The instrument
+   band settles in sequence on load, which reads as a console coming up. It runs
+   ONCE, on entry, and never on a data tick — a panel that re-animated every time
+   a fact arrived would be a page that will not sit still, and facts arrive from
+   five islands every second. */
+@media (prefers-color-scheme: dark), (prefers-color-scheme: light) {
+  .settle {
+    animation: settle 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
+/* Motion is a preference, and this one is decorative by definition. */
+@media (prefers-reduced-motion: reduce) {
+  .settle {
+    animation: none;
+  }
+}
+
+/* ⚠ FIGURES MUST NOT DANCE. Half this page is numbers that change every second
+   in place — a roster, a tick, six rung counts, a coverage rate. Proportional
+   digits re-flow the row on every update and the eye reads movement where there
+   is only a new value. */
+.tabular,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings on an instrument are labels, not headlines. */
+.workbench h2,
+.workbench h3 {
+  letter-spacing: -0.011em;
+}

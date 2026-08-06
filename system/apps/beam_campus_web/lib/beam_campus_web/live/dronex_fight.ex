@@ -63,7 +63,7 @@ defmodule BeamCampusWeb.DronexFight do
 
   def losses(assigns) do
     ~H"""
-    <div class="mt-4">
+    <div class="instrument mt-4 p-3">
       <div class="flex items-baseline justify-between gap-2">
         <span class="text-xs font-semibold opacity-70">What destroyed them</span>
         <span class="font-mono text-xs opacity-50">
@@ -694,7 +694,7 @@ defmodule BeamCampusWeb.DronexFight do
 
   def coverage(assigns) do
     ~H"""
-    <div class="mt-5">
+    <div class="instrument mt-4 p-3">
       <div class="flex items-baseline justify-between gap-2">
         <span class="text-xs font-semibold opacity-70">What the towers held, by altitude</span>
         <span class="font-mono text-xs opacity-50">within {@coverage.gate} m</span>
