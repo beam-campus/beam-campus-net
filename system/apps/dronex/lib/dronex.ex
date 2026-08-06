@@ -159,6 +159,14 @@ defmodule Dronex do
   @spec holds?({atom(), binary()}) :: boolean()
   defdelegate holds?(key), to: Board
 
+  @doc "What an island's numbers have been doing, oldest first. Empty on restart."
+  @spec history(binary()) :: [map()]
+  defdelegate history(id), to: Board
+
+  @doc "How often the board samples, so a chart can label its axis honestly."
+  @spec sample_every_ms() :: pos_integer()
+  defdelegate sample_every_ms(), to: Board
+
   @doc "Whether a raid has been fought and drawn, as opposed to still being out."
   def finished?(%{parts: parts}), do: Map.has_key?(parts, :raid)
   def finished?(_other), do: false
@@ -345,15 +353,14 @@ defmodule Dronex do
 
   defp standing(row) do
     v = fact(row, :vitals) || %{}
-    rungs = length(Map.get(v, "benchmark_rungs", []))
-    starts = num(v, "benchmark_starts")
-    wins = Enum.sum(Map.get(v, "benchmark_wins", []))
 
     %{
       island: label(row),
       id: row.id,
-      score: percent(wins, rungs * starts),
-      rungs: rungs,
+      score: Board.exam_score(v),
+      # "bred" | "captured" | "unknown" — an older island publishes none of them.
+      sitter: Map.get(v, "benchmark_sitter", "unknown"),
+      rungs: length(Map.get(v, "benchmark_rungs", [])),
       generation: num(v, "generation"),
       roster: num(v, "roster"),
       capacity: num(v, "capacity"),
@@ -362,9 +369,6 @@ defmodule Dronex do
       defences: num(v, "defences")
     }
   end
-
-  defp percent(_w, 0), do: 0
-  defp percent(w, n), do: div(w * 100, n)
 
   defp num(map, key) when is_map(map) do
     case Map.get(map, key) do

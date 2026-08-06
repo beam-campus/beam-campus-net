@@ -12,6 +12,7 @@ defmodule DronexTest do
     Board.init()
     :ets.delete_all_objects(:dronex_board)
     :ets.delete_all_objects(:dronex_recordings)
+    :ets.delete_all_objects(:dronex_history)
     :ets.insert(:dronex_board, {:refused, 0})
     :ok
   end

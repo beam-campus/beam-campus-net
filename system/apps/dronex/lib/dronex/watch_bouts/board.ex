@@ -100,6 +100,7 @@ defmodule Dronex.WatchBouts.Board do
 
   @table :dronex_board
   @recordings :dronex_recordings
+  @history :dronex_history
 
   @max_islands 64
   @max_raids 64
@@ -129,6 +130,24 @@ defmodule Dronex.WatchBouts.Board do
   # stranger, and either way it is not going in.
   @max_recording 8 * 1024 * 1024
 
+  # ⚠ NOTHING RECORDED A TIME SERIES UNTIL NOW, and that absence is why the most
+  # interesting thing this exhibit has produced could not be read. beam03 sat
+  # 288/288 on the frozen exam one morning and 1/288 nine hours later, and the
+  # only reason anybody knows is that two snapshots happened to be taken by hand.
+  # A page that draws counters and no trajectory can show that a number is odd
+  # and never that it MOVED.
+  #
+  # So the board keeps a little history, and the shape of it is chosen to stay
+  # cheap: SCALARS ONLY, one sample per island per @sample_every_ms, and a hard
+  # cap per island. Vitals arrive every second from every island; sampling them
+  # all would be a leak with a clock on it.
+  #
+  # ⚠⚠ AND IT IS MEMORY, NOT A STORE. It starts empty on every restart and says
+  # so where it is drawn. The alternative is a schema and a disk, which this site
+  # deliberately does not have — it is a reader of the mesh and holds no store.
+  @sample_every_ms 30_000
+  @max_samples 240
+
   # A raid takes two commitments and one recording. More than this arriving under
   # one raid id is a republishing loop or somebody filling the table, and the
   # list it appends to has no other bound.
@@ -138,6 +157,7 @@ defmodule Dronex.WatchBouts.Board do
   def init do
     ensure(@table, fn -> :ets.insert(@table, {:refused, 0}) end)
     ensure(@recordings, fn -> :ok end)
+    ensure(@history, fn -> :ok end)
     :ok
   end
 
@@ -173,6 +193,75 @@ defmodule Dronex.WatchBouts.Board do
     }
 
     :ets.insert(@table, {key, updated})
+    sampled(kind, key, light)
+    :ok
+  end
+
+  # ── History ─────────────────────────────────────────────────────
+
+  @doc """
+  What this island's numbers have been doing, oldest first.
+
+  Empty until the second sample: one point is not a trajectory and a chart of it
+  would be a dot pretending to be a line.
+  """
+  @spec history(binary()) :: [map()]
+  def history(id) do
+    case :ets.lookup(@history, id) do
+      [{^id, samples}] -> Enum.reverse(samples)
+      [] -> []
+    end
+  end
+
+  @doc "How often the board takes a sample, so a reader can label the axis."
+  @spec sample_every_ms() :: pos_integer()
+  def sample_every_ms, do: @sample_every_ms
+
+  @doc """
+  The frozen exam as a percentage, from a vitals fact.
+
+  ⚠ ONE PLACE, because the leaderboard and the history chart must not be able to
+  disagree about what an island scored. They are the same number drawn twice.
+  """
+  @spec exam_score(map()) :: non_neg_integer()
+  def exam_score(vitals) when is_map(vitals) do
+    rungs = length(Map.get(vitals, "benchmark_rungs", []))
+    starts = Map.get(vitals, "benchmark_starts", 0)
+    wins = Map.get(vitals, "benchmark_wins", [])
+    scored(is_list(wins) && Enum.sum(wins), rungs * starts)
+  end
+
+  def exam_score(_absent), do: 0
+
+  defp scored(_wins, 0), do: 0
+  defp scored(false, _n), do: 0
+  defp scored(wins, n), do: div(wins * 100, n)
+
+  # Only vitals carry the numbers a trajectory is made of, and only every
+  # @sample_every_ms — they arrive once a second from every island.
+  defp sampled(:vitals, id, fact), do: keep(id, :ets.lookup(@history, id), fact)
+  defp sampled(_other, _id, _fact), do: :ok
+
+  defp keep(id, [{_id, [%{at: at} | _] = samples}], fact) do
+    now = System.system_time(:millisecond)
+    store(now - at >= @sample_every_ms, id, samples, fact, now)
+  end
+
+  defp keep(id, _none, fact), do: store(true, id, [], fact, System.system_time(:millisecond))
+
+  defp store(false, _id, _samples, _fact, _now), do: :ok
+
+  defp store(true, id, samples, fact, now) do
+    point = %{
+      at: now,
+      score: exam_score(fact),
+      roster: Map.get(fact, "roster", 0),
+      generation: Map.get(fact, "generation", 0),
+      rounds: Map.get(fact, "rounds", 0),
+      captures: Map.get(fact, "captures", 0)
+    }
+
+    :ets.insert(@history, {id, Enum.take([point | samples], @max_samples)})
     :ok
   end
 

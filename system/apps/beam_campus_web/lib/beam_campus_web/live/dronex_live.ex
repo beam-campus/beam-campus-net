@@ -80,6 +80,7 @@ defmodule BeamCampusWeb.DronexLive do
 
   defp panel_of("vitals"), do: :vitals
   defp panel_of("exam"), do: :exam
+  defp panel_of("history"), do: :history
   defp panel_of(_fights), do: :fights
 
   @impl true
@@ -323,34 +324,33 @@ defmodule BeamCampusWeb.DronexLive do
               ⚠⚠ A THIRD RATHER THAN A QUARTER, because this column stopped being
               a list of buttons. It now carries the stat tiles and the exam
               profile too, and 184px could hold neither. --%>
-        <%!-- ⚠ THE TOP MARGIN IS ON THE ROW. It was on both children, and the
-              panel then cancelled its own at `lg' — so the right column floated
-              32px above the player it sits beside. --%>
-        <div class="mt-8 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
-          <div class="lg:col-span-2">
-            <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
-          </div>
+        <%!-- ⚠ THE TABS OWN EVERYTHING UNDER THEM, INCLUDING THE PLAYER.
+              They used to scope only a side column while the fight stayed
+              visible beside them — so a tab labelled "Fights" sat next to a
+              permanently playing fight, and switching to Vitals left it there.
+              Either the label was wrong or the scope was, and the label is
+              right.
 
-          <%!-- ⚠ THE CHOOSER SITS BESIDE THE THING IT CHOOSES, and that is why
-                the TABS moved up here rather than this list moving down to them.
-                Three panels were scoped by one selection and lived in two places
-                with different chrome: the fights beside the player, the numbers
-                and the exam a screen below. Consolidating them is right; doing it
-                by pushing the fights list down would have separated a control
-                from the canvas it drives, so you would pick a fight in one place
-                and watch it change in another. --%>
-          <div class="lg:col-span-1">
-            <.island_panel
-              :if={@shown}
-              row={@shown}
-              panel={@panel}
-              selected?={@focus != nil}
-              watchable={@watchable}
-              watching={@watching}
-              focused={@focused}
-            />
-          </div>
-        </div>
+              The earlier argument for keeping the player outside was that a
+              raid belongs to TWO islands and must not be filed under one. That
+              is still true and is not what this does: the tab set is a set of
+              VIEWS, the Fights view holds the player and its chooser, and the
+              player still shows a fight between two islands that the selection
+              merely filters. Vitals and Exam also get the full width, which
+              they wanted — a rung profile in a third of a column was cramped
+              before any history chart was added to it. --%>
+        <.island_panel
+          :if={@shown}
+          row={@shown}
+          panel={@panel}
+          selected?={@focus != nil}
+          fight={@fight}
+          payload={@payload}
+          frame_count={@frame_count}
+          watchable={@watchable}
+          watching={@watching}
+          focused={@focused}
+        />
 
         <p class="mt-10 text-sm opacity-60">
           A bout arrives as a recording: every frame, already computed by the
@@ -361,6 +361,206 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  # ── History ─────────────────────────────────────────────────────
+
+  @doc """
+  What this island's numbers have been doing, as two small charts.
+
+  ## ⚠ TWO CHARTS AND NOT ONE, BECAUSE THEY DO NOT SHARE A SCALE
+
+  A percentage and a roster depth on one pair of axes needs two y-scales, and a
+  dual-axis chart lets whoever drew it decide which line appears to lead the
+  other by choosing the scales. Two charts stacked on the same x is the honest
+  version of the same comparison.
+
+  ## ⚠⚠ BOTH AXES START AT ZERO AND END AT THEIR REAL CEILING
+
+  The exam is 0-100 and the roster is 0-capacity, fixed. Fitting the axis to the
+  data would turn beam03's fall from 100% to 0.3% and its climb back to 27% into
+  three similar-looking wiggles, which is the oldest way to lie with a line.
+
+  ## ⚠⚠⚠ IT STARTS EMPTY, AND SAYS SO
+
+  This is memory and not a store. The site is a reader of the mesh and holds no
+  database, so a restart loses the trajectory and the panel tells you that rather
+  than drawing a short line as though it were the whole story.
+  """
+  attr :row, :map, required: true
+
+  def history(assigns) do
+    samples = Dronex.history(assigns.row.id)
+    v = Dronex.fact(assigns.row, :vitals) || %{}
+
+    assigns =
+      assign(assigns,
+        samples: samples,
+        enough?: length(samples) >= 2,
+        span: span_of(samples),
+        capacity: max(1, num(v, "capacity"))
+      )
+
+    ~H"""
+    <div class="mt-4">
+      <p :if={!@enough?} class="text-xs opacity-50">
+        Nothing plotted yet. The board samples every {div(Dronex.sample_every_ms(), 1000)}s
+        and needs two points to draw a line, so this fills in a minute or so. It is
+        held in memory rather than a database — the site reads the mesh and keeps no
+        store — so a restart begins it again.
+      </p>
+
+      <div :if={@enough?} class="space-y-6">
+        <.trend
+          label="Frozen exam"
+          unit="%"
+          samples={@samples}
+          pick={:score}
+          ceiling={100}
+          span={@span}
+        />
+        <.trend
+          label="Roster"
+          unit={" of #{@capacity}"}
+          samples={@samples}
+          pick={:roster}
+          ceiling={@capacity}
+          span={@span}
+        />
+
+        <%!-- A chart that cannot be read as numbers is a chart some people cannot
+              read at all. --%>
+        <details>
+          <summary class="cursor-pointer text-xs opacity-40">The samples, as a table</summary>
+          <div class="mt-2 max-h-64 overflow-y-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr class="text-xs opacity-50">
+                  <th>at</th>
+                  <th class="text-right">exam</th>
+                  <th class="text-right">roster</th>
+                  <th class="text-right">generation</th>
+                  <th class="text-right">captures</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={p <- Enum.reverse(@samples)}>
+                  <td class="font-mono text-xs opacity-60">{clock(p.at)}</td>
+                  <td class="text-right font-mono">{p.score}%</td>
+                  <td class="text-right font-mono opacity-60">{p.roster}</td>
+                  <td class="text-right font-mono opacity-60">{p.generation}</td>
+                  <td class="text-right font-mono opacity-60">{p.captures}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :unit, :string, default: ""
+  attr :samples, :list, required: true
+  attr :pick, :atom, required: true
+  attr :ceiling, :integer, required: true
+  attr :span, :any, required: true
+
+  defp trend(assigns) do
+    latest = assigns.samples |> List.last() |> Map.get(assigns.pick)
+
+    assigns =
+      assign(assigns,
+        latest: latest,
+        points: polyline(assigns.samples, assigns.pick, assigns.ceiling, assigns.span),
+        dots: plotted(assigns.samples, assigns.pick, assigns.ceiling, assigns.span)
+      )
+
+    ~H"""
+    <figure>
+      <figcaption class="flex items-baseline justify-between gap-2">
+        <span class="text-xs font-semibold opacity-70">{@label}</span>
+        <%!-- ⚠ THE LAST VALUE IS LABELLED AND THE OTHERS ARE NOT. A number on
+              every point is 240 numbers and no shape. --%>
+        <span class="font-mono text-sm tabular-nums">{@latest}{@unit}</span>
+      </figcaption>
+
+      <svg
+        viewBox="0 0 600 140"
+        class="mt-1 h-auto w-full text-primary"
+        role="img"
+        aria-label={"#{@label} over the last #{minutes(@span)} minutes, now #{@latest}#{@unit}, on a scale from 0 to #{@ceiling}"}
+      >
+        <%!-- Recessive, and drawn under the data. --%>
+        <line
+          :for={f <- [0.0, 0.5, 1.0]}
+          x1="34"
+          x2="592"
+          y1={grid_y(f)}
+          y2={grid_y(f)}
+          class="stroke-base-content/15"
+          stroke-width="1"
+        />
+        <text
+          :for={{f, v} <- [{0.0, @ceiling}, {1.0, 0}]}
+          x="30"
+          y={grid_y(f) + 3}
+          text-anchor="end"
+          class="fill-base-content/40"
+          font-size="9"
+        >
+          {v}
+        </text>
+
+        <polyline
+          points={@points}
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+
+        <%!-- Native tooltips: every sample interrogable, no JavaScript. --%>
+        <circle :for={{x, y, p} <- @dots} cx={x} cy={y} r="6" fill="transparent">
+          <title>{clock(p.at)} · {Map.get(p, @pick)}{@unit}</title>
+        </circle>
+      </svg>
+    </figure>
+    """
+  end
+
+  # ── Plotting ────────────────────────────────────────────────────
+
+  defp span_of([]), do: nil
+  defp span_of([only]), do: {only.at, only.at + 1}
+
+  defp span_of(samples) do
+    {List.first(samples).at, max(List.last(samples).at, List.first(samples).at + 1)}
+  end
+
+  defp polyline(samples, pick, ceiling, span) do
+    samples
+    |> plotted(pick, ceiling, span)
+    |> Enum.map_join(" ", fn {x, y, _p} -> "#{x},#{y}" end)
+  end
+
+  defp plotted(samples, pick, ceiling, {t0, t1}) do
+    Enum.map(samples, fn p ->
+      x = 34 + (p.at - t0) * 558 / max(1, t1 - t0)
+      y = 128 - min(Map.get(p, pick, 0), ceiling) * 116 / max(1, ceiling)
+      {Float.round(x * 1.0, 1), Float.round(y * 1.0, 1), p}
+    end)
+  end
+
+  # 12 is the top of the plot and 128 the baseline.
+  defp grid_y(fraction), do: 12 + fraction * 116
+
+  defp minutes({t0, t1}), do: div(t1 - t0, 60_000)
+
+  defp clock(at) do
+    at |> DateTime.from_unix!(:millisecond) |> Calendar.strftime("%H:%M")
   end
 
   # ── Vitals ──────────────────────────────────────────────────────
@@ -380,7 +580,7 @@ defmodule BeamCampusWeb.DronexLive do
       )
 
     ~H"""
-    <div :if={@panel == :vitals} class="mt-4 grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
+    <div :if={@panel == :vitals} class="mt-4 grid gap-4 sm:grid-cols-4">
       <.stat label="roster" value={num(@v, "roster")} of={num(@v, "capacity")} />
       <.stat label="generation" value={num(@v, "generation")} />
       <.stat label="rounds bred" value={num(@v, "rounds")} />
@@ -406,7 +606,7 @@ defmodule BeamCampusWeb.DronexLive do
           refusing every raid on an engine mismatch looks identical from
           outside — and then the archipelago is several separate experiments
           with a light show on top. --%>
-    <div :if={@panel == :vitals} class="mt-3 grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
+    <div :if={@panel == :vitals} class="mt-3 grid gap-4 sm:grid-cols-4">
       <.stat label="raids sent" value={num(@v, "raids")} />
       <.stat label="raids defended" value={num(@v, "defences")} />
       <.stat label="genomes captured" value={num(@v, "captures")} />
@@ -670,55 +870,60 @@ defmodule BeamCampusWeb.DronexLive do
   attr :row, :map, required: true
   attr :panel, :atom, default: :fights
   attr :selected?, :boolean, default: false
+  attr :fight, :any, default: nil
+  attr :payload, :any, default: nil
+  attr :frame_count, :integer, default: 0
   attr :watchable, :list, required: true
   attr :watching, :any, default: nil
   attr :focused, :any, default: nil
 
   def island_panel(assigns) do
     ~H"""
-    <section class="mt-8 lg:mt-0">
+    <section class="mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <%!-- ⚠ SAID ONCE. The heading, a badge beside it and the list's own
-              scope line all announced "every island" inside one 300px column. --%>
         <h2 class="text-base font-semibold">
           {(@focused && Dronex.label(@focused)) || "Every island"}
         </h2>
+
+        <span :if={@panel != :fights and !@selected?} class="text-xs opacity-40">
+          {Dronex.label(@row)}, shown because nothing is selected
+        </span>
       </div>
 
       <div role="tablist" class="tabs tabs-bordered mt-2">
         <button
-          :for={{id, label} <- [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}]}
+          :for={{id, label} <- panels()}
           role="tab"
           aria-selected={to_string(@panel == id)}
           phx-click="show_panel"
           phx-value-panel={id}
-          class={["tab tab-sm", @panel == id && "tab-active"]}
+          class={["tab", @panel == id && "tab-active"]}
         >
           {label}
         </button>
       </div>
 
-      <.chooser
-        :if={@panel == :fights}
-        watchable={@watchable}
-        watching={@watching}
-        focused={@focused}
-      />
+      <%!-- THE FIGHT AND ITS CHOOSER, side by side, because a list you pick from
+            belongs next to the thing it changes. --%>
+      <div :if={@panel == :fights} class="mt-2 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
+        <div class="lg:col-span-2">
+          <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
+        </div>
 
-      <%!-- ⚠ THE NUMBERS FOLLOW THE SELECTION AND NOT THE FIGHT. With nothing
-            selected this shows a default island and says so, because an empty
-            panel explains nothing — but the fights tab beside it is showing the
-            WHOLE archipelago at that moment, and a reader must not take the two
-            for one island's story. --%>
-      <p :if={@panel != :fights and !@selected?} class="mt-2 text-xs opacity-40">
-        {Dronex.label(@row)}, shown because nothing is selected. Pick an island
-        above.
-      </p>
+        <div class="lg:col-span-1">
+          <.chooser watchable={@watchable} watching={@watching} focused={@focused} />
+        </div>
+      </div>
 
-      <.vitals :if={@panel != :fights} row={@row} panel={@panel} />
+      <.vitals :if={@panel in [:vitals, :exam]} row={@row} panel={@panel} />
+
+      <.history :if={@panel == :history} row={@row} />
     </section>
     """
   end
+
+  defp panels,
+    do: [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}, {:history, "History"}]
 
   @doc """
   The islands, ranked on the one number they all earn on identical terms.
@@ -780,10 +985,25 @@ defmodule BeamCampusWeb.DronexLive do
                     all is the most interesting thing on the page, not the least.
                     Marked, never explained away: the cause is not known and the
                     table does not get to guess. --%>
+              <%!-- ⚠ THE SCORE AND WHO EARNED IT, TOGETHER. `roster:best/1'
+                    sits the exam and a raid admits CAPTURED genomes into the
+                    same roster, so an island's headline number can belong to a
+                    controller bred on another machine. Reading the score
+                    without that is how a change of champion gets mistaken for
+                    an evolutionary result — which is live right now: beam03 went
+                    288/288, then 1/288, then 27% inside a day while absorbing
+                    2,113 foreign genomes. --%>
               <td class={["text-right font-mono", s.score < 10 && "text-error font-semibold"]}>
                 {s.score}%
                 <span :if={s.score < 10} class="ml-1 opacity-70" title="the exam has collapsed">
                   ⚠
+                </span>
+                <span
+                  :if={s.sitter == "captured"}
+                  class="ml-1 text-[10px] opacity-60"
+                  title="the controller that sat this exam was captured from a neighbour, not bred here"
+                >
+                  captured
                 </span>
               </td>
               <td class="text-right font-mono opacity-60">{s.generation}</td>

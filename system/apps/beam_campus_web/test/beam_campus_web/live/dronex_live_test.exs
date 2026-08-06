@@ -8,6 +8,8 @@ defmodule BeamCampusWeb.DronexLiveTest do
   setup do
     Board.init()
     :ets.delete_all_objects(:dronex_board)
+    :ets.delete_all_objects(:dronex_recordings)
+    :ets.delete_all_objects(:dronex_history)
     :ets.insert(:dronex_board, {:refused, 0})
     :ok
   end
@@ -199,19 +201,87 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ "fields at most"
   end
 
-  # ⚠ THE FIGHT ITSELF IS NEVER BEHIND A TAB. Switching to the numbers must not
-  # take the canvas away: a raid belongs to two islands and the player is not
-  # one island's property.
-  test "the player survives every tab", %{conn: conn} do
+  # ⚠ THE PLAYER BELONGS TO THE FIGHTS TAB, and this test used to assert the
+  # opposite. A tab labelled "Fights" sitting beside a permanently visible fight
+  # is incoherent: either the label is wrong or the scope is, and the label is
+  # right. The earlier reasoning — that a raid is about two islands and must not
+  # be filed under one — is still true and is not what a tab set decides; these
+  # tabs choose a VIEW, and the fight the player shows is still a fight between
+  # two islands that the selection merely filters.
+  test "the player belongs to the fights tab and only to it", %{conn: conn} do
     Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
     Board.put_raid("r1", :raid, raid("bbb", "beam00") |> Map.put("island_id", "aaa"))
 
     {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
     assert html =~ "dronex-replay"
 
-    for panel <- ["vitals", "exam", "fights"] do
-      assert render_click(view, "show_panel", %{"panel" => panel}) =~ "dronex-replay"
+    for panel <- ["vitals", "exam", "history"] do
+      refute render_click(view, "show_panel", %{"panel" => panel}) =~ "dronex-replay"
     end
+
+    assert render_click(view, "show_panel", %{"panel" => "fights"}) =~ "dronex-replay"
+  end
+
+  # ── History ─────────────────────────────────────────────────────
+
+  # ⚠ ONE POINT IS NOT A TRAJECTORY. A chart of a single sample is a dot
+  # pretending to be a line, and this panel says so rather than drawing it.
+  test "history says it is empty rather than drawing one point", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=history")
+
+    assert html =~ "Nothing plotted yet"
+    refute html =~ "<polyline"
+  end
+
+  test "two samples draw a line, and the axis runs to the real ceiling", %{conn: conn} do
+    exam = fn wins ->
+      %{
+        "island" => "beam00",
+        "island_id" => "aaa",
+        "roster" => 90,
+        "capacity" => 240,
+        "benchmark_rungs" => ["a"],
+        "benchmark_wins" => [wins],
+        "benchmark_starts" => 100
+      }
+    end
+
+    Board.put("aaa", :vitals, exam.(100))
+    # ⚠ THE SAMPLER THROTTLES, so a second put lands in the same window and is
+    # dropped. Reaching past the API here is deliberate: the alternative is a
+    # test that sleeps for the sampling interval.
+    [{_id, [first]}] = :ets.lookup(:dronex_history, "aaa")
+    :ets.insert(:dronex_history, {"aaa", [%{first | at: first.at - 60_000, score: 3}]})
+    Board.put("aaa", :vitals, exam.(100))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=history")
+
+    assert html =~ "<polyline"
+    # 0 and the ceiling are labelled; the axis is never fitted to the data.
+    # Whitespace-tolerant: the formatter reflows HEEx text nodes onto their own
+    # lines, so a bare ">100<" is a test of the formatter and not of the chart.
+    assert html =~ ~r/>\s*100\s*</
+    assert html =~ ~r/>\s*240\s*</
+    assert html =~ "Frozen exam"
+    assert html =~ "Roster"
+  end
+
+  # The leaderboard and the chart must not be able to disagree about a score.
+  test "the exam percentage has one implementation", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam00",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["a", "b"],
+      "benchmark_wins" => [10, 5],
+      "benchmark_starts" => 10
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert Dronex.WatchBouts.Board.exam_score(Dronex.fact(Board.island("aaa"), :vitals)) == 75
+    assert html =~ "75%"
   end
 
   # An island that has not sat the exam is different from one that sat it and
