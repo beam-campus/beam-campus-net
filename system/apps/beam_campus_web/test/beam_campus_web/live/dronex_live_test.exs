@@ -193,15 +193,18 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     # ⚠ FIGHTS IS THE DEFAULT, because it is the chooser for the canvas beside
     # it. Neither of the other two is rendered until asked for.
+    # ⚠ NOT A RUNG NAME. The drill names now appear on the landing view as the
+    # matrix's column headings, so "hoverer" no longer distinguishes a tab from
+    # the page around it. This asserts on what is unique to each panel.
     refute html =~ "fields at most"
-    refute html =~ "hoverer"
+    refute html =~ "Six scripted drills"
 
     html = render_click(view, "show_panel", %{"panel" => "vitals"})
     assert html =~ "fields at most"
-    refute html =~ "hoverer"
+    refute html =~ "Six scripted drills"
 
     html = render_click(view, "show_panel", %{"panel" => "exam"})
-    assert html =~ "hoverer"
+    assert html =~ "Six scripted drills"
     refute html =~ "fields at most"
   end
 
@@ -275,6 +278,36 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "0–50 m"
     # Held in both frames, and the denominator is on the row.
     assert html =~ "n=2"
+  end
+
+  # ⚠ FLEET-SCOPED THINGS MUST NOT HIDE BEHIND A PER-ISLAND TAB. The island ×
+  # drill matrix sat on the Exam tab, so the most informative diagram on the page
+  # was two clicks behind a video player and a visitor landed on a canvas and one
+  # small bar. It is every island against every drill; it belongs with the map
+  # and the standings, which are the other two fleet-scoped things.
+  test "the drill matrix is on the landing view, not behind a tab", %{conn: conn} do
+    exam = fn name, wins ->
+      %{
+        "island" => name,
+        "island_id" => name,
+        "benchmark_rungs" => ["hoverer", "sniper"],
+        "benchmark_wins" => wins,
+        "benchmark_starts" => 10
+      }
+    end
+
+    Board.put("aaa", :vitals, exam.("beam00", [10, 2]))
+    Board.put("bbb", :vitals, exam.("beam01", [4, 9]))
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "Every island, every drill"
+    assert html =~ "hoverer"
+
+    # and it stays put whichever island panel is open
+    for panel <- ["vitals", "exam", "fights"] do
+      assert render_click(view, "show_panel", %{"panel" => panel}) =~ "Every island, every drill"
+    end
   end
 
   # ── History ─────────────────────────────────────────────────────

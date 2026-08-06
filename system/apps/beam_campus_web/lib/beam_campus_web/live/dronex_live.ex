@@ -665,8 +665,6 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
 
       <.trend_panel row={@row} metric={:score} label="Frozen exam" ceiling={100} unit="%" />
-
-      <.ladder :if={@starts > 0} islands={@islands} focus={@row.id} rungs={@rungs} />
     </div>
     """
   end
@@ -917,7 +915,8 @@ defmodule BeamCampusWeb.DronexLive do
     assigns =
       assign(assigns,
         shown: shown,
-        hidden: length(assigns.standings) - length(shown)
+        hidden: length(assigns.standings) - length(shown),
+        rungs: rungs_of(assigns.islands)
       )
 
     ~H"""
@@ -954,8 +953,27 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
 
       <.leaderboard standings={@shown} focus={@focus} />
+
+      <%!-- ⚠ FLEET-SCOPED, SO IT LIVES WITH THE FLEET. This sat on the per-island
+            Exam tab, which was wrong twice: it is every island against every
+            drill, so a per-island panel is the wrong home for it, and burying the
+            most informative thing on the page two clicks behind a video player
+            meant a visitor landed on a canvas and one small bar. --%>
+      <.ladder :if={@rungs != []} islands={@islands} focus={@focus} rungs={@rungs} />
     </section>
     """
+  end
+
+  # The ladder's column headings come from whichever island has sat the exam;
+  # they are the same six drills for everyone, and an island that has not sat it
+  # publishes none.
+  defp rungs_of(islands) do
+    Enum.find_value(islands, [], fn row ->
+      case Map.get(Dronex.fact(row, :vitals) || %{}, "benchmark_rungs", []) do
+        [] -> nil
+        rungs -> rungs
+      end
+    end)
   end
 
   # `nil` means the map has not reported yet — on first paint, and for anyone who
