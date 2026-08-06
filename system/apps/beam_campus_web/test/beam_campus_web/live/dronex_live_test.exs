@@ -430,6 +430,50 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert src =~ "this.masts()"
   end
 
+  # ⚠ CLICKING AN ISLAND FILTERS BOTH ROLES, NOT JUST THE HOST. A raid is
+  # published by the DEFENDER because the defender hosted it, so filtering on the
+  # publisher alone would answer "fights fought in this airspace" and silently
+  # drop every raid the island flew away from home. Both are its fights.
+  test "focusing an island narrows the list to its fights, home and away", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put("bbb", :vitals, %{"island" => "beam01", "island_id" => "bbb", "roster" => 90})
+    Board.put("ccc", :vitals, %{"island" => "beam02", "island_id" => "ccc", "roster" => 90})
+
+    # aaa defends one and attacks another; ccc is in neither.
+    Board.put_raid("home", :raid, raid("bbb", "beam00") |> Map.put("island_id", "aaa"))
+    Board.put_raid("away", :raid, raid("aaa", "beam01") |> Map.put("island_id", "bbb"))
+    Board.put_raid("other", :raid, raid("ccc", "beam01") |> Map.put("island_id", "bbb"))
+
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
+
+    all = view |> render() |> watch_keys()
+    assert Enum.sort(all) == ["away", "home", "other"]
+
+    html = render_click(view, "focus_island", %{"id" => "aaa"})
+    assert Enum.sort(watch_keys(html)) == ["away", "home"]
+    assert html =~ "Fights at beam00"
+
+    # ⚠ AND IT LETS GO. Clicking the focused island again clears it; a filter
+    # with no way out is a trap, and on a canvas there is no obvious "off".
+    assert render_click(view, "focus_island", %{"id" => "aaa"}) |> watch_keys() |> length() == 3
+  end
+
+  # Clicking open sea clears the filter too.
+  test "focusing nothing clears the filter", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put_raid("home", :raid, raid("bbb", "beam00") |> Map.put("island_id", "aaa"))
+
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
+
+    render_click(view, "focus_island", %{"id" => "aaa"})
+    html = render_click(view, "focus_island", %{"id" => nil})
+    refute html =~ "Fights at"
+  end
+
+  defp watch_keys(html) do
+    ~r/data-watch="raid:([^"]*)"/ |> Regex.scan(html) |> Enum.map(&List.last/1)
+  end
+
   defp raid(attacker, island) do
     %{
       "island" => island,

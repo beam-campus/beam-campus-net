@@ -58,6 +58,7 @@ defmodule BeamCampusWeb.DronexMap do
   attr :islands, :list, required: true
   attr :raids, :list, required: true
   attr :class, :string, default: ""
+  attr :focus, :string, default: nil
 
   def archipelago(assigns) do
     names = Enum.map(assigns.islands, & &1.id)
@@ -70,6 +71,7 @@ defmodule BeamCampusWeb.DronexMap do
       assign(assigns,
         isles: Jason.encode!(Enum.map(assigns.islands, &isle(&1, at))),
         arcs: Jason.encode!(arcs(assigns.raids, at, names)),
+        focus: assigns[:focus],
         width: cols * pitch,
         height: rows * pitch,
         count: length(names)
@@ -96,6 +98,7 @@ defmodule BeamCampusWeb.DronexMap do
             this.phase = 0
 
             this.el.addEventListener("pointerdown", (e) => {
+              this.down = {x: e.clientX, y: e.clientY}
               this.drag = {x: e.clientX, y: e.clientY, cx: this.cam.x, cy: this.cam.y}
               this.el.setPointerCapture(e.pointerId)
               this.el.style.cursor = "grabbing"
@@ -106,7 +109,15 @@ defmodule BeamCampusWeb.DronexMap do
               this.cam.y = this.drag.cy + (e.clientY - this.drag.y) / this.cam.k
               this.paint()
             })
+            // ⚠ A CLICK IS A POINTERUP THAT DID NOT TRAVEL. The map is
+            // draggable, so a naive click handler would fire at the end of every
+            // pan and the filter would change whenever somebody moved the view.
+            // Five pixels of slack, because a finger is never still.
             const release = (e) => {
+              if (this.down && Math.hypot(e.clientX - this.down.x, e.clientY - this.down.y) < 5) {
+                this.tap(e)
+              }
+              this.down = null
               this.drag = null
               this.el.style.cursor = "grab"
               if (e.pointerId !== undefined && this.el.hasPointerCapture(e.pointerId)) {
@@ -179,6 +190,20 @@ defmodule BeamCampusWeb.DronexMap do
             }
           },
 
+          // Which island was tapped, if any. Told to the LiveView rather than
+          // acted on here: what a click MEANS is a page decision, and this hook
+          // has no opinion about fights.
+          tap(e) {
+            const r = this.el.getBoundingClientRect()
+            const w = this.at(e.clientX - r.left, e.clientY - r.top)
+            // Generous, and it has to be: the marks are small at this size and a
+            // hit box the size of the drawing is a hit box nobody can hit.
+            const hit = this.isles.find(
+              (i) => Math.hypot(w.x - i.x, (w.y - i.y) / 0.5) < i.r * 1.6
+            )
+            this.pushEvent("focus_island", {id: hit ? hit.id : null})
+          },
+
           // screen = (world + cam.xy) * cam.k, and this is its inverse.
           at(px, py) {
             return {x: px / this.cam.k - this.cam.x, y: py / this.cam.k - this.cam.y}
@@ -194,6 +219,7 @@ defmodule BeamCampusWeb.DronexMap do
           read() {
             this.isles = JSON.parse(this.el.dataset.isles || "[]")
             this.arcs = JSON.parse(this.el.dataset.arcs || "[]")
+            this.focus = this.el.dataset.focus || null
           },
 
           paint() {
@@ -206,6 +232,17 @@ defmodule BeamCampusWeb.DronexMap do
 
             for (const a of this.arcs) this.arc(a)
             for (const i of this.isles) this.island(i)
+
+            // The selection, on top of everything, so it survives an island
+            // being drawn over by a neighbour's column.
+            const sel = this.isles.find((i) => i.id === this.focus)
+            if (sel) {
+              c.strokeStyle = "rgba(255,255,255,0.75)"
+              c.lineWidth = 2 / k
+              c.beginPath()
+              c.ellipse(sel.x, sel.y, sel.r * 1.5, sel.r * 0.62, 0, 0, 6.284)
+              c.stroke()
+            }
 
             c.setTransform(p, 0, 0, p, 0, 0)
           },
@@ -284,18 +321,27 @@ defmodule BeamCampusWeb.DronexMap do
       </script>
 
       <div class="relative">
+        <%!-- ⚠ A STRIP, NOT A HERO. At 16/9 this was the biggest thing on the
+              page and the least informative: four blobs at hash-derived
+              positions carrying nothing the table below did not. Small and
+              clickable it becomes the page's NAVIGATION, which is a job. It
+              stays navigable — drag to pan, wheel to zoom, double-click to
+              refit — so shrinking it costs nothing that was being used. --%>
         <canvas
           id="dronex-archipelago"
           phx-hook=".Archipelago"
           phx-update="ignore"
           class={["w-full rounded cursor-grab touch-none", backdrop()]}
-          style="aspect-ratio: 16 / 9"
+          style="aspect-ratio: 4 / 1; max-height: 200px"
           data-world-width={@width}
           data-world-height={@height}
           data-isles={@isles}
           data-arcs={@arcs}
+          data-focus={@focus}
           role="img"
-          aria-label={"the archipelago, #{@count} islands"}
+          aria-label={
+            "the archipelago, #{@count} islands. Click an island to see only its fights."
+          }
         >
         </canvas>
         <div class="pointer-events-none absolute bottom-2 right-2 rounded bg-black/50 px-2 py-1 text-[10px] opacity-60">
@@ -323,6 +369,9 @@ defmodule BeamCampusWeb.DronexMap do
     capacity = max(1, num(v, "capacity"))
 
     %{
+      # ⚠ THE 128-BIT IDENTITY AND NOT THE NAME. Two islands may call themselves
+      # the same thing; the filter has to select one of them.
+      id: row.id,
       name: Dronex.label(row),
       x: x,
       y: y,

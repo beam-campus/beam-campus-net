@@ -41,7 +41,7 @@ defmodule BeamCampusWeb.DronexLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Dronex.subscribe()
-    {:ok, socket |> assign(dirty?: false, chosen: nil, watching: nil) |> load()}
+    {:ok, socket |> assign(dirty?: false, chosen: nil, watching: nil, focus: nil) |> load()}
   end
 
   @impl true
@@ -69,18 +69,33 @@ defmodule BeamCampusWeb.DronexLive do
   def handle_event("watch", %{"key" => key}, socket),
     do: {:noreply, socket |> assign(watching: key) |> load()}
 
+  # ⚠ CLICKING THE FOCUSED ISLAND CLEARS IT, and clicking open sea clears it too.
+  # A filter you can enter and cannot leave is a trap, and on a canvas there is
+  # no obvious "off" — so both the mark and the water are the way out.
+  def handle_event("focus_island", %{"id" => id}, socket) do
+    {:noreply,
+     socket
+     |> assign(focus: toggled(socket.assigns.focus, id), watching: nil)
+     |> load()}
+  end
+
+  defp toggled(same, same), do: nil
+  defp toggled(_was, id), do: id
+
   # The same deep blue-black the maps use. A function and not a module attribute:
   # inside a `~H` sigil `@backdrop` means `assigns.backdrop`.
   defp backdrop, do: "bg-[#0a1220]"
 
   defp load(socket) do
     islands = Dronex.islands()
-    watchable = Dronex.watchable()
+    focus = socket.assigns[:focus]
+    watchable = Dronex.watchable(focus)
 
     assign(socket,
       islands: islands,
       raids: Dronex.raids(),
       watchable: watchable,
+      focused: Enum.find(islands, &(&1.id == focus)),
       leaderboard: Dronex.leaderboard(),
       fight: watching(watchable, socket.assigns[:watching]),
       state: Dronex.state(),
@@ -147,22 +162,32 @@ defmodule BeamCampusWeb.DronexLive do
              counters and the frozen ladder all explain the fight; none of them
              replaces it, and for a while the fight was a small canvas below a
              picture of two circles and an arc. --%>
-        <%!-- ⚠ THE FIGHT LEADS. The chooser was first, so the first thing a
-              visitor met was eight near-identical buttons asking them to choose
-              between fights they could not yet picture, above a footnote
-              admitting the ordering measures nothing. The page IS the canvas: it
-              should be moving before anything asks for a decision. --%>
+        <%!-- ⚠ THE MAP IS THE NAVIGATION AND SITS ABOVE THE FIGHT, small. It
+              is not competing with the canvas for the eye: it is a strip that
+              says which four machines this is happening between, and clicking an
+              island narrows everything below to that island's fights. --%>
+        <.archipelago
+          :if={@islands != []}
+          islands={@islands}
+          raids={@raids}
+          focus={@focus}
+          class="mt-6"
+        />
+
         <.fight :if={@fight} fight={@fight} />
 
-        <.chooser :if={@watchable != []} watchable={@watchable} watching={@watching} />
+        <.chooser
+          :if={@watchable != [] || @focused}
+          watchable={@watchable}
+          watching={@watching}
+          focused={@focused}
+        />
 
         <%!-- ⚠ THE MAP SECOND. Every island has been a
              row in a list until now, which reads as several unrelated
              experiments. They are one archipelago, and the raids between them
              are the only thing that makes that true rather than asserted. --%>
-        <.leaderboard :if={@leaderboard != []} standings={@leaderboard} />
-
-        <.archipelago :if={@islands != []} islands={@islands} raids={@raids} class="mt-8" />
+        <.leaderboard :if={@leaderboard != []} standings={@leaderboard} focus={@focus} />
 
         <%!-- ⚠ OUTSIDE THE ISLANDS BLOCK ON PURPOSE. A raid is archipelago
              state, not island state, and a commitment can arrive before either
@@ -300,14 +325,36 @@ defmodule BeamCampusWeb.DronexLive do
   """
   attr :watchable, :list, required: true
   attr :watching, :any, default: nil
+  attr :focused, :any, default: nil
 
   def chooser(assigns) do
     ~H"""
     <section class="mt-8">
-      <div class="flex items-baseline justify-between gap-3">
-        <h2 class="text-sm font-semibold opacity-80">Watch another</h2>
-        <span class="text-xs opacity-40">{length(@watchable)} held</span>
+      <div class="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 class="text-sm font-semibold opacity-80">
+          {(@focused && "Fights at #{Dronex.label(@focused)}") || "Watch another"}
+        </h2>
+        <span class="text-xs opacity-40">
+          {length(@watchable)} held
+          <%!-- ⚠ A FILTER YOU CANNOT LEAVE IS A TRAP, and clicking open sea is
+                not discoverable. This is the visible way out. --%>
+          <button
+            :if={@focused}
+            phx-click="focus_island"
+            phx-value-id={@focused.id}
+            class="btn btn-ghost btn-xs"
+          >
+            show all
+          </button>
+        </span>
       </div>
+
+      <%!-- An island can be selected before it has fought anything, and an empty
+            list with no explanation reads as a broken page. --%>
+      <p :if={@watchable == []} class="mt-2 text-xs opacity-50">
+        Nothing to watch at this island yet. It has published no fight — a raid it
+        flew, or one it hosted — since this page started listening.
+      </p>
 
       <ul class="mt-2 grid gap-1 sm:grid-cols-2">
         <li :for={f <- Enum.take(@watchable, 8)}>
@@ -352,6 +399,7 @@ defmodule BeamCampusWeb.DronexLive do
   The islands, ranked on the one number they all earn on identical terms.
   """
   attr :standings, :list, required: true
+  attr :focus, :string, default: nil
 
   def leaderboard(assigns) do
     ~H"""
@@ -372,9 +420,19 @@ defmodule BeamCampusWeb.DronexLive do
             </tr>
           </thead>
           <tbody>
-            <tr :for={{s, n} <- Enum.with_index(@standings)} data-standing={s.island}>
+            <%!-- ⚠ THE SAME FILTER, REACHABLE FROM A KEYBOARD. Clicking a
+                  canvas cannot be tabbed to, so the map alone would have put the
+                  page's navigation out of reach of anyone not using a mouse.
+                  These rows do the same thing and are buttons. --%>
+            <tr
+              :for={{s, n} <- Enum.with_index(@standings)}
+              data-standing={s.island}
+              class={["cursor-pointer", @focus == s.id && "bg-base-200"]}
+            >
               <td class="font-mono text-xs">
-                <span :if={n == 0} class="opacity-70">★</span> {s.island}
+                <button phx-click="focus_island" phx-value-id={s.id} class="text-left">
+                  <span :if={n == 0} class="opacity-70">★</span> {s.island}
+                </button>
               </td>
               <td class="text-right font-mono">{s.score}%</td>
               <td class="text-right font-mono opacity-60">{s.generation}</td>

@@ -200,11 +200,29 @@ defmodule Dronex do
       key: key,
       kind: kind,
       fact: fact,
+      # ⚠ BOTH ISLANDS, NOT JUST THE HOST. A raid is published by the DEFENDER,
+      # because the defender hosted it, so filtering on the publisher alone would
+      # answer "fights fought in this airspace" and silently drop every raid the
+      # island flew. Clicking an island should find its away fixtures too.
+      islands: islands_in(kind, fact),
       title: title(kind, fact),
       score: Enum.sum(Enum.map(reasons, &elem(&1, 0))),
       why: why(Enum.reject(reasons, &(elem(&1, 0) >= @base)))
     }
   end
+
+  defp islands_in(:raid, f),
+    do: Enum.reject([Map.get(f, "island_id"), Map.get(f, "attacker_id")], &is_nil/1)
+
+  defp islands_in(:bout, f), do: Enum.reject([Map.get(f, "island_id")], &is_nil/1)
+
+  @doc """
+  The watchable fights an island took part in, in either role.
+
+  `nil` means no filter, which is the whole archipelago and the default.
+  """
+  def watchable(nil), do: watchable()
+  def watchable(id), do: Enum.filter(watchable(), &(id in &1.islands))
 
   # {points, reason}. The reason is shown; the points only order the list.
   defp reasons(:bout, _fact), do: [{0, "a training bout against a scripted drill"}]
