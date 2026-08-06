@@ -29,9 +29,46 @@
   src: url("/fonts/HankenGrotesk-var.woff2") format("woff2");
 }
 
+/* -----------------------------------------------------------------
+   Fira Mono — the brand's monospace, decided in beam-campus-artwork
+   (brand/fonts/README.md) and copied here like the sans above.
+
+   ⚠ THIS IS NOT DECORATION. `--font-mono` was the generic system stack,
+   and /research/workbench/dronex is almost entirely monospaced data: an
+   island-by-drill matrix, scorelines, coverage rates, counters that
+   change in place every second. Every number on a public exhibit
+   rendered in whatever the visitor's OS supplied, so the page looked
+   materially different on a Mac, a Linux box and Windows.
+
+   Two static weights rather than a variable face: Fira Mono ships no
+   variable build, and 400/500 is everything this site asks of it.
+   Loading Bold as well would be 65 KB for a weight nothing sets.
+
+   ⚠⚠ SELF-HOSTED, and the OFL licence ships beside it in
+   priv/static/fonts/FiraMono-OFL.txt. Serving a webfont is
+   redistribution; a font CDN would also be a request every visitor
+   makes to a third party, which is the thing this project is most
+   careful about elsewhere.
+   ----------------------------------------------------------------- */
+@font-face {
+  font-family: "Fira Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/FiraMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fira Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/FiraMono-Medium.woff2") format("woff2");
+}
+
 @theme {
   --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono: "Fira Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @layer base {
