@@ -225,14 +225,32 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # ── History ─────────────────────────────────────────────────────
 
   # ⚠ ONE POINT IS NOT A TRAJECTORY. A chart of a single sample is a dot
-  # pretending to be a line, and this panel says so rather than drawing it.
-  test "history says it is empty rather than drawing one point", %{conn: conn} do
+  # pretending to be a line, and the panel says so rather than drawing it.
+  test "a trend says it is empty rather than drawing one point", %{conn: conn} do
     Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
 
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=history")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=vitals")
 
-    assert html =~ "Nothing plotted yet"
+    assert html =~ "Roster over time appears here once there are two samples"
     refute html =~ "<polyline"
+  end
+
+  # ⚠ THE CHART BELONGS BESIDE THE NUMBER IT IS THE HISTORY OF. A separate tab
+  # made you hold a value in your head and go and look at its trajectory, on a
+  # page whose tabs are six tiles and nine rungs.
+  test "each trend sits on the tab that reports its number", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex?panel=vitals")
+    assert html =~ "Roster over time"
+    refute html =~ "Frozen exam over time"
+
+    html = render_click(view, "show_panel", %{"panel" => "exam"})
+    assert html =~ "Frozen exam over time"
+    refute html =~ "Roster over time"
+
+    # and the tab that briefly existed is gone, its links landing on the numbers
+    refute html =~ ~s(phx-value-panel="history")
   end
 
   test "two samples draw a line, and the axis runs to the real ceiling", %{conn: conn} do
@@ -256,16 +274,14 @@ defmodule BeamCampusWeb.DronexLiveTest do
     :ets.insert(:dronex_history, {"aaa", [%{first | at: first.at - 60_000, score: 3}]})
     Board.put("aaa", :vitals, exam.(100))
 
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=history")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=exam")
 
     assert html =~ "<polyline"
     # 0 and the ceiling are labelled; the axis is never fitted to the data.
     # Whitespace-tolerant: the formatter reflows HEEx text nodes onto their own
     # lines, so a bare ">100<" is a test of the formatter and not of the chart.
     assert html =~ ~r/>\s*100\s*</
-    assert html =~ ~r/>\s*240\s*</
-    assert html =~ "Frozen exam"
-    assert html =~ "Roster"
+    assert html =~ "Frozen exam over time"
   end
 
   # The leaderboard and the chart must not be able to disagree about a score.

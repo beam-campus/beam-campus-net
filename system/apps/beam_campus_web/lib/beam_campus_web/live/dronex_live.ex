@@ -80,7 +80,8 @@ defmodule BeamCampusWeb.DronexLive do
 
   defp panel_of("vitals"), do: :vitals
   defp panel_of("exam"), do: :exam
-  defp panel_of("history"), do: :history
+  # A link to the tab that briefly existed lands on the numbers it charted.
+  defp panel_of("history"), do: :vitals
   defp panel_of(_fights), do: :fights
 
   @impl true
@@ -366,96 +367,69 @@ defmodule BeamCampusWeb.DronexLive do
   # ── History ─────────────────────────────────────────────────────
 
   @doc """
-  What this island's numbers have been doing, as two small charts.
+  One measure's trajectory, drawn beside the number it is the history of.
 
-  ## ⚠ TWO CHARTS AND NOT ONE, BECAUSE THEY DO NOT SHARE A SCALE
+  ## ⚠ IT STARTS EMPTY, AND SAYS SO
 
-  A percentage and a roster depth on one pair of axes needs two y-scales, and a
-  dual-axis chart lets whoever drew it decide which line appears to lead the
-  other by choosing the scales. Two charts stacked on the same x is the honest
-  version of the same comparison.
+  This is memory and not a store. The site reads the mesh and holds no database,
+  so a restart begins the trajectory again. A panel that drew two points as a
+  confident line would be claiming a history it does not have.
 
-  ## ⚠⚠ BOTH AXES START AT ZERO AND END AT THEIR REAL CEILING
+  ## ⚠⚠ THE AXIS RUNS 0 TO THE REAL CEILING, NEVER TO THE DATA
 
-  The exam is 0-100 and the roster is 0-capacity, fixed. Fitting the axis to the
-  data would turn beam03's fall from 100% to 0.3% and its climb back to 27% into
-  three similar-looking wiggles, which is the oldest way to lie with a line.
-
-  ## ⚠⚠⚠ IT STARTS EMPTY, AND SAYS SO
-
-  This is memory and not a store. The site is a reader of the mesh and holds no
-  database, so a restart loses the trajectory and the panel tells you that rather
-  than drawing a short line as though it were the whole story.
+  The exam is 0-100 and the roster is 0-capacity, fixed. Fitting the axis to
+  whatever arrived would turn beam03's fall from 100% to 0.3% and its climb back
+  to 27% into three similar-looking wiggles, which is the oldest way to lie with
+  a line.
   """
   attr :row, :map, required: true
+  attr :metric, :atom, required: true
+  attr :label, :string, required: true
+  attr :ceiling, :integer, required: true
+  attr :unit, :string, default: ""
 
-  def history(assigns) do
+  def trend_panel(assigns) do
     samples = Dronex.history(assigns.row.id)
-    v = Dronex.fact(assigns.row, :vitals) || %{}
 
-    assigns =
-      assign(assigns,
-        samples: samples,
-        enough?: length(samples) >= 2,
-        span: span_of(samples),
-        capacity: max(1, num(v, "capacity"))
-      )
+    assigns = assign(assigns, samples: samples, enough?: length(samples) >= 2)
 
     ~H"""
     <div class="mt-4">
-      <p :if={!@enough?} class="text-xs opacity-50">
-        Nothing plotted yet. The board samples every {div(Dronex.sample_every_ms(), 1000)}s
-        and needs two points to draw a line, so this fills in a minute or so. It is
-        held in memory rather than a database — the site reads the mesh and keeps no
-        store — so a restart begins it again.
+      <p :if={!@enough?} class="text-xs opacity-40">
+        {@label} over time appears here once there are two samples. The board
+        samples every {div(Dronex.sample_every_ms(), 1000)}s and keeps it in memory
+        rather than a database, so a restart begins it again.
       </p>
 
-      <div :if={@enough?} class="space-y-6">
-        <.trend
-          label="Frozen exam"
-          unit="%"
-          samples={@samples}
-          pick={:score}
-          ceiling={100}
-          span={@span}
-        />
-        <.trend
-          label="Roster"
-          unit={" of #{@capacity}"}
-          samples={@samples}
-          pick={:roster}
-          ceiling={@capacity}
-          span={@span}
-        />
+      <.trend
+        :if={@enough?}
+        label={"#{@label} over time"}
+        unit={@unit}
+        samples={@samples}
+        pick={@metric}
+        ceiling={@ceiling}
+        span={span_of(@samples)}
+      />
 
-        <%!-- A chart that cannot be read as numbers is a chart some people cannot
-              read at all. --%>
-        <details>
-          <summary class="cursor-pointer text-xs opacity-40">The samples, as a table</summary>
-          <div class="mt-2 max-h-64 overflow-y-auto">
-            <table class="table table-xs">
-              <thead>
-                <tr class="text-xs opacity-50">
-                  <th>at</th>
-                  <th class="text-right">exam</th>
-                  <th class="text-right">roster</th>
-                  <th class="text-right">generation</th>
-                  <th class="text-right">captures</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={p <- Enum.reverse(@samples)}>
-                  <td class="font-mono text-xs opacity-60">{clock(p.at)}</td>
-                  <td class="text-right font-mono">{p.score}%</td>
-                  <td class="text-right font-mono opacity-60">{p.roster}</td>
-                  <td class="text-right font-mono opacity-60">{p.generation}</td>
-                  <td class="text-right font-mono opacity-60">{p.captures}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </div>
+      <details :if={@enough?} class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">The samples, as a table</summary>
+        <div class="mt-2 max-h-56 overflow-y-auto">
+          <table class="table table-xs">
+            <thead>
+              <tr class="text-xs opacity-50">
+                <th>at</th>
+                <th class="text-right">{@label}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={p <- Enum.reverse(@samples)}>
+                <td class="font-mono text-xs opacity-60">{clock(p.at)}</td>
+                <td class="text-right font-mono">{Map.get(p, @metric)}{@unit}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
     """
   end
@@ -593,6 +567,14 @@ defmodule BeamCampusWeb.DronexLive do
           survival rate of a breeding attempt. A visitor who cannot read the
           numbers cannot tell a healthy island from a dying one, which is the
           one thing this grid exists to show. --%>
+    <.trend_panel
+      :if={@panel == :vitals}
+      row={@row}
+      metric={:roster}
+      label="Roster"
+      ceiling={max(1, num(@v, "capacity"))}
+    />
+
     <p :if={@panel == :vitals} class="mt-2 text-xs opacity-40">
       An island fields at most {num(@v, "capacity")} drone controllers at once;
       the roster is how many it currently holds, and it falls when a raid costs
@@ -649,6 +631,13 @@ defmodule BeamCampusWeb.DronexLive do
         like. The rungs get harder left to right: the last one holds station and
         shoots, and never pays for closing.
       </p>
+
+      <%!-- ⚠ THE PROFILE ABOVE IS NOW, AND THIS IS WHETHER IT MOVED. The rungs
+            say what the champion can do; they cannot say that beam03 could do
+            all of it this morning and almost none of it by the afternoon. That
+            is the whole reason this chart exists, and it belongs here rather
+            than in a tab of its own. --%>
+      <.trend_panel row={@row} metric={:score} label="Frozen exam" ceiling={100} unit="%" />
     </div>
     """
   end
@@ -916,14 +905,16 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <.vitals :if={@panel in [:vitals, :exam]} row={@row} panel={@panel} />
-
-      <.history :if={@panel == :history} row={@row} />
     </section>
     """
   end
 
-  defp panels,
-    do: [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}, {:history, "History"}]
+  # ⚠ NO "HISTORY" TAB. A chart of the roster belongs beside the roster, and a
+  # chart of the exam beside the exam — not in a third place that makes you hold
+  # a number in your head while you go and look at its trajectory. The tabs it
+  # would have sat next to are six tiles and nine rungs; there was never a space
+  # problem, only a filing one.
+  defp panels, do: [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}]
 
   @doc """
   The islands, ranked on the one number they all earn on identical terms.
