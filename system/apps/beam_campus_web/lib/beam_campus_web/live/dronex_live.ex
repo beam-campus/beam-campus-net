@@ -231,6 +231,17 @@ defmodule BeamCampusWeb.DronexLive do
   defp picked(nil), do: Dronex.latest_fight()
   defp picked(entry), do: entry
 
+  # ⚠ THE ONE NUMBER PAIR THAT ACTUALLY DIFFERS BETWEEN ROWS. A raid sends
+  # twelve a side; how many of each came back is the whole outcome, and it is the
+  # only part of the ranking's own description that is not the same string on
+  # most rows. A training bout has no two sides, so it says so instead.
+  defp survivors(%{kind: :raid, fact: f}),
+    do: "#{num(f, "raiders_home")}–#{num(f, "defenders_home")}"
+
+  defp survivors(_bout), do: "drill"
+
+  defp ticks_of(%{fact: f}), do: "#{num(f, "ticks")}t"
+
   # `{:raid, "abc"}` is not something a DOM attribute can carry back.
   defp tag({kind, id}), do: "#{kind}:#{id}"
 
@@ -258,7 +269,12 @@ defmodule BeamCampusWeb.DronexLive do
 
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="mx-auto max-w-5xl px-4 py-10">
+      <%!-- ⚠ WIDER THAN THE REST OF THE SITE, ON PURPOSE. `max-w-5xl' is right
+           for prose and wrong for this: it left the player 640px and the ranked
+           table seven columns in a third of that, on screens with 1900px going
+           spare. A workbench whose main content is a canvas and a data table
+           earns the extra 256px. --%>
+      <div class="mx-auto max-w-7xl px-4 py-10">
         <.header>
           DroneX
           <:subtitle>
@@ -307,7 +323,10 @@ defmodule BeamCampusWeb.DronexLive do
               ⚠⚠ A THIRD RATHER THAN A QUARTER, because this column stopped being
               a list of buttons. It now carries the stat tiles and the exam
               profile too, and 184px could hold neither. --%>
-        <div class="lg:grid lg:grid-cols-3 lg:items-start lg:gap-4">
+        <%!-- ⚠ THE TOP MARGIN IS ON THE ROW. It was on both children, and the
+              panel then cancelled its own at `lg' — so the right column floated
+              32px above the player it sits beside. --%>
+        <div class="mt-8 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
           <div class="lg:col-span-2">
             <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
           </div>
@@ -468,9 +487,6 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <div class="mt-2">
       <div class="flex flex-wrap items-baseline justify-between gap-3">
-        <span class="text-xs opacity-60">
-          {(@focused && "involving #{Dronex.label(@focused)}") || "every island"}
-        </span>
         <span class="text-xs opacity-40">
           {length(@watchable)} held
           <%!-- ⚠ A FILTER YOU CANNOT LEAVE IS A TRAP, and clicking open sea is
@@ -509,29 +525,40 @@ defmodule BeamCampusWeb.DronexLive do
                 "border-base-300 hover:border-base-content/30"
             ]}
           >
+            <%!-- ⚠ THE SCORELINE LEADS, AND THE SENTENCE FOLLOWS IT SMALL.
+                  Eight rows read "close: 1 home against 0 still up" five times
+                  over, because the ranking's reasons collapse when almost every
+                  engagement ends in mutual annihilation. The prose was doing no
+                  work a reader could use to choose. The SURVIVOR COUNTS differ
+                  even when the verdict does not, so they go first and in a size
+                  you can scan down. --%>
             <div class="flex items-baseline justify-between gap-2">
               <span class="font-mono text-xs">{f.title}</span>
-              <span class={[
-                "badge badge-xs",
-                (f.kind == :raid && "badge-error badge-outline") || "badge-ghost"
-              ]}>
-                {f.kind}
+              <span class="shrink-0 font-mono text-sm tabular-nums">
+                {survivors(f)}
               </span>
             </div>
-            <div class="text-xs opacity-45">{f.why}</div>
+            <div class="mt-0.5 flex items-baseline justify-between gap-2">
+              <span class="truncate text-[11px] opacity-40">{f.why}</span>
+              <span class="shrink-0 text-[11px] opacity-30">{ticks_of(f)}</span>
+            </div>
           </button>
         </li>
       </ul>
 
-      <p class="mt-2 text-xs opacity-40">
-        <%!-- ⚠ SAID OUT LOUD, BECAUSE A RANKING THAT WILL NOT EXPLAIN ITSELF IS
-              ASKING TO BE TRUSTED. This orders a list and measures nothing. --%>
-        Ordered by how interesting the fight is likely to be, not by how recent:
-        a raid over a training bout, both sides losing airframes over a rout, a
-        close finish, and a raider winning away from home over a defender
-        holding. The line under each is the strongest reason it is on this list.
-        It is a way of sorting a list and it measures nothing.
-      </p>
+      <%!-- ⚠ SAID OUT LOUD BUT NOT IN THE WAY. A ranking that will not explain
+            itself is asking to be trusted, and five lines of it under an
+            eight-row list is most of the column. Folded, not dropped. --%>
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">How this list is ordered</summary>
+        <p class="mt-2 text-xs opacity-40">
+          Ordered by how interesting the fight is likely to be, not by how recent:
+          a raid over a training bout, both sides losing airframes over a rout, a
+          close finish, and a raider winning away from home over a defender
+          holding. The line under each is the strongest reason it is on this list.
+          It is a way of sorting a list and it measures nothing.
+        </p>
+      </details>
     </div>
     """
   end
@@ -651,11 +678,11 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <section class="mt-8 lg:mt-0">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-sm font-semibold opacity-80">
-          {(@focused && Dronex.label(@focused)) || "The archipelago"}
+        <%!-- ⚠ SAID ONCE. The heading, a badge beside it and the list's own
+              scope line all announced "every island" inside one 300px column. --%>
+        <h2 class="text-base font-semibold">
+          {(@focused && Dronex.label(@focused)) || "Every island"}
         </h2>
-
-        <span :if={!@selected?} class="text-xs opacity-40">every island</span>
       </div>
 
       <div role="tablist" class="tabs tabs-bordered mt-2">
@@ -744,7 +771,21 @@ defmodule BeamCampusWeb.DronexLive do
                   {s.island}
                 </button>
               </td>
-              <td class="text-right font-mono">{s.score}%</td>
+              <%!-- ⚠ A COLLAPSE IS NOT A LOW SCORE AND MUST NOT READ AS ONE.
+                    beam03 sat 288/288 in the morning and 1/288 nine hours later,
+                    while raiding hard and absorbing 2,113 foreign genomes — and
+                    the table drew that as a quiet fifth row in the same grey as
+                    88%. The exam is the one number every island earns on
+                    identical terms, so an island that has stopped earning it at
+                    all is the most interesting thing on the page, not the least.
+                    Marked, never explained away: the cause is not known and the
+                    table does not get to guess. --%>
+              <td class={["text-right font-mono", s.score < 10 && "text-error font-semibold"]}>
+                {s.score}%
+                <span :if={s.score < 10} class="ml-1 opacity-70" title="the exam has collapsed">
+                  ⚠
+                </span>
+              </td>
               <td class="text-right font-mono opacity-60">{s.generation}</td>
               <td class="text-right font-mono opacity-60">{s.roster}/{s.capacity}</td>
               <td class="text-right font-mono opacity-60">{s.raids}</td>
@@ -755,25 +796,35 @@ defmodule BeamCampusWeb.DronexLive do
         </table>
       </div>
 
-      <p class="mt-2 text-xs opacity-40">
-        <%!-- ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME
+      <%!-- ⚠ FOLDED, NOT DELETED. Five lines of dense prose sat between the
+            ranked table and the fight, pushing the main event of the page below
+            an explanation of a side panel. It still has to be READABLE — a
+            ranking that will not explain itself is asking to be trusted — so it
+            is one click away rather than gone. --%>
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">
+          What this ranks on, and what it deliberately does not
+        </summary>
+        <p class="mt-2 text-xs opacity-40">
+          <%!-- ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME
               COLUMNS, and saying so is the whole reason this caption exists. --%>
-        <%!-- ⚠ ONE PHRASE, NOT TWO. This said "frozen benchmark" while the
+          <%!-- ⚠ ONE PHRASE, NOT TWO. This said "frozen benchmark" while the
               section above said "frozen exam", so a reader had to work out that
               two names were one thing before reading either. --%>
-        Ranked on the <strong>frozen exam</strong>
-        — a fixed ladder of scripted
-        opponents that never changes, so a rising score means the drones got
-        better rather than the exam got easier —
-        and deliberately not on
-        raids. The benchmark is the only number every island earns on identical
-        terms: the same scripted drills from the same fixed starts, flown as an
-        away game with no ground network at all, so it scores the controller and
-        never the terrain. Raid counts are shown because they are interesting and
-        are not comparable between islands — who you fought, how often, and
-        whether your neighbours were awake all move them, so an island that
-        raided a sleepy neighbour twenty times would top a table it never earned.
-      </p>
+          Ranked on the <strong>frozen exam</strong>
+          — a fixed ladder of scripted
+          opponents that never changes, so a rising score means the drones got
+          better rather than the exam got easier —
+          and deliberately not on
+          raids. The benchmark is the only number every island earns on identical
+          terms: the same scripted drills from the same fixed starts, flown as an
+          away game with no ground network at all, so it scores the controller and
+          never the terrain. Raid counts are shown because they are interesting and
+          are not comparable between islands — who you fought, how often, and
+          whether your neighbours were awake all move them, so an island that
+          raided a sleepy neighbour twenty times would top a table it never earned.
+        </p>
+      </details>
     </div>
     """
   end
@@ -796,7 +847,7 @@ defmodule BeamCampusWeb.DronexLive do
     assigns = assign(assigns, bout: b, raid?: kind == :raid)
 
     ~H"""
-    <section class="mt-8">
+    <section>
       <.replay bout={@bout} payload={@payload} count={@frame_count} big={@raid?} />
     </section>
     """
@@ -1304,9 +1355,9 @@ defmodule BeamCampusWeb.DronexLive do
       </script>
 
       <div class="flex items-baseline justify-between">
-        <h3 class="text-sm font-semibold opacity-70">The last fight</h3>
+        <h3 class="text-base font-semibold">The last fight</h3>
         <span class="text-xs opacity-50">
-          {@kind} bout · {@ticks} ticks · won by {@winner}
+          {@kind} · {@ticks} ticks · won by {@winner}
         </span>
       </div>
 

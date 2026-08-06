@@ -504,7 +504,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     html = render_click(view, "focus_island", %{"id" => "aaa"})
     assert Enum.sort(watch_keys(html)) == ["away", "home"]
-    assert html =~ "involving beam00"
+    assert panel_island(html) == "beam00"
 
     # ⚠ AND IT LETS GO. Clicking the focused island again clears it; a filter
     # with no way out is a trap, and on a canvas there is no obvious "off".
@@ -570,7 +570,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ ~s(phx-click="choose")
 
     html = render_click(view, "focus_island", %{"id" => "bbb"})
-    assert html =~ "involving beam01"
+    assert panel_island(html) == "beam01"
 
     # ⚠ AND THE SAME SELECTION SCOPES THE OTHER TABS, which is the point of them
     # sharing a panel: one island, three views, no second copy of the state.
@@ -578,6 +578,37 @@ defmodule BeamCampusWeb.DronexLiveTest do
   end
 
   # ── The table follows the map ───────────────────────────────────
+
+  # ⚠ A COLLAPSE IS NOT A LOW SCORE. beam03 sat 288/288 in the morning and 1/288
+  # nine hours later while raiding hard, and the table drew that in the same grey
+  # as 88%. The exam is the one number every island earns on identical terms, so
+  # an island that has stopped earning it at all is the most interesting row on
+  # the page rather than the least.
+  test "an exam that has collapsed is marked, and a merely low one is not", %{conn: conn} do
+    rung = fn wins ->
+      %{"benchmark_rungs" => ["a"], "benchmark_wins" => [wins], "benchmark_starts" => 100}
+    end
+
+    Board.put("aaa", :vitals, Map.merge(rung.(1), %{"island" => "beam03", "island_id" => "aaa"}))
+    Board.put("bbb", :vitals, Map.merge(rung.(60), %{"island" => "beam01", "island_id" => "bbb"}))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "text-error"
+    assert html =~ "the exam has collapsed"
+
+    # and 60% is a bad score, not a broken instrument
+    refute Regex.match?(~r/text-error[^>]*>\s*60%/, html)
+  end
+
+  # Which island the side panel says it is showing. One heading, because the
+  # scope used to be announced three times in one 300px column.
+  defp panel_island(html) do
+    case Regex.run(~r|<h2 class="text-base font-semibold">\s*([^<]+?)\s*</h2>|, html) do
+      [_, name] -> name
+      _ -> nil
+    end
+  end
 
   defp standings(html) do
     Regex.scan(~r/data-standing="([^"]+)"/, html) |> Enum.map(&List.last/1)
@@ -733,7 +764,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     # Same re-anchoring: a raid still beats a bout, and the replay says which
     # it is playing.
-    assert html =~ "raid bout ·"
+    assert html =~ "raid ·"
     assert html =~ "240 tick"
     assert html =~ "defender"
     refute html =~ "training bout \u00b7"
@@ -768,7 +799,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # rest of the fight section's prose; the guarantee it protected — that a
     # bout is what gets played when no raid exists — is unchanged, so the
     # assertion moved to the replay's own line rather than being dropped.
-    assert html =~ "training bout ·"
+    assert html =~ "training ·"
 
     # The paragraph that said so in words was removed with the rest of the
     # section's prose. What it promised — that an island nobody has raided still
