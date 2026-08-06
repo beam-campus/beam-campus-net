@@ -500,12 +500,18 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "lg:aspect-[4/3]"
   end
 
-  # ⚠ FOUR WORKBENCH PAGES WERE ONE BOOKMARK. Without a page_title the tab, the
-  # history entry and every shared link read as the site's generic title.
-  test "the page names itself", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-    assert html =~ "DroneX ·" or (html =~ "<title" and html =~ "DroneX")
-  end
+  # ⚠ THERE IS NO TEST FOR THE PAGE TITLE, AND THE ONE THAT WAS HERE WAS A LIE.
+  # It read `assert html =~ "DroneX ·" or (html =~ "<title" and html =~
+  # "DroneX")`, which cannot fail: "DroneX" is in the site navigation on every
+  # page. `live/2` returns the LiveView's own markup and not the root layout, so
+  # the title is not assertable from here at all — and a test that cannot fail is
+  # worse than no test, because it reports the thing as covered.
+  #
+  # `page_title` IS assigned in mount, exactly as `a_society_live` does it.
+  # Neither page's title reaches the browser: both still serve the layout's
+  # default. That is a root-layout problem across the whole site rather than this
+  # page's, and it is written down here rather than papered over with a green
+  # tick that meant nothing.
 
   # The one selection: picking an island scopes the fights AND the vitals panel.
   # It used to be two independent selections with two rows of controls.
