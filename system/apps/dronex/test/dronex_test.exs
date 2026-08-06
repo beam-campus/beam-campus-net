@@ -209,6 +209,61 @@ defmodule DronexTest do
     assert fact["winner"] == "draw"
   end
 
+  # ── Listed and drawable are the same list ───────────────────────
+  #
+  # ⚠ THESE GUARD A BUG I SHIPPED FIXING THE LAST ONE. The row cap and the
+  # recording byte budget were set independently, and they disagreed: measured on
+  # the box with five islands raiding, the page ranked 69 fights and held 29
+  # recordings, so 40 of them drew nothing and whichever unplayable one scored
+  # highest became the default view. A blank canvas reads as a broken site.
+
+  test "a fight whose recording is gone is not offered as watchable" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "island_id" => "aaa", "frames" => recording(8)})
+    assert length(Dronex.watchable()) == 1
+
+    :ets.delete(:dronex_recordings, {:raid, "r1"})
+
+    assert Dronex.watchable() == [],
+           "a fight the site cannot draw is still being offered as one it can"
+  end
+
+  test "latest_fight never answers a fight it cannot draw" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "island_id" => "aaa", "frames" => recording(8)})
+    :ets.delete(:dronex_recordings, {:raid, "r1"})
+
+    Board.put("aaa", :bout, %{"island" => "beam01", "frames" => recording(5)})
+
+    entry = Dronex.latest_fight()
+    assert entry.kind == :bout, "fell back to a raid whose frames are gone"
+    assert {:ok, _} = Dronex.recording(entry.key)
+  end
+
+  # ⚠ THE CHEAP QUESTION MUST STAY CHEAP. `recording/1` copies ~1.6 MB, so asking
+  # it 69 times to filter a ranked list would copy a hundred megabytes — the
+  # exact shape of the bug that OOM-killed the site.
+  test "holds? answers without copying, and agrees with recording" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "frames" => recording(6)})
+
+    assert Dronex.holds?({:raid, "r1"})
+    refute Dronex.holds?({:raid, "nope"})
+    assert match?({:ok, _}, Dronex.recording({:raid, "r1"}))
+    assert Dronex.recording({:raid, "nope"}) == :gone
+  end
+
+  # ⚠ THE TWO CAPS ARE COUPLED AND WERE SET APART. A board that lists N fights
+  # must be able to hold N recordings, or "listed" and "drawable" drift until the
+  # second is a minority of the first.
+  test "the recording budget can hold a full board" do
+    measured_recording_bytes = 1_600_000
+    max_raids = 64
+
+    assert Board.max_raids() == max_raids
+
+    assert Board.budget_bytes() >= max_raids * measured_recording_bytes,
+           "budget #{Board.budget_bytes()} cannot hold #{max_raids} recordings " <>
+             "of #{measured_recording_bytes} — listed and drawable will drift apart"
+  end
+
   # ⚠ ONE SHAPE FOR "A FIGHT". `latest_fight/0` used to answer a bare
   # `{kind, fact}`, which dropped the key the page needs to fetch the frames.
   test "latest_fight answers a ranking entry carrying its key" do

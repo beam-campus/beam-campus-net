@@ -80,9 +80,22 @@ defmodule Dronex.WatchBouts.Board do
   This holds a byte budget and drops the oldest until it fits, and refuses a
   single recording far larger than any real one outright.
 
-  A fight whose recording has been dropped still appears in the rankings — its
-  scoreline is a fact and is cheap. `recording/1` answers `:gone` for it, and the
-  page says so rather than drawing an empty canvas and looking broken.
+  A fight whose recording has been dropped KEEPS ITS ROW — the scoreline is a
+  fact, it is cheap, and the map's arcs and the counts are built from it. What it
+  loses is its place in `Dronex.watchable/0`, which is the list of fights the
+  page offers to PLAY.
+
+  ⚠ **THIS PARAGRAPH SAID THE OPPOSITE UNTIL A FIFTH ISLAND JOINED**, and the
+  difference was not academic. It claimed a dropped fight should still be ranked,
+  on the reasoning that a scoreline is worth showing. That is true of the map and
+  false of a watch-list: measured with five islands raiding, the page ranked 69
+  fights and held 29 recordings, so 40 of them drew nothing and whichever
+  unplayable one scored highest became the default view. A blank canvas reads as
+  a broken site, not as an old fight.
+
+  `recording/1` still answers `:gone` and the player still says so, because a
+  recording can age out between being listed and being clicked. That is now the
+  rare backstop it was always meant to be rather than the common case.
   """
 
   @table :dronex_board
@@ -91,10 +104,26 @@ defmodule Dronex.WatchBouts.Board do
   @max_islands 64
   @max_raids 64
 
-  # Roughly forty recordings at the 1.2 MB measured on the box, on a machine with
-  # 1.9 GB of RAM total. Held, never copied: the cost of this budget is resident
-  # bytes and nothing else.
-  @budget 48 * 1024 * 1024
+  # ⚠ THIS MUST COVER A FULL BOARD, AND AT 48 MB IT DID NOT.
+  #
+  # The row cap and this budget were set independently on 2026-08-06 and they
+  # disagreed. Measured hours later, with a fifth island raiding: 64 raid rows
+  # listed, 29 recordings held, 45 MB of a 48 MB budget — so the page offered 69
+  # fights and could draw 29 of them. "Listed but blank" was not the graceful
+  # edge the doc below describes, it was 58% of the exhibit.
+  #
+  # The arithmetic, so the next person changing @max_raids sees the coupling:
+  #
+  #     64 rows  x  ~1.6 MB measured per recording  =  ~102 MB
+  #
+  # 128 MB therefore holds a full board with headroom for recordings that run
+  # long. It is affordable because these are HELD and never copied — that was
+  # the whole point of splitting them out — and the site container is capped at
+  # 1.4 GB while sitting near 290 MB.
+  #
+  # The budget still does real work: @max_recording allows 8 MB apiece, so a
+  # pathological board would be 512 MB without it.
+  @budget 128 * 1024 * 1024
 
   # No real recording approaches this. One that does is a publisher fault or a
   # stranger, and either way it is not going in.
@@ -200,6 +229,37 @@ defmodule Dronex.WatchBouts.Board do
       [] -> :gone
     end
   end
+
+  @doc """
+  The byte budget for held recordings, and the per-recording ceiling.
+
+  Exported so the coupling with `@max_raids` can be asserted rather than
+  remembered: a board that LISTS n fights must be able to HOLD n recordings, and
+  when those two numbers were set independently the page ended up offering 69
+  fights and drawing 29.
+  """
+  @spec budget_bytes() :: pos_integer()
+  def budget_bytes, do: @budget
+
+  @spec max_recording_bytes() :: pos_integer()
+  def max_recording_bytes, do: @max_recording
+
+  @spec max_raids() :: pos_integer()
+  def max_raids, do: @max_raids
+
+  @doc """
+  Whether a fight's frames are still held.
+
+  ⚠ USE THIS TO ASK, NEVER `recording/1`. A lookup COPIES the frames into the
+  caller — about 1.6 MB — so testing sixty-nine ranked fights for drawability
+  with `recording/1` would copy a hundred megabytes to answer sixty-nine
+  booleans. That is the exact shape of the bug that OOM-killed this site, and it
+  would have been reintroduced by the fix for the page that lists them.
+
+  `:ets.member/2` answers from the key alone and copies nothing.
+  """
+  @spec holds?({atom(), binary()}) :: boolean()
+  def holds?(key), do: :ets.member(@recordings, key)
 
   # Split the mass off a fact, keep the count, hand back what is safe to copy.
   defp stow(key, fact) do

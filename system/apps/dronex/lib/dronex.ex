@@ -125,7 +125,7 @@ defmodule Dronex do
   defp newest_raid do
     Enum.find_value(raids(), fn r ->
       case Map.get(r.parts, :raid) do
-        [fact | _] -> scored({:raid, r.id}, :raid, fact)
+        [fact | _] -> List.first(drawable({:raid, r.id}, :raid, fact))
         _none -> nil
       end
     end)
@@ -135,7 +135,7 @@ defmodule Dronex do
     Enum.find_value(islands(), fn row ->
       case fact(row, :bout) do
         nil -> nil
-        bout -> scored({:bout, row.id}, :bout, bout)
+        bout -> List.first(drawable({:bout, row.id}, :bout, bout))
       end
     end)
   end
@@ -150,6 +150,14 @@ defmodule Dronex do
   """
   @spec recording({atom(), binary()}) :: {:ok, list()} | :gone
   defdelegate recording(key), to: Board
+
+  @doc """
+  Whether a fight's frames are still held, without copying them.
+
+  The cheap question. `recording/1` copies about 1.6 MB to answer it.
+  """
+  @spec holds?({atom(), binary()}) :: boolean()
+  defdelegate holds?(key), to: Board
 
   @doc "Whether a raid has been fought and drawn, as opposed to still being out."
   def finished?(%{parts: parts}), do: Map.has_key?(parts, :raid)
@@ -200,7 +208,7 @@ defmodule Dronex do
 
   defp watchable_raid(%{id: id, parts: parts}) do
     case Map.get(parts, :raid) do
-      [fact | _] -> [scored({:raid, id}, :raid, fact)]
+      [fact | _] -> drawable({:raid, id}, :raid, fact)
       _none -> []
     end
   end
@@ -208,7 +216,24 @@ defmodule Dronex do
   defp watchable_bout(row) do
     case fact(row, :bout) do
       nil -> []
-      fact -> [scored({:bout, row.id}, :bout, fact)]
+      fact -> drawable({:bout, row.id}, :bout, fact)
+    end
+  end
+
+  # ⚠ COULD DRAW MEANS THE FRAMES ARE STILL HELD, and this function is why the
+  # doc above is now true rather than aspirational. A scoreline is cheap and a
+  # recording is 1.6 MB, so the board keeps every raid row and only the
+  # recordings its budget allows — which meant this list offered 69 fights while
+  # 40 of them drew nothing, and whichever unplayable one ranked highest became
+  # the page's default view. A blank canvas reads as a broken site, not as an old
+  # fight.
+  #
+  # `holds?/1` and not `recording/1`: the question is a boolean and the answer
+  # must not copy a megabyte to give it.
+  defp drawable(key, kind, fact) do
+    case holds?(key) do
+      true -> [scored(key, kind, fact)]
+      false -> []
     end
   end
 
