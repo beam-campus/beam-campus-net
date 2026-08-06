@@ -59,8 +59,27 @@ defmodule BeamCampusWeb.DronexLive do
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
      |> assign(fight: nil, payload: nil, frame_count: 0)
+     # `nil` means the map has not told us what it is showing. Before the first
+     # report, and for anyone who never moves it, that has to mean EVERYTHING.
+     |> assign(panel: :vitals, in_view: nil)
      |> load()}
   end
+
+  # ⚠ THE SELECTION AND THE PANEL LIVE IN THE URL, so a link carries what you
+  # were looking at. This page already sets `page_title' for exactly that reason
+  # — without it "four different workbench pages are one bookmark" — and putting
+  # navigation behind tabs while leaving the address bar unchanged would make it
+  # less shareable than the version that had no tabs at all.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply,
+     socket
+     |> assign(focus: params["island"], panel: panel_of(params["panel"]))
+     |> load()}
+  end
+
+  defp panel_of("exam"), do: :exam
+  defp panel_of(_vitals), do: :vitals
 
   @impl true
   def handle_info({:dronex_changed, _kind}, socket), do: {:noreply, mark_dirty(socket)}
@@ -91,9 +110,32 @@ defmodule BeamCampusWeb.DronexLive do
   def handle_event("focus_island", %{"id" => id}, socket) do
     {:noreply,
      socket
-     |> assign(focus: toggled(socket.assigns.focus, id), watching: nil)
-     |> load()}
+     |> assign(watching: nil)
+     |> push_patch(to: dronex_path(toggled(socket.assigns.focus, id), socket.assigns.panel))}
   end
+
+  def handle_event("show_panel", %{"panel" => panel}, socket) do
+    {:noreply, push_patch(socket, to: dronex_path(socket.assigns.focus, panel_of(panel)))}
+  end
+
+  # ⚠ WHAT THE MAP IS SHOWING, DEBOUNCED AND ONLY ON CHANGE. The hook computes
+  # this every frame because a raid in flight animates, but it only tells us when
+  # the SET of visible islands differs — a message per frame would be sixty
+  # round trips a second to move a table nobody asked to move.
+  def handle_event("viewport", %{"ids" => ids}, socket) do
+    {:noreply, assign(socket, in_view: MapSet.new(ids))}
+  end
+
+  # ⚠ NOT `path/2'. `Phoenix.VerifiedRoutes' imports one, and defining a private
+  # function of that name shadows nothing — it makes the ~p macro try to expand
+  # your arguments as a route and fail at compile time with a message about
+  # compile-time path strings, which reads as a problem with the sigil.
+  defp dronex_path(island, panel), do: ~p"/research/workbench/dronex?#{query(island, panel)}"
+
+  defp query(nil, :vitals), do: []
+  defp query(nil, panel), do: [panel: panel]
+  defp query(island, :vitals), do: [island: island]
+  defp query(island, panel), do: [island: island, panel: panel]
 
   defp toggled(same, same), do: nil
   defp toggled(_was, id), do: id
@@ -113,11 +155,20 @@ defmodule BeamCampusWeb.DronexLive do
       raids: Dronex.raids(),
       watchable: watchable,
       focused: Enum.find(islands, &(&1.id == focus)),
-      leaderboard: Dronex.leaderboard(),
+      ranked: ranked(),
       state: Dronex.state(),
       refused: Dronex.refused()
     )
     |> put_fight(watching(watchable, socket.assigns[:watching]))
+  end
+
+  # ⚠ RANKED OVER EVERY ISLAND, AND NUMBERED HERE. The table below may be
+  # filtered to whatever the map is showing, and a rank that renumbered under
+  # that filter would be measuring the viewport rather than the archipelago.
+  defp ranked do
+    Dronex.leaderboard()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {standing, place} -> Map.put(standing, :rank, place) end)
   end
 
   # ⚠ THE RECORDING IS FETCHED AND ENCODED WHEN THE FIGHT CHANGES, NOT ON EVERY
@@ -226,21 +277,27 @@ defmodule BeamCampusWeb.DronexLive do
 
         <.dronex_state state={@state} refused={@refused} />
 
-        <%!-- ⚠ THE FIGHT FIRST, AND EVERYTHING ELSE UNDER IT. What anybody
-             opening this page wants is drones fighting drones. The map, the
-             counters and the frozen ladder all explain the fight; none of them
-             replaces it, and for a while the fight was a small canvas below a
-             picture of two circles and an arc. --%>
-        <%!-- ⚠ THE MAP IS THE NAVIGATION AND SITS ABOVE THE FIGHT, small. It
-              is not competing with the canvas for the eye: it is a strip that
-              says which four machines this is happening between, and clicking an
-              island narrows everything below to that island's fights. --%>
-        <.archipelago
+        <%!-- ⚠ THE FIGHT STILL COMES BEFORE THE DETAIL, and the band above it is
+             NAVIGATION rather than content. What anybody opening this page wants
+             is drones fighting drones; for a while the fight was a small canvas
+             below a picture of two circles, and that is the mistake this
+             ordering exists to avoid. The map and the table sit above it because
+             they are how you CHOOSE what to watch, not because they are more
+             interesting than it.
+             ⚠⚠ AND THEY ARE ONE CONTROL, NOT TWO. Both drive `@focus'; the map
+             is the spatial view of the selection and the table is the legible
+             one. The table was below the fight and the map was unlabelled above
+             it, so the page's primary navigation was the only thing on it
+             without a title, and the two halves of one control were separated by
+             the thing they control. --%>
+        <.one_world
           :if={@islands != []}
           islands={@islands}
           raids={@raids}
+          standings={@ranked}
+          in_view={@in_view}
           focus={@focus}
-          class="mt-6"
+          focused={@focused}
         />
 
         <%!-- ⚠ THE RAIL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
@@ -262,29 +319,22 @@ defmodule BeamCampusWeb.DronexLive do
           </div>
         </div>
 
-        <%!-- ⚠ THE MAP SECOND. Every island has been a
-             row in a list until now, which reads as several unrelated
-             experiments. They are one archipelago, and the raids between them
-             are the only thing that makes that true rather than asserted. --%>
-        <.leaderboard :if={@leaderboard != []} standings={@leaderboard} focus={@focus} />
-
-        <%!-- ⚠ THE TAB ROW IS GONE WITH THE SECOND SELECTION IT DROVE. Four
-             buttons that chose an island sat under a table whose rows already
-             chose an island, above a map where clicking an island chose an
-             island — three controls for one piece of state, two of which were
-             wired to a different copy of it. --%>
-        <div :if={@islands != []} class="mt-8">
-          <div class="flex items-baseline justify-between gap-3">
-            <h2 class="text-sm font-semibold opacity-80">
-              {(@shown && Dronex.label(@shown)) || "An island"}
-            </h2>
-            <span class="text-xs opacity-40">
-              {(@focus && "selected") || "pick an island on the map or in the table"}
-            </span>
-          </div>
-
-          <.vitals :if={@shown} row={@shown} />
-        </div>
+        <%!-- ⚠ TABS FOR ATTRIBUTES, NEVER FOR THE FIGHT, and the distinction is
+             the data model rather than taste. What is below belongs to ONE
+             island: its roster, its generation, its exam. A RAID belongs to two,
+             which is why the board keys raids by `raid_id' and not under a
+             publisher — "filed under the publisher, the attacker's half of the
+             story would have no home". Making the fight a per-island tab would
+             recreate at the presentation layer exactly the filing error the
+             storage layer refuses to make, and "beam03's last fight" is not a
+             well-formed question when beam03 raided msi00 and msi00 raided
+             beam03 in the same minute.
+             ⚠⚠ THIS IS NOT THE TAB ROW THAT WAS REMOVED. That one was four
+             buttons that chose an ISLAND, duplicating the table and the map:
+             three controls for one piece of state, two wired to a stale copy of
+             it. These tabs choose a VIEW. The island selection still has exactly
+             one home. --%>
+        <.island_panel :if={@shown} row={@shown} panel={@panel} selected?={@focus != nil} />
 
         <p class="mt-10 text-sm opacity-60">
           A bout arrives as a recording: every frame, already computed by the
@@ -300,6 +350,7 @@ defmodule BeamCampusWeb.DronexLive do
   # ── Vitals ──────────────────────────────────────────────────────
 
   attr :row, :map, required: true
+  attr :panel, :atom, default: :vitals
 
   defp vitals(assigns) do
     v = Dronex.fact(assigns.row, :vitals) || %{}
@@ -313,7 +364,7 @@ defmodule BeamCampusWeb.DronexLive do
       )
 
     ~H"""
-    <div class="mt-6 grid gap-4 sm:grid-cols-4">
+    <div :if={@panel == :vitals} class="mt-6 grid gap-4 sm:grid-cols-4">
       <.stat label="roster" value={num(@v, "roster")} of={num(@v, "capacity")} />
       <.stat label="generation" value={num(@v, "generation")} />
       <.stat label="rounds bred" value={num(@v, "rounds")} />
@@ -326,7 +377,7 @@ defmodule BeamCampusWeb.DronexLive do
           survival rate of a breeding attempt. A visitor who cannot read the
           numbers cannot tell a healthy island from a dying one, which is the
           one thing this grid exists to show. --%>
-    <p class="mt-2 text-xs opacity-40">
+    <p :if={@panel == :vitals} class="mt-2 text-xs opacity-40">
       An island fields at most {num(@v, "capacity")} drone controllers at once;
       the roster is how many it currently holds, and it falls when a raid costs
       airframes. A round is one attempt to breed a better controller than the
@@ -339,7 +390,7 @@ defmodule BeamCampusWeb.DronexLive do
           refusing every raid on an engine mismatch looks identical from
           outside — and then the archipelago is several separate experiments
           with a light show on top. --%>
-    <div class="mt-4 grid gap-4 sm:grid-cols-4">
+    <div :if={@panel == :vitals} class="mt-4 grid gap-4 sm:grid-cols-4">
       <.stat label="raids sent" value={num(@v, "raids")} />
       <.stat label="raids defended" value={num(@v, "defences")} />
       <.stat label="genomes captured" value={num(@v, "captures")} />
@@ -359,7 +410,7 @@ defmodule BeamCampusWeb.DronexLive do
       an island at its floor closes whether it wants to or not.
     </p>
 
-    <div class="mt-4">
+    <div :if={@panel == :exam} class="mt-4">
       <h3 class="text-sm font-semibold opacity-70">The frozen exam</h3>
       <%!-- ⚠ A PROFILE AND NEVER A TOTAL. Six rungs, each a win rate. A single
             number would need weights, and weights are a judgement about which
@@ -421,7 +472,7 @@ defmodule BeamCampusWeb.DronexLive do
     <section class="mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-3">
         <h2 class="text-sm font-semibold opacity-80">
-          {(@focused && "Fights at #{Dronex.label(@focused)}") || "Watch another"}
+          {(@focused && "Fights involving #{Dronex.label(@focused)}") || "Watch another"}
         </h2>
         <span class="text-xs opacity-40">
           {length(@watchable)} held
@@ -489,6 +540,126 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
+  The map and the ranked table, as one control over one selection.
+
+  ## The table lists what the MAP IS SHOWING, and the rank is global anyway
+
+  The map pans and zooms because a world that grows without limit stays readable
+  only if the viewer moves. Once it does that, a table beside it that ignores
+  where the viewer is looking is a second, unrelated list. So the rows follow the
+  viewport.
+
+  ⚠ **BUT THE RANK IS COMPUTED OVER EVERY ISLAND, NOT OVER THE VISIBLE ONES.**
+  A ranking that renumbers when you pan is not a ranking, and the first island is
+  not "the best one here", it is "the best one you happen to be looking at". Each
+  row carries its place in the whole archipelago, so filtering the list never
+  changes what a number means.
+
+  ⚠⚠ **AND THE DEFAULT FIT SHOWS EVERYTHING**, which is what makes this safe: a
+  visitor who never touches the map sees the full ranking, and so does anyone on
+  a keyboard, who cannot pan a canvas at all. The filter only bites after a
+  deliberate zoom, and the line above the table says so with a count.
+  """
+  attr :islands, :list, required: true
+  attr :raids, :list, required: true
+  attr :standings, :list, required: true
+  attr :in_view, :any, default: nil
+  attr :focus, :string, default: nil
+  attr :focused, :any, default: nil
+
+  def one_world(assigns) do
+    shown = visible(assigns.standings, assigns.in_view)
+
+    assigns =
+      assign(assigns,
+        shown: shown,
+        hidden: length(assigns.standings) - length(shown)
+      )
+
+    ~H"""
+    <section class="mt-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-sm font-semibold opacity-80">One world</h2>
+
+        <%!-- ⚠ THE SELECTION SAID IN WORDS, because it was a white ellipse drawn
+              inside a canvas and nothing else. A ring cannot be read by a screen
+              reader, it is not visible once you have scrolled past the map, and
+              nothing on the page told you how to clear it — that was a comment
+              in the source. A filter you cannot see is a page that looks broken
+              to whoever forgot it was on. --%>
+        <button
+          :if={@focused}
+          phx-click="focus_island"
+          phx-value-id={@focus}
+          class="badge badge-primary badge-sm gap-1"
+          aria-label={"showing #{Dronex.label(@focused)} only. Activate to show every island."}
+        >
+          showing {Dronex.label(@focused)} <span aria-hidden="true">✕</span>
+        </button>
+
+        <span :if={!@focused} class="text-xs opacity-40">
+          every island · pick one on the map or in the table
+        </span>
+      </div>
+
+      <.archipelago islands={@islands} raids={@raids} focus={@focus} class="mt-2" />
+
+      <p :if={@hidden > 0} class="mt-2 text-xs opacity-50">
+        {length(@shown)} of {length(@standings)} islands in view. Double-click the
+        map to fit them all.
+      </p>
+
+      <.leaderboard standings={@shown} focus={@focus} />
+    </section>
+    """
+  end
+
+  # `nil` means the map has not reported yet — on first paint, and for anyone who
+  # never moves it. Everything, rather than nothing, is the right answer then.
+  defp visible(standings, nil), do: standings
+  defp visible(standings, in_view), do: Enum.filter(standings, &MapSet.member?(in_view, &1.id))
+
+  @doc """
+  One island's numbers, behind tabs, because they are ABOUT one island.
+
+  The two grids of counters and the frozen-exam profile are attributes of a
+  single node and nothing else on this page is. They stacked to roughly a screen
+  of their own, below a fight they were supposed to explain.
+  """
+  attr :row, :map, required: true
+  attr :panel, :atom, default: :vitals
+  attr :selected?, :boolean, default: false
+
+  def island_panel(assigns) do
+    ~H"""
+    <section class="mt-8">
+      <div class="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 class="text-sm font-semibold opacity-80">{Dronex.label(@row)}</h2>
+
+        <span :if={!@selected?} class="text-xs opacity-40">
+          shown because nothing is selected · pick an island above
+        </span>
+      </div>
+
+      <div role="tablist" class="tabs tabs-bordered mt-2">
+        <button
+          :for={{id, label} <- [{:vitals, "Vitals"}, {:exam, "Frozen exam"}]}
+          role="tab"
+          aria-selected={to_string(@panel == id)}
+          phx-click="show_panel"
+          phx-value-panel={id}
+          class={["tab", @panel == id && "tab-active"]}
+        >
+          {label}
+        </button>
+      </div>
+
+      <.vitals row={@row} panel={@panel} />
+    </section>
+    """
+  end
+
+  @doc """
   The islands, ranked on the one number they all earn on identical terms.
   """
   attr :standings, :list, required: true
@@ -496,13 +667,12 @@ defmodule BeamCampusWeb.DronexLive do
 
   def leaderboard(assigns) do
     ~H"""
-    <section class="mt-8">
-      <h2 class="text-sm font-semibold opacity-80">The archipelago, ranked</h2>
-
-      <div class="mt-2 overflow-x-auto">
+    <div class="mt-3">
+      <div class="overflow-x-auto">
         <table class="table table-sm">
           <thead>
             <tr class="text-xs opacity-50">
+              <th class="w-8">#</th>
               <th>island</th>
               <th class="text-right">frozen exam</th>
               <th class="text-right">generation</th>
@@ -520,16 +690,24 @@ defmodule BeamCampusWeb.DronexLive do
             <%!-- A clickable row that does not react to a pointer is a
                   clickable row nobody discovers. --%>
             <tr
-              :for={{s, n} <- Enum.with_index(@standings)}
+              :for={s <- @standings}
               data-standing={s.island}
               class={[
                 "cursor-pointer hover:bg-base-200/60",
-                @focus == s.id && "bg-base-200"
+                @focus == s.id && "bg-base-200 outline outline-1 outline-primary/40"
               ]}
             >
+              <%!-- ⚠ THE RANK IS THE PLACE IN THE WHOLE ARCHIPELAGO, computed
+                    before this list was filtered to what the map is showing. A
+                    number that renumbered as you panned would be measuring the
+                    viewport. --%>
+              <td class="text-right font-mono text-xs opacity-50">
+                <span :if={s.rank == 1} class="opacity-100">★</span>
+                <span :if={s.rank != 1}>{s.rank}</span>
+              </td>
               <td class="font-mono text-xs">
                 <button phx-click="focus_island" phx-value-id={s.id} class="text-left">
-                  <span :if={n == 0} class="opacity-70">★</span> {s.island}
+                  {s.island}
                 </button>
               </td>
               <td class="text-right font-mono">{s.score}%</td>
@@ -562,7 +740,7 @@ defmodule BeamCampusWeb.DronexLive do
         whether your neighbours were awake all move them, so an island that
         raided a sleepy neighbour twenty times would top a table it never earned.
       </p>
-    </section>
+    </div>
     """
   end
 

@@ -161,7 +161,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
       "benchmark_starts" => 6
     })
 
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+    # ⚠ THE EXAM IS BEHIND ITS TAB, so this asks for it rather than assuming the
+    # default view carries it. Reached by URL, which is the point of the tab
+    # being in the address bar: a link can open somebody on this panel.
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=exam")
 
     assert html =~ "hoverer"
     assert html =~ "sniper"
@@ -169,12 +172,33 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "1/6"
   end
 
+  # The tab is a view and not a second island selection, so switching it must not
+  # disturb which island is being read.
+  test "the exam tab is reachable by click and keeps the selection", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam01",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["hoverer"],
+      "benchmark_wins" => [6],
+      "benchmark_starts" => 6
+    })
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "fields at most"
+    refute html =~ "hoverer"
+
+    html = render_click(view, "show_panel", %{"panel" => "exam"})
+    assert html =~ "hoverer"
+    refute html =~ "fields at most"
+  end
+
   # An island that has not sat the exam is different from one that sat it and
   # lost everything, and a zero must not be drawn as a flat bar.
   test "an unsat exam says so", %{conn: conn} do
     Board.put("aaa", :vitals, %{"island" => "beam01", "benchmark_starts" => 0})
 
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex?panel=exam")
 
     assert html =~ "Not sat yet"
   end
@@ -459,7 +483,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     html = render_click(view, "focus_island", %{"id" => "aaa"})
     assert Enum.sort(watch_keys(html)) == ["away", "home"]
-    assert html =~ "Fights at beam00"
+    assert html =~ "Fights involving beam00"
 
     # ⚠ AND IT LETS GO. Clicking the focused island again clears it; a filter
     # with no way out is a trap, and on a canvas there is no obvious "off".
@@ -525,9 +549,80 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ ~s(phx-click="choose")
 
     html = render_click(view, "focus_island", %{"id" => "bbb"})
-    assert html =~ "Fights at beam01"
+    assert html =~ "Fights involving beam01"
     # and the vitals panel followed the same selection
     assert html =~ "fields at most"
+  end
+
+  # ── The table follows the map ───────────────────────────────────
+
+  defp standings(html) do
+    Regex.scan(~r/data-standing="([^"]+)"/, html) |> Enum.map(&List.last/1)
+  end
+
+  # ⚠ THE DEFAULT IS EVERYTHING, and it has to be. The map reports what it is
+  # showing only after it has painted, so before that — and for anyone on a
+  # keyboard, who cannot pan a canvas at all — an empty report would mean an
+  # empty table.
+  test "the table lists every island until the map says otherwise", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}, {"ccc", "beam02"}] do
+      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
+    end
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert Enum.sort(standings(html)) == ["beam00", "beam01", "beam02"]
+  end
+
+  test "panning the map narrows the table to what is in view", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}, {"ccc", "beam02"}] do
+      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
+    end
+
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
+
+    html = render_click(view, "viewport", %{"ids" => ["aaa", "ccc"]})
+
+    assert Enum.sort(standings(html)) == ["beam00", "beam02"]
+    assert html =~ "2 of 3 islands in view"
+  end
+
+  # ⚠ RANK IS OVER THE WHOLE ARCHIPELAGO, NEVER OVER THE VIEWPORT. A number that
+  # renumbered as you panned would be measuring where you are looking. beam02 is
+  # third on the exam and must still read as third when the top two are off
+  # screen.
+  test "rank survives the viewport filter", %{conn: conn} do
+    exam = fn wins ->
+      %{"benchmark_rungs" => ["a"], "benchmark_wins" => [wins], "benchmark_starts" => 10}
+    end
+
+    Board.put("aaa", :vitals, Map.merge(exam.(10), %{"island" => "beam00", "island_id" => "aaa"}))
+    Board.put("bbb", :vitals, Map.merge(exam.(8), %{"island" => "beam01", "island_id" => "bbb"}))
+    Board.put("ccc", :vitals, Map.merge(exam.(2), %{"island" => "beam02", "island_id" => "ccc"}))
+
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
+
+    html = render_click(view, "viewport", %{"ids" => ["ccc"]})
+
+    assert standings(html) == ["beam02"]
+    # third of three, said as "3" and not renumbered to "1" or starred
+    assert html =~ ">3</span>"
+    refute html =~ "★"
+  end
+
+  # The selection has to be legible as text. It was a white ellipse inside a
+  # canvas, which no screen reader can see and which is off screen the moment you
+  # scroll to the fight it filtered.
+  test "the selection is named in words and can be cleared from there", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    {:ok, view, html} = live(conn, ~p"/research/workbench/dronex")
+    assert html =~ "every island"
+
+    html = render_click(view, "focus_island", %{"id" => "aaa"})
+    assert html =~ "showing beam00"
+
+    assert render_click(view, "focus_island", %{"id" => "aaa"}) =~ "every island"
   end
 
   # The map's arcs, decoded. They are the only place a raid's in-flight state is

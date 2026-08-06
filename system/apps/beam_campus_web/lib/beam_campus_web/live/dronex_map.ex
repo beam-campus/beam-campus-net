@@ -216,6 +216,28 @@ defmodule BeamCampusWeb.DronexMap do
             this.cam.y = (this.h / this.cam.k - this.world.h) / 2
           },
 
+          // ⚠ WHICH ISLANDS ARE IN VIEW, AND ONLY WHEN THAT SET CHANGES. This
+          // runs from paint(), which runs every animation frame because a raid
+          // in flight moves — so the cheap part is the comparison, not the
+          // sending. Pushing per frame would be sixty round trips a second to
+          // move a table nobody asked to move.
+          //
+          // Debounced as well as deduped, because a drag crosses many sets on
+          // the way to the one the hand meant.
+          report() {
+            const tl = this.at(0, 0), br = this.at(this.w, this.h)
+            const ids = this.isles
+              .filter((i) => i.x >= tl.x - i.r && i.x <= br.x + i.r &&
+                             i.y >= tl.y - i.r * 2.2 && i.y <= br.y + i.r)
+              .map((i) => i.id)
+              .sort()
+            const key = ids.join(",")
+            if (key === this.lastView) return
+            this.lastView = key
+            clearTimeout(this.viewTimer)
+            this.viewTimer = setTimeout(() => this.pushEvent("viewport", {ids}), 150)
+          },
+
           read() {
             this.isles = JSON.parse(this.el.dataset.isles || "[]")
             this.arcs = JSON.parse(this.el.dataset.arcs || "[]")
@@ -245,6 +267,7 @@ defmodule BeamCampusWeb.DronexMap do
             }
 
             c.setTransform(p, 0, 0, p, 0, 0)
+            this.report()
           },
 
           // An island is a VOLUME. A footprint on the sea, a faint vertical
@@ -342,6 +365,11 @@ defmodule BeamCampusWeb.DronexMap do
               clickable it becomes the page's NAVIGATION, which is a job. It
               stays navigable — drag to pan, wheel to zoom, double-click to
               refit — so shrinking it costs nothing that was being used. --%>
+        <%!-- ⚠ NO HEADING AT ALL UNTIL NOW, which is why a reader had to invent
+              a name for it before they could ask a question about it. The
+              page's primary navigation was the only thing on the page without a
+              title. The name lives one level up, on the section that pairs this
+              with the table, because the two are one control. --%>
         <canvas
           id="dronex-archipelago"
           phx-hook=".Archipelago"
