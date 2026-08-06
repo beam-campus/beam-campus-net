@@ -87,12 +87,24 @@ defmodule ASociety.WatchIslands.Board do
     end
   end
 
-  @doc "Every island heard from, keyed by identity."
+  @doc """
+  Every island heard from, keyed by identity.
+
+  ⚠ **SELECTS, NEVER `:ets.tab2list/1`.** Listing copies every row into the
+  caller and then throws the unwanted ones away; the filter belongs in the match
+  spec, where it runs without copying. `put/3` guards `is_binary(key)`, so the
+  only non-binary key is the `:refused` counter and the guard is exactly the
+  rejection this used to do in Elixir.
+
+  The sibling board did the same thing over rows that had grown to 1.2 MB apiece
+  and OOM-killed the site every two hours. These rows are small today. That is a
+  fact about today's payloads and not a property of the code, which is why this
+  is written the safe way while it is cheap to do so.
+  """
   @spec rows() :: %{binary() => map()}
   def rows do
     @table
-    |> :ets.tab2list()
-    |> Enum.reject(fn {k, _v} -> k == :refused end)
+    |> :ets.select([{{:"$1", :"$2"}, [{:is_binary, :"$1"}], [{{:"$1", :"$2"}}]}])
     |> Map.new()
   rescue
     ArgumentError -> %{}

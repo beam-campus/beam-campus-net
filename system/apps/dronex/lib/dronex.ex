@@ -109,28 +109,47 @@ defmodule Dronex do
 
   Falls back to a bout, because an island that has never been raided still has
   something to show and an empty canvas explains nothing.
+
+  ⚠ **IT ANSWERS A RANKING ENTRY, THE SAME SHAPE `watchable/0` ELEMENTS HAVE.**
+  It used to answer a bare `{kind, fact}`, which threw away the one thing the
+  page needs to draw it: the `key` under which the recording's frames are kept.
+  Two shapes for one idea also meant the caller had two branches for "a fight".
   """
   def latest_fight do
     case newest_raid() do
       nil -> from_bout()
-      raid -> {:raid, raid}
+      entry -> entry
     end
   end
 
   defp newest_raid do
-    raids()
-    |> Enum.flat_map(fn r -> List.wrap(Map.get(r.parts, :raid)) |> Enum.take(1) end)
-    |> List.first()
+    Enum.find_value(raids(), fn r ->
+      case Map.get(r.parts, :raid) do
+        [fact | _] -> scored({:raid, r.id}, :raid, fact)
+        _none -> nil
+      end
+    end)
   end
 
   defp from_bout do
-    islands()
-    |> Enum.find_value(fn row -> fact(row, :bout) end)
-    |> case do
-      nil -> nil
-      bout -> {:bout, bout}
-    end
+    Enum.find_value(islands(), fn row ->
+      case fact(row, :bout) do
+        nil -> nil
+        bout -> scored({:bout, row.id}, :bout, bout)
+      end
+    end)
   end
+
+  @doc """
+  The frames of one fight, by the `key` its ranking entry carries.
+
+  `:gone` is a real answer and not an error: recordings are held to a byte
+  budget, so a fight old enough can still be ranked and no longer playable. A
+  page that renders `:gone` as an empty canvas is lying about a fight that
+  happened. See `Dronex.WatchBouts.Board`.
+  """
+  @spec recording({atom(), binary()}) :: {:ok, list()} | :gone
+  defdelegate recording(key), to: Board
 
   @doc "Whether a raid has been fought and drawn, as opposed to still being out."
   def finished?(%{parts: parts}), do: Map.has_key?(parts, :raid)

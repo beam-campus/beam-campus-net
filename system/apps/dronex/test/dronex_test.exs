@@ -11,8 +11,15 @@ defmodule DronexTest do
   setup do
     Board.init()
     :ets.delete_all_objects(:dronex_board)
+    :ets.delete_all_objects(:dronex_recordings)
     :ets.insert(:dronex_board, {:refused, 0})
     :ok
+  end
+
+  # A recording's shape as it arrives: a list of flat frames, `stride` floats per
+  # drone. Sized in frames because that is what makes one 1.2 MB on the box.
+  defp recording(frames, per_frame \\ 70) do
+    Enum.map(1..frames, fn f -> Enum.map(1..per_frame, &(&1 * 1.0 + f)) end)
   end
 
   # ⚠ THE SHAPE THE WIRE ACTUALLY DELIVERS. CBOR encodes an atom and a binary
@@ -107,5 +114,114 @@ defmodule DronexTest do
 
     assert declared == [:macula, :beam_campus, :phoenix_pubsub]
     refute :faber_tweann in declared
+  end
+
+  # ── The frames, and why they are not in the board ───────────────
+  #
+  # ⚠ THESE GUARD THE BUG THAT KILLED THE SITE. Recordings were kept inside the
+  # rows, one is 1.2 MB, the cap allowed 64 of them, and every reader copied the
+  # whole table with `:ets.tab2list/1` — six to eight times per redraw, twice a
+  # second, per viewer. A 1.9 GB box ran a BEAM that wanted 6.9 GB and the kernel
+  # shot it, about twelve times a day.
+  #
+  # The first assertion below fails on the old code by roughly two orders of
+  # magnitude, which is the whole point of writing it as a size and not as a
+  # shape: a test that only checked `Map.has_key?(row, "frames")` would pass the
+  # day somebody put the mass back under another name.
+
+  defp board_bytes, do: :ets.info(:dronex_board, :memory) * :erlang.system_info(:wordsize)
+
+  test "a recording's frames never enter the board table" do
+    Board.put_raid("r1", :raid, %{
+      "island_id" => "aaa",
+      "raid_id" => "r1",
+      "winner" => "attacker",
+      "frames" => recording(2_000)
+    })
+
+    assert board_bytes() < 50_000,
+           "the board holds #{board_bytes()} bytes — the frames are back in the row"
+
+    assert :ets.info(:dronex_recordings, :size) == 1
+  end
+
+  test "the row keeps the frame count, so a reader can say how long it was" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "frames" => recording(37)})
+
+    [fact | _] = Board.raids() |> List.first() |> Map.fetch!(:parts) |> Map.fetch!(:raid)
+
+    assert fact["frame_count"] == 37
+    refute Map.has_key?(fact, "frames")
+  end
+
+  test "a bout's frames are split off too, under the key the ranking hands out" do
+    Board.put("aaa", :bout, %{"island" => "beam01", "frames" => recording(12)})
+
+    assert {:ok, frames} = Dronex.recording({:bout, "aaa"})
+    assert length(frames) == 12
+  end
+
+  test "a recording round-trips under its raid key" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "frames" => recording(9)})
+
+    assert {:ok, frames} = Dronex.recording({:raid, "r1"})
+    assert length(frames) == 9
+  end
+
+  # `:gone` is a real answer, not an error. The page draws it as "no longer
+  # held" rather than as an empty canvas, which would read as a broken page.
+  test "a recording that was never held answers gone" do
+    assert Dronex.recording({:raid, "never"}) == :gone
+  end
+
+  test "a raid dropped from the board takes its recording with it" do
+    for n <- 1..65 do
+      Board.put_raid("r#{n}", :raid, %{"raid_id" => "r#{n}", "frames" => recording(5)})
+      Process.sleep(1)
+    end
+
+    assert length(Board.raids()) == 64
+    assert Dronex.recording({:raid, "r1"}) == :gone
+    assert {:ok, _still_here} = Dronex.recording({:raid, "r65"})
+  end
+
+  # ⚠ ONE RAID IS TWO COMMITMENTS AND ONE RECORDING. The list they append to had
+  # no bound, inside a table whose ROW count was capped and whose row SIZE was
+  # not, so a republishing island could grow one row without limit.
+  test "the parts of a raid are capped" do
+    for n <- 1..20,
+        do: Board.put_raid("r1", :committed, %{"raid_id" => "r1", "role" => "attacker#{n}"})
+
+    parts = Board.raids() |> List.first() |> Map.fetch!(:parts) |> Map.fetch!(:committed)
+
+    assert length(parts) == 4
+    assert List.first(parts)["role"] == "attacker20"
+  end
+
+  # A recording far larger than any real one is a publisher fault or a stranger.
+  # The fact is still filed — the scoreline is worth having — and only the mass
+  # is refused.
+  test "an absurd recording is refused while its fact is kept" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "winner" => "draw", "frames" => recording(4_000)})
+
+    assert Dronex.recording({:raid, "r1"}) == :gone
+    assert [fact | _] = Board.raids() |> List.first() |> Map.fetch!(:parts) |> Map.fetch!(:raid)
+    assert fact["winner"] == "draw"
+  end
+
+  # ⚠ ONE SHAPE FOR "A FIGHT". `latest_fight/0` used to answer a bare
+  # `{kind, fact}`, which dropped the key the page needs to fetch the frames.
+  test "latest_fight answers a ranking entry carrying its key" do
+    Board.put_raid("r1", :raid, %{
+      "raid_id" => "r1",
+      "island_id" => "aaa",
+      "frames" => recording(6)
+    })
+
+    entry = Dronex.latest_fight()
+
+    assert entry.key == {:raid, "r1"}
+    assert entry.kind == :raid
+    assert {:ok, _frames} = Dronex.recording(entry.key)
   end
 end

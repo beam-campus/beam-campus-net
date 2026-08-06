@@ -5,9 +5,19 @@ defmodule BeamCampusWeb.DronexLive do
   ## It plays a recording. It does not run the fight.
 
   Every twenty seconds an island publishes one whole engagement: every frame,
-  already computed, in one fact of a few tens of kilobytes. This page stores it
-  and animates it in the browser, which is why it can offer scrub, pause and slow
-  motion, and why a hundred viewers cost the island nothing.
+  already computed, in one fact of **about 1.2 MB** — measured on the box, after
+  a comment claiming "a few tens of kilobytes" cost the site a fortnight of
+  two-hourly OOM kills. This page stores it and animates it in the browser, which
+  is why it can offer scrub, pause and slow motion, and why a hundred viewers
+  cost the island nothing.
+
+  ## The mass is fetched for ONE fight, and only when the fight changes
+
+  The recording does not live in the board's rows and is not pulled on every
+  redraw. `Dronex.recording/1` fetches the frames of the fight being drawn by
+  single-key lookup, and `put_fight/2` below re-encodes only when the chosen
+  fight actually changed. See `Dronex.WatchBouts.Board` for what happened when
+  neither of those was true.
 
   The removed Robo Rumble page did the opposite. It received two genomes and a
   start index and **re-ran the duel locally**, which put a game engine inside a
@@ -48,6 +58,7 @@ defmodule BeamCampusWeb.DronexLive do
      # site's generic title, so four different workbench pages are one bookmark.
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
+     |> assign(fight: nil, payload: nil, frame_count: 0)
      |> load()}
   end
 
@@ -96,16 +107,62 @@ defmodule BeamCampusWeb.DronexLive do
     focus = socket.assigns[:focus]
     watchable = Dronex.watchable(focus)
 
-    assign(socket,
+    socket
+    |> assign(
       islands: islands,
       raids: Dronex.raids(),
       watchable: watchable,
       focused: Enum.find(islands, &(&1.id == focus)),
       leaderboard: Dronex.leaderboard(),
-      fight: watching(watchable, socket.assigns[:watching]),
       state: Dronex.state(),
       refused: Dronex.refused()
     )
+    |> put_fight(watching(watchable, socket.assigns[:watching]))
+  end
+
+  # ⚠ THE RECORDING IS FETCHED AND ENCODED WHEN THE FIGHT CHANGES, NOT ON EVERY
+  # REDRAW. This page redraws twice a second while four islands publish, and a
+  # recording is about 1.2 MB: pulling it and running it through `Jason` each
+  # time burnt several megabytes a second of garbage to produce a byte-identical
+  # string that LiveView then diffed to nothing.
+  #
+  # The comparison is on the fact and not just the key, because a raid's
+  # commitments arrive before its recording does — same key, and the second
+  # arrival is the one worth drawing.
+  defp put_fight(socket, nil), do: assign(socket, fight: nil, payload: nil, frame_count: 0)
+
+  defp put_fight(%{assigns: %{fight: %{key: k, fact: f}}} = socket, %{key: k, fact: f}),
+    do: socket
+
+  defp put_fight(socket, entry) do
+    frames = drawable(Dronex.recording(entry.key))
+
+    assign(socket,
+      fight: entry,
+      payload: encode(entry.fact, frames),
+      frame_count: length(frames)
+    )
+  end
+
+  # A dropped recording draws nothing, and the player says which of the two it
+  # is. See `Dronex.recording/1` — `:gone` is a real state, not a failure.
+  defp drawable({:ok, frames}), do: frames
+  defp drawable(:gone), do: []
+
+  defp encode(fact, frames) do
+    Jason.encode!(%{
+      arena: Map.get(fact, "arena", [1000, 1000, 300]),
+      frames: frames,
+      # ⚠ WHERE THE DEFENDER'S TOWERS STOOD, AND EMPTY WHEN THERE WERE NONE. A
+      # raider fights over somebody else's ground with no stations of its own,
+      # and that asymmetry is what makes attacking cost something. An older
+      # island publishes neither key and simply draws no towers, which is the
+      # correct picture of a fight that predates them.
+      ground: Map.get(fact, "ground", []),
+      ground_range: Map.get(fact, "ground_range", 0),
+      stride: 7,
+      mstride: 5
+    })
   end
 
   # Whichever fight was clicked, else the best one the ranking offers, else
@@ -116,12 +173,11 @@ defmodule BeamCampusWeb.DronexLive do
     picked(Enum.find(watchable, &(tag(&1.key) == key)) || List.first(watchable))
   end
 
-  # ⚠ `|>` BINDS TIGHTER THAN `||`, which made the first version of this return
-  # the ranking ENTRY rather than the `{kind, fact}` the renderer takes — and
-  # only in the case where a fight was actually found, so the fallback path
-  # looked fine and the normal path did not.
+  # Both arms are ranking entries now: `latest_fight/0` answers the same shape
+  # `watchable/0` elements have, so there is no longer a second shape for "a
+  # fight" and no unwrapping for the caller to get wrong.
   defp picked(nil), do: Dronex.latest_fight()
-  defp picked(entry), do: {entry.kind, entry.fact}
+  defp picked(entry), do: entry
 
   # `{:raid, "abc"}` is not something a DOM attribute can carry back.
   defp tag({kind, id}), do: "#{kind}:#{id}"
@@ -193,7 +249,7 @@ defmodule BeamCampusWeb.DronexLive do
               everything stacks exactly as it did. --%>
         <div class="lg:grid lg:grid-cols-4 lg:items-start lg:gap-4">
           <div class="lg:col-span-3">
-            <.fight :if={@fight} fight={@fight} />
+            <.fight :if={@fight} fight={@fight} payload={@payload} frame_count={@frame_count} />
           </div>
 
           <div class="lg:col-span-1">
@@ -521,13 +577,15 @@ defmodule BeamCampusWeb.DronexLive do
   different machines. It is shown whenever there is one.
   """
   attr :fight, :any, required: true
+  attr :payload, :string, required: true
+  attr :frame_count, :integer, required: true
 
-  def fight(%{fight: {kind, b}} = assigns) do
+  def fight(%{fight: %{kind: kind, fact: b}} = assigns) do
     assigns = assign(assigns, bout: b, raid?: kind == :raid)
 
     ~H"""
     <section class="mt-8">
-      <.replay bout={@bout} big={@raid?} />
+      <.replay bout={@bout} payload={@payload} count={@frame_count} big={@raid?} />
     </section>
     """
   end
@@ -535,6 +593,8 @@ defmodule BeamCampusWeb.DronexLive do
   def fight(assigns), do: ~H""
 
   attr :bout, :map, required: true
+  attr :payload, :string, required: true
+  attr :count, :integer, required: true
   attr :big, :boolean, default: false
 
   defp replay(assigns) do
@@ -542,25 +602,14 @@ defmodule BeamCampusWeb.DronexLive do
 
     assigns =
       assign(assigns,
-        payload:
-          Jason.encode!(%{
-            arena: Map.get(b, "arena", [1000, 1000, 300]),
-            frames: Map.get(b, "frames", []),
-            # ⚠ WHERE THE DEFENDER'S TOWERS STOOD, AND EMPTY WHEN THERE WERE
-            # NONE. A raider fights over somebody else's ground with no
-            # stations of its own, and that asymmetry is what makes attacking
-            # cost something. An older island publishes neither key and simply
-            # draws no towers, which is the correct picture of a fight that
-            # predates them.
-            ground: Map.get(b, "ground", []),
-            ground_range: Map.get(b, "ground_range", 0),
-            stride: 7,
-            mstride: 5
-          }),
         winner: Map.get(b, "winner", "draw"),
         ticks: Map.get(b, "ticks", 0),
         kind: Map.get(b, "kind", "training"),
-        count: length(Map.get(b, "frames", []))
+        # ⚠ WHAT THE ISLAND SAID IT SENT, against what is still held. The board
+        # keeps recordings to a byte budget, so a fight can be ranked and no
+        # longer playable; drawn as an empty canvas that would read as a broken
+        # page rather than as an old one.
+        published: Map.get(b, "frame_count", 0)
       )
 
     ~H"""
@@ -1084,7 +1133,11 @@ defmodule BeamCampusWeb.DronexLive do
           class="range range-xs grow"
           aria-label="scrub through the recording"
         />
-        <span class="text-xs opacity-40">{@count} frames</span>
+        <span :if={@count > 0} class="text-xs opacity-40">{@count} frames</span>
+        <span :if={@count == 0 and @published > 0} class="text-xs opacity-60">
+          this recording is no longer held — {@published} frames, dropped to stay inside
+          the board's memory budget
+        </span>
       </div>
     </figure>
     """
