@@ -174,14 +174,24 @@ defmodule BeamCampusWeb.DronexLive do
           class="mt-6"
         />
 
-        <.fight :if={@fight} fight={@fight} />
+        <%!-- ⚠ THE RAIL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
+              max-w-5xl, so at a 768px viewport a four-column split would leave
+              the replay ~552px and the rail ~184px and cramp both. Below `lg'
+              everything stacks exactly as it did. --%>
+        <div class="lg:grid lg:grid-cols-4 lg:items-start lg:gap-4">
+          <div class="lg:col-span-3">
+            <.fight :if={@fight} fight={@fight} />
+          </div>
 
-        <.chooser
-          :if={@watchable != [] || @focused}
-          watchable={@watchable}
-          watching={@watching}
-          focused={@focused}
-        />
+          <div class="lg:col-span-1">
+            <.chooser
+              :if={@watchable != [] || @focused}
+              watchable={@watchable}
+              watching={@watching}
+              focused={@focused}
+            />
+          </div>
+        </div>
 
         <%!-- ⚠ THE MAP SECOND. Every island has been a
              row in a list until now, which reads as several unrelated
@@ -356,7 +366,11 @@ defmodule BeamCampusWeb.DronexLive do
         flew, or one it hosted — since this page started listening.
       </p>
 
-      <ul class="mt-2 grid gap-1 sm:grid-cols-2">
+      <%!-- Two columns while it is a full-width block below `lg', ONE while it
+            is the rail beside the player. The rail holds about eight buttons at
+            the canvas's height, which is exactly the cap, and it scrolls rather
+            than stretching the row. --%>
+      <ul class="mt-2 grid gap-1 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto">
         <li :for={f <- Enum.take(@watchable, 8)}>
           <button
             phx-click="watch"
@@ -1007,13 +1021,26 @@ defmodule BeamCampusWeb.DronexLive do
         </span>
       </div>
 
+      <%!-- ⚠ 4/3 WHEN THE RAIL IS BESIDE IT, AND THE REASON IS NOT LETTERBOX.
+            `project' normalises the world into the unit square and scales to
+            whatever canvas it is given, so nothing is ever letterboxed — the
+            scene STRETCHES. A wide canvas therefore flattens the vertical
+            axis, and the vertical axis is altitude, which is the whole of the
+            dome story: a station's reach is 350 m on the floor and 180 m at
+            the ceiling, so height is how a raider gets past a network.
+            Rendered both ways at the railed width before choosing: at 16/9 the
+            swarm reads as one flat cluster, at 4/3 the stalks lengthen and who
+            is high is legible. --%>
       <canvas
         id="dronex-replay"
         phx-hook=".Replay"
         phx-update="ignore"
         data-bout={@payload}
-        class={["mt-2 w-full rounded", backdrop()]}
-        style={(@big && "aspect-ratio: 16 / 9") || "aspect-ratio: 5 / 3"}
+        class={[
+          "mt-2 w-full rounded lg:aspect-[4/3]",
+          backdrop(),
+          (@big && "aspect-[16/9]") || "aspect-[5/3]"
+        ]}
         role="img"
         aria-label={"a #{@ticks} tick engagement, won by #{@winner}"}
       >

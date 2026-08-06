@@ -470,6 +470,28 @@ defmodule BeamCampusWeb.DronexLiveTest do
     refute html =~ "Fights at"
   end
 
+  # ⚠ THE RAIL IS A DESKTOP ARRANGEMENT AND MUST NOT REACH BELOW `lg'. The
+  # container is max-w-5xl, so a four-column split at tablet width would leave
+  # the replay ~552px and the rail ~184px and cramp both. This asserts the
+  # breakpoint is on the grid rather than unqualified, which is the one thing
+  # that silently regresses when somebody tidies class lists.
+  test "the fights rail is desktop-only and the canvas widens vertically with it",
+       %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put_raid("r1", :raid, raid("bbb", "beam00") |> Map.put("island_id", "aaa"))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "lg:grid lg:grid-cols-4"
+    assert html =~ "lg:col-span-3"
+
+    # ⚠ AND 4/3 WHEN RAILED. `project` normalises the world into the unit square
+    # and stretches it to whatever canvas it is given, so a wide canvas flattens
+    # the ALTITUDE axis — which is the whole of the dome story. Rendered both
+    # ways before choosing.
+    assert html =~ "lg:aspect-[4/3]"
+  end
+
   defp watch_keys(html) do
     ~r/data-watch="raid:([^"]*)"/ |> Regex.scan(html) |> Enum.map(&List.last/1)
   end
