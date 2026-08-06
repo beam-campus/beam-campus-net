@@ -353,6 +353,7 @@ defmodule BeamCampusWeb.DronexLive do
           fight={@fight}
           payload={@payload}
           frame_count={@frame_count}
+          losses={@losses}
           watchable={@watchable}
           watching={@watching}
           focused={@focused}

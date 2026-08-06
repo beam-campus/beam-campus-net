@@ -222,6 +222,31 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert render_click(view, "show_panel", %{"panel" => "fights"}) =~ "dronex-replay"
   end
 
+  # ⚠ THE LEDGER HAS TO REACH THE PAGE, and the first version did not: every
+  # component declared the attribute and the outermost call never passed it, so
+  # it defaulted to nil three levels down and the panel silently rendered
+  # nothing. The analysis was correct and invisible, which is the worst pair.
+  test "the loss ledger reaches the page from the frames", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    frames =
+      for hp <- [100, 75, 50] do
+        %{"t" => 0, "d" => [0, 0, 0, 0, 0, hp, 0], "m" => [], "k" => []}
+      end
+
+    Board.put_raid(
+      "r1",
+      :raid,
+      raid("bbb", "beam00") |> Map.put("island_id", "aaa") |> Map.put("frames", frames)
+    )
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "What destroyed them"
+    # Two exact 25-point falls: all of it weapons, none of it a ram.
+    assert html =~ "weapons 100%"
+  end
+
   # ── History ─────────────────────────────────────────────────────
 
   # ⚠ ONE POINT IS NOT A TRAJECTORY. A chart of a single sample is a dot
