@@ -427,88 +427,12 @@ defmodule BeamCampusWeb.DronexLive do
 
     ~H"""
     <section class="mt-8">
-      <div class="flex items-baseline justify-between gap-3">
-        <h2 class="text-sm font-semibold opacity-80">
-          {(@raid? && "A raid, fought in somebody else's airspace") || "A training bout"}
-        </h2>
-        <span :if={@raid?} class="badge badge-sm badge-error badge-outline">raid</span>
-      </div>
-
-      <p class="mt-1 text-xs opacity-50">
-        {(@raid? &&
-            "Twelve evolved controllers against twelve others, bred on a different machine under selection pressures neither side chose. The attacker flew in; the defender ran the fight and keeps every genome that attacked it.") ||
-          "One evolved controller against a scripted drill. No island has been raided yet, so this is what there is to watch."}
-      </p>
-
-      <%!-- ⚠ A SCORE SHOWING ONE SIDE IS NOT A SCORE. The fight reported "raid
-            bout · 240 ticks · won by defender", which is thin and wrong about
-            what it was looking at. Both sides pay airframes on the same terms,
-            so both are counted. --%>
-      <.scoreline :if={@raid?} raid={@bout} />
-
       <.replay bout={@bout} big={@raid?} />
     </section>
     """
   end
 
   def fight(assigns), do: ~H""
-
-  attr :raid, :map, required: true
-
-  defp scoreline(assigns) do
-    r = assigns.raid
-
-    assigns =
-      assign(assigns,
-        sent: num(r, "raiders"),
-        home: num(r, "raiders_home"),
-        held: num(r, "defenders"),
-        held_home: num(r, "defenders_home"),
-        winner: Map.get(r, "winner", "draw"),
-        ticks: num(r, "ticks")
-      )
-
-    ~H"""
-    <div class="mt-3 grid gap-3 sm:grid-cols-3">
-      <div class="rounded border border-base-300 p-3">
-        <div class="text-xs uppercase tracking-wide opacity-50">attacker</div>
-        <div class="mt-1 font-mono text-lg">{@home} / {@sent}</div>
-        <div class="text-xs opacity-40">came home</div>
-      </div>
-
-      <div class="rounded border border-base-300 p-3">
-        <div class="text-xs uppercase tracking-wide opacity-50">defender</div>
-        <div class="mt-1 font-mono text-lg">{@held_home} / {@held}</div>
-        <div class="text-xs opacity-40">still flying</div>
-      </div>
-
-      <div class="rounded border border-base-300 p-3">
-        <div class="text-xs uppercase tracking-wide opacity-50">outcome</div>
-        <div class="mt-1 font-mono text-lg">{@winner}</div>
-        <div class="text-xs opacity-40">{@ticks} ticks</div>
-      </div>
-    </div>
-
-    <p class="mt-2 text-xs opacity-40">
-      <%!-- ⚠ WITHDRAWN IS NOT DEAD, and a score that could not tell them apart
-            would price a successful retreat the same as a casualty, which is
-            what the withdraw actuator exists to make a real choice. --%>
-      Coming home counts a drone that broke off and left as well as one that
-      survived the fight: withdrawing is a decision, not a casualty. Every drone
-      that does not come home has to be bred back, on both sides.
-    </p>
-    """
-  end
-
-  defp ceiling_reach(reach, b) do
-    ceiling = b |> Map.get("arena", [1000, 1000, 300]) |> Enum.at(2)
-    round(:math.sqrt(max(0, reach * reach - ceiling * ceiling)))
-  end
-
-  # `nil` when the island never said, which draws no towers and claims nothing.
-  defp tower_count(nil), do: nil
-  defp tower_count(ground) when is_list(ground), do: div(length(ground), 3)
-  defp tower_count(_other), do: nil
 
   attr :bout, :map, required: true
   attr :big, :boolean, default: false
@@ -533,19 +457,6 @@ defmodule BeamCampusWeb.DronexLive do
             stride: 7,
             mstride: 5
           }),
-        # ⚠ THREE STATES, NOT TWO, AND THE THIRD IS `nil'. An island running
-        # older code publishes neither key, and captioning its recording "no
-        # towers stood here" would be the page asserting something it was never
-        # told. Absent is not the same claim as empty: one means the fight was
-        # fought away from home, the other means nobody said.
-        towers: b |> Map.get("ground") |> tower_count(),
-        reach: Map.get(b, "ground_range", 0),
-        # The dome's radius where the arena stops it, from the published reach
-        # and the published ceiling. Derived rather than written down, because
-        # placement evolves at phase 3 and a number typed into a caption would
-        # go quietly wrong the day it does.
-        ceiling: b |> Map.get("arena", [1000, 1000, 300]) |> Enum.at(2),
-        ceiling_reach: ceiling_reach(Map.get(b, "ground_range", 0), b),
         winner: Map.get(b, "winner", "draw"),
         ticks: Map.get(b, "ticks", 0),
         kind: Map.get(b, "kind", "training"),
@@ -1055,63 +966,6 @@ defmodule BeamCampusWeb.DronexLive do
         <input id="dronex-replay-scrub" type="range" min="0" value="0" class="range range-xs grow" />
         <span class="text-xs opacity-40">{@count} frames</span>
       </div>
-
-      <p class="mt-2 text-xs opacity-40">
-        <%!-- ⚠ THE CAPTION USED TO SAY "the scripted drill it is being measured
-              against", which stopped being true the moment a raid was what got
-              played: in a raid the red side is another island's evolved swarm,
-              not a script. --%>
-        The hollow teal rings are what the towers have CONFIRMED — the network's
-        belief, not the truth. Watch for the three disagreements: a ring lagging
-        the drone it is about, a ring with nothing near it (a ghost the network
-        confirmed), and a drone with no ring at all, which is an aircraft the
-        towers have not found and cannot cue anyone onto. A ring is never joined
-        to a drone, because a non-cooperative sensor never learns whose aircraft
-        it is looking at.
-      </p>
-
-      <p class="mt-1 text-xs opacity-40">
-        Red is the raiding side and blue the island defending its own airspace,
-        green a drone that withdrew alive, faded a drone that was destroyed. The line is where a
-        drone's nose points, which is the only direction it can see or shoot.
-        Orange marks are guided interceptors and grey ones are unguided.
-      </p>
-
-      <p class="mt-1 text-xs opacity-40">
-        <%!-- ⚠ SAID IN WORDS, NOT LEFT TO BE INFERRED FROM AN EMPTY FLOOR. An
-              away fight draws no towers, and a viewer cannot tell "this island
-              had no ground support" from "this page failed to load something"
-              unless the page says which. The absence is the interesting half. --%>
-        <%= if @towers && @towers > 0 do %>
-          The teal lattice masts are the defending island's sensor stations, {@towers} of them. A station measures the straight-line distance to a
-          drone, so what it watches is a DOME and not a circle: {@reach} m across
-          the ground, and only {@ceiling_reach} m up at the {@ceiling} m ceiling.
-          The faint pool is that footprint on the floor; the brighter ring is the
-          same dome cut at the height the raiders are flying, so it tightens and
-          lifts as they climb. That is the way past a network — height costs a
-          raider nothing and takes it out of reach of two stations at once, and
-          stations that agree confirm a target in about half the ticks a single
-          one needs. The towers say nothing at all until a track is confirmed, so
-          height does not just delay being seen. It delays being spoken about.
-        <% end %>
-        <%= if @towers == 0 do %>
-          No towers stand on this floor. The attacking island's drones flew into
-          somebody else's airspace with no ground support at all, which is the
-          second price of raiding on top of the airframes it spent. An island's
-          sensors defend its own volume and nowhere else.
-        <% end %>
-      </p>
-
-      <p class="mt-1 text-xs opacity-40">
-        <%!-- Altitude and distance share a screen axis in any oblique view, so
-              the stalk is not decoration: it is the only thing that tells a
-              drone high overhead from one far across the arena. --%>
-        The fight is three-dimensional and so is this view: the floor is a
-        thousand metres square, the ceiling three hundred up, and each drone is
-        joined to its mark on the ground by a stalk showing how high it is. The
-        tail behind it is where it actually was — every point a position the
-        island computed, joined and faded, never a smoothed curve.
-      </p>
     </figure>
     """
   end

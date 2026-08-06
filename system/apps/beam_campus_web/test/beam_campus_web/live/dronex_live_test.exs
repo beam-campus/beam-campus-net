@@ -296,15 +296,6 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # cannot tell "the raiders got through" from "the raiders were never
     # confirmed", which are different findings about the same defeat.
     assert [%{"k" => [480, 505, 95]}] = bout["frames"]
-    assert html =~ "what the towers have CONFIRMED"
-
-    # And the caption counts them, because a viewer should not have to count
-    # masts to know how many stations an island fields.
-    assert html =~ "2 of them"
-    assert html =~ "teal lattice masts"
-    assert html =~ "350 m across"
-    # sqrt(350^2 - 300^2) = 180: the dome is barely half as wide at the ceiling.
-    assert html =~ "180 m up"
   end
 
   # ⚠ AND AN AWAY FIGHT MUST SAY SO IN WORDS. An empty floor is indistinguishable
@@ -326,8 +317,15 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "No towers stand on this floor"
-    refute html =~ "of them, and the pale discs"
+    # ⚠ THE DATA, NOT THE PROSE THAT USED TO DESCRIBE IT. An away fight publishes
+    # an empty `ground`, and empty must stay distinguishable from ABSENT: one
+    # means the raider had no ground support, the other means an older island
+    # never said. The captions that spelled this out were removed; the
+    # distinction they rested on is still load-bearing for the drawing.
+    [_, payload] = Regex.run(~r/data-bout="([^"]*)"/, html)
+    bout = payload |> unescape() |> Jason.decode!()
+    assert bout["ground"] == []
+    assert bout["ground_range"] == 0
   end
 
   # An island running older code publishes neither key. It must draw a floor with
@@ -407,24 +405,23 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "deliberately not on"
   end
 
-  # ⚠ THE CAPTION PROMISES A MARK. THIS ASSERTS SOMETHING DRAWS IT.
+  # ⚠ THE PAYLOAD CARRIES TRACKS. THIS ASSERTS SOMETHING DRAWS THEM.
   #
   # `believed/1` was deleted by an unrelated edit and shipped missing for a day
-  # while the caption underneath went on telling visitors to hunt for teal rings
-  # that no code drew. The test that was supposed to protect it asserted the
+  # while a caption underneath went on telling visitors to hunt for teal rings
+  # that no code drew. The test that was supposed to protect it asserted that
   # CAPTION, which survived the deletion untouched — so it stayed green through
-  # exactly the failure it existed to catch.
+  # exactly the failure it existed to catch. The caption has since been removed;
+  # this guard is what is left, and it is the half that would have bitten.
   #
   # A colocated hook is extracted at build time and never appears in the rendered
   # HTML, so this reads the source. That is a guard probe and it is brittle on
   # purpose: it fails loudly when the drawing goes away, which is better than the
   # page failing quietly.
-  test "the replay hook actually draws what the caption promises" do
+  test "the replay hook actually draws the tracks it is sent" do
     src = File.read!("lib/beam_campus_web/live/dronex_live.ex")
 
-    # The promise.
-    assert src =~ "what the towers have CONFIRMED"
-    # The drawing: a function that consumes the per-frame track array...
+    # A function that consumes the per-frame track array...
     assert src =~ "believed(f) {"
     assert src =~ "f.k"
     # ...and a call site, because a defined-and-uncalled function draws nothing.
@@ -505,16 +502,21 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "A raid, fought in somebody else&#39;s airspace"
+    # Same re-anchoring: a raid still beats a bout, and the replay says which
+    # it is playing.
+    assert html =~ "raid bout ·"
     assert html =~ "240 tick"
-    refute html =~ "A training bout"
-
-    # ⚠ BOTH SIDES OF THE LEDGER. The fight reported only "won by defender" and
-    # a tick count; a score that shows what a raid cost one side and not the
-    # other is not a score, and both pay airframes on the same terms.
-    assert html =~ "3 / 12"
-    assert html =~ "8 / 12"
     assert html =~ "defender"
+    refute html =~ "training bout \u00b7"
+
+    # ⚠ THE BOTH-SIDES SCORELINE WENT WITH THE SECTION IT LIVED IN. It asserted
+    # that a raid showed what it cost the DEFENDER as well as the raider, which
+    # was worth having while the numbers were on the page. They are not any
+    # more, so this asserts the ranking still reads both halves of the ledger —
+    # `close/1` compares the two survivor counts and cannot be computed from one
+    # side alone, and neither can `bled/1`, which is what this raid earns: 3 of
+    # 12 home against 8 of 12 still flying.
+    assert html =~ "both sides lost airframes"
   end
 
   # And an island that has never been raided still has something to watch, rather
@@ -533,7 +535,15 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "A training bout"
-    assert html =~ "No island has been raided yet"
+    # ⚠ RE-ANCHORED. The heading that used to carry this was removed with the
+    # rest of the fight section's prose; the guarantee it protected — that a
+    # bout is what gets played when no raid exists — is unchanged, so the
+    # assertion moved to the replay's own line rather than being dropped.
+    assert html =~ "training bout ·"
+
+    # The paragraph that said so in words was removed with the rest of the
+    # section's prose. What it promised — that an island nobody has raided still
+    # has something to watch — is what the line above asserts.
+    refute html =~ "raid bout ·"
   end
 end
