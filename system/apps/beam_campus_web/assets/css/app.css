@@ -164,3 +164,76 @@
   background: var(--color-primary); color: var(--color-primary-content);
 }
 .nb-cta a:hover { filter: brightness(1.05); }
+
+/* ==========================================================================
+   CHART TOKENS — DELIBERATELY NOT THE BRAND TOKENS
+   ==========================================================================
+
+   ⚠ A BRAND COLOUR IS CHOSEN FOR IDENTITY AND A DATA COLOUR IS CHOSEN FOR
+   ENCODING, AND THEY ARE NOT THE SAME JOB.
+
+   The charts on /research/workbench/dronex were drawn in `primary` and
+   `warning`, which is wrong twice over. `primary` is picked to be distinctive,
+   not to form a perceptually even ramp — varying its opacity over a surface
+   moves lightness AND chroma unevenly, and differently in each theme. And
+   `warning` is a RESERVED status colour; it was carrying "collision damage",
+   which is not a warning about anything.
+
+   These are separate, and they are COMPUTED rather than picked by eye. Every
+   value below passes the six checks in the dataviz validator against this
+   theme's own surface:
+
+     categorical (dark)  #3f8fd0 #c95f86   CVD ΔE 12.2 protan / 22.1 normal
+     categorical (light) #2a6fb0 #a83e66   CVD ΔE 12.8 protan / 21.9 normal
+     sequential (dark)   5 steps, light end 2.68:1 vs surface
+     sequential (light)  5 steps, light end 2.05:1 vs surface
+
+   ⚠⚠ THE DARK STEPS ARE CHOSEN, NOT FLIPPED. A ramp that clears a near-white
+   surface does not clear a near-black one, and the validator fails a flipped
+   ramp on exactly that check.
+
+   To change these: re-run the validator, do not adjust them by eye.
+     node scripts/validate_palette.js "<hex,hex>" --mode dark --surface "#12161c"
+   ========================================================================== */
+
+:root {
+  --chart-1: #2a6fb0;
+  --chart-2: #a83e66;
+  --chart-seq-1: #8ab8dc;
+  --chart-seq-2: #6099c8;
+  --chart-seq-3: #427cae;
+  --chart-seq-4: #255d8e;
+  --chart-seq-5: #0f3d61;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chart-1: #3f8fd0;
+    --chart-2: #c95f86;
+    --chart-seq-1: #2c5f88;
+    --chart-seq-2: #3a789f;
+    --chart-seq-3: #4b91b8;
+    --chart-seq-4: #65abd0;
+    --chart-seq-5: #8cc6e6;
+  }
+}
+
+[data-theme="light"] {
+  --chart-1: #2a6fb0;
+  --chart-2: #a83e66;
+  --chart-seq-1: #8ab8dc;
+  --chart-seq-2: #6099c8;
+  --chart-seq-3: #427cae;
+  --chart-seq-4: #255d8e;
+  --chart-seq-5: #0f3d61;
+}
+
+[data-theme="dark"] {
+  --chart-1: #3f8fd0;
+  --chart-2: #c95f86;
+  --chart-seq-1: #2c5f88;
+  --chart-seq-2: #3a789f;
+  --chart-seq-3: #4b91b8;
+  --chart-seq-4: #65abd0;
+  --chart-seq-5: #8cc6e6;
+}

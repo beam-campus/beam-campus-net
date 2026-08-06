@@ -170,8 +170,12 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     assert html =~ "hoverer"
     assert html =~ "sniper"
-    assert html =~ "6/6"
-    assert html =~ "1/6"
+
+    # ⚠ THE DENOMINATOR IS SAID ONCE, NOT SIX TIMES. Every rung is flown the same
+    # number of times, so "6/6" on each column was repeating a constant; the
+    # count leads and the whole reading is in the cell's title.
+    assert html =~ "hoverer: 6 of 6"
+    assert html =~ "sniper: 1 of 6"
   end
 
   # The tab is a view and not a second island selection, so switching it must not
@@ -583,7 +587,12 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # purpose: it fails loudly when the drawing goes away, which is better than the
   # page failing quietly.
   test "the replay hook actually draws the tracks it is sent" do
-    src = File.read!("lib/beam_campus_web/live/dronex_live.ex")
+    # ⚠ THE HOOK LIVES WITH THE PLAYER, and this test reads it by PATH, so it
+    # breaks when the player moves rather than when the player breaks. Kept
+    # anyway: it is the only thing standing between "the function is defined" and
+    # "the function is called", and a colocated hook is not reachable any other
+    # way from a test.
+    src = File.read!("lib/beam_campus_web/live/dronex_fight.ex")
 
     # A function that consumes the per-frame track array...
     assert src =~ "believed(f) {"
