@@ -33,6 +33,7 @@ defmodule BeamCampusWeb.DronexFight do
   attr :payload, :string, required: true
   attr :frame_count, :integer, required: true
   attr :losses, :any, default: nil
+  attr :coverage, :any, default: nil
 
   def fight(%{fight: %{kind: kind, fact: b}} = assigns) do
     assigns = assign(assigns, bout: b, raid?: kind == :raid)
@@ -41,6 +42,7 @@ defmodule BeamCampusWeb.DronexFight do
     <section>
       <.replay bout={@bout} payload={@payload} count={@frame_count} big={@raid?} />
       <.losses :if={@losses && @losses.weapon_share} losses={@losses} />
+      <.coverage :if={@coverage && @coverage.frames > 0} coverage={@coverage} />
     </section>
     """
   end
@@ -662,6 +664,89 @@ defmodule BeamCampusWeb.DronexFight do
         </span>
       </div>
     </figure>
+    """
+  end
+
+  @doc """
+  How much of the raid the defender's towers actually had located, by altitude.
+
+  ## ⚠ THE SUMMARY OF THE OVERLAY ABOVE, AND NOT A CHART OF WHERE THEY DIED
+
+  The pale rings in the replay are what the network BELIEVED. Watching them lag
+  and lose the drones is the thing a visitor sees; this is that same fact
+  counted.
+
+  Deaths-by-altitude is the chart NOT to draw: the towers stand on the ground and
+  so does the objective, so deaths pile up low from exposure geometry alone, and
+  the picture would read as proof of "height buys silence" while showing only
+  that the fighting happens where the fighting happens. A rate with time at
+  altitude underneath it has no such problem — a band nobody flies in cannot
+  flatter itself.
+
+  ## ⚠⚠ IT IS A CEILING, BECAUSE A TRACK HAS NO NAME
+
+  Tracks are published with no id and no confidence, deliberately, so this cannot
+  say a drone was tracked. It says a track existed within the gate of it, and two
+  raiders flying together are both covered by one track. Over-counting is the
+  only direction it errs in, which is why the caption calls it a ceiling.
+  """
+  attr :coverage, :map, required: true
+
+  def coverage(assigns) do
+    ~H"""
+    <div class="mt-5">
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="text-xs font-semibold opacity-70">What the towers held, by altitude</span>
+        <span class="font-mono text-xs opacity-50">within {@coverage.gate} m</span>
+      </div>
+
+      <div class="mt-2 space-y-1">
+        <div :for={b <- Enum.reverse(@coverage.bands)} class="flex items-center gap-2 text-xs">
+          <span class="w-16 shrink-0 text-right font-mono tabular-nums opacity-50">
+            {b.from}–{b.to} m
+          </span>
+
+          <div class="h-3 w-40 shrink-0 rounded-sm bg-base-300/60">
+            <div
+              :if={b.coverage}
+              class="h-3 rounded-sm"
+              style={"width: #{b.coverage}%; background: var(--chart-1)"}
+              title={"#{b.held} of #{b.frames} raider-frames held"}
+            >
+            </div>
+          </div>
+
+          <span class="w-8 shrink-0 font-mono tabular-nums">
+            {(b.coverage && "#{b.coverage}%") || "—"}
+          </span>
+
+          <%!-- ⚠ THE DENOMINATOR IS ON THE ROW. A band flown for three frames and
+                one flown for three hundred must not read alike, and a percentage
+                alone makes them identical. --%>
+          <span class="font-mono text-[10px] opacity-30">n={b.frames}</span>
+        </div>
+      </div>
+
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">
+          What this counts, and why it is a ceiling
+        </summary>
+        <p class="mt-2 text-xs opacity-50">
+          Of all the time raiders spent alive at each altitude, the share of it
+          where the defender's network had a track within {@coverage.gate} metres.
+          The design says height buys silence — a tower tests slant range, so its
+          reach shrinks as a raider climbs — and this is the first thing that has
+          measured it.
+          <span class="mt-2 block">
+            ⚠ A ceiling, not a measurement of a drone. Tracks carry no id and no
+            confidence on purpose, so this cannot say <em>that</em>
+            drone was held; it says a track was near it. Two raiders flying
+            together are both counted against one track. And a band with a small
+            n is noise however tall its bar, which is why n is on every row.
+          </span>
+        </p>
+      </details>
+    </div>
     """
   end
 

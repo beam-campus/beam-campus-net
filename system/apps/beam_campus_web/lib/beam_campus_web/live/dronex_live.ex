@@ -59,7 +59,7 @@ defmodule BeamCampusWeb.DronexLive do
      # site's generic title, so four different workbench pages are one bookmark.
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
-     |> assign(fight: nil, payload: nil, frame_count: 0, losses: nil)
+     |> assign(fight: nil, payload: nil, frame_count: 0, losses: nil, coverage: nil)
      # `nil` means the map has not told us what it is showing. Before the first
      # report, and for anyone who never moves it, that has to mean EVERYTHING.
      |> assign(panel: :fights, in_view: nil)
@@ -144,10 +144,6 @@ defmodule BeamCampusWeb.DronexLive do
   defp toggled(same, same), do: nil
   defp toggled(_was, id), do: id
 
-  # The same deep blue-black the maps use. A function and not a module attribute:
-  # inside a `~H` sigil `@backdrop` means `assigns.backdrop`.
-  defp backdrop, do: "bg-[#0a1220]"
-
   defp load(socket) do
     islands = Dronex.islands()
     focus = socket.assigns[:focus]
@@ -185,7 +181,7 @@ defmodule BeamCampusWeb.DronexLive do
   # commitments arrive before its recording does — same key, and the second
   # arrival is the one worth drawing.
   defp put_fight(socket, nil),
-    do: assign(socket, fight: nil, payload: nil, frame_count: 0, losses: nil)
+    do: assign(socket, fight: nil, payload: nil, frame_count: 0, losses: nil, coverage: nil)
 
   defp put_fight(%{assigns: %{fight: %{key: k, fact: f}}} = socket, %{key: k, fact: f}),
     do: socket
@@ -200,7 +196,8 @@ defmodule BeamCampusWeb.DronexLive do
       # ⚠ WALKED ONCE, WITH THE PAYLOAD. This reads every drone in every frame;
       # doing it per render would be that walk twice a second for a number that
       # only changes when the fight does.
-      losses: Dronex.AccountForLosses.account(frames)
+      losses: Dronex.AccountForLosses.account(frames),
+      coverage: Dronex.SeeWhatTheTowersSaw.coverage(frames)
     )
   end
 
@@ -355,6 +352,7 @@ defmodule BeamCampusWeb.DronexLive do
           payload={@payload}
           frame_count={@frame_count}
           losses={@losses}
+          coverage={@coverage}
           watchable={@watchable}
           watching={@watching}
           focused={@focused}
@@ -991,6 +989,7 @@ defmodule BeamCampusWeb.DronexLive do
   attr :payload, :any, default: nil
   attr :frame_count, :integer, default: 0
   attr :losses, :any, default: nil
+  attr :coverage, :any, default: nil
   attr :watchable, :list, required: true
   attr :watching, :any, default: nil
   attr :focused, :any, default: nil
@@ -1032,6 +1031,7 @@ defmodule BeamCampusWeb.DronexLive do
             payload={@payload}
             frame_count={@frame_count}
             losses={@losses}
+            coverage={@coverage}
           />
         </div>
 

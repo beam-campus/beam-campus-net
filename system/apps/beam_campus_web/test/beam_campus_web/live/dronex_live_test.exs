@@ -251,6 +251,32 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "weapons 100%"
   end
 
+  # ⚠ AND THE COVERAGE SUMMARY HAS TO REACH THE PAGE TOO. The loss ledger was
+  # computed correctly and rendered nowhere because one call site did not pass
+  # the attribute; this walks the same path for the second analysis.
+  test "the tower coverage summary reaches the page from the frames", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    # Drone 0 is a RAIDER (even id), alive, at 20 m, with a track on top of it.
+    frames =
+      for _ <- 1..2 do
+        %{"t" => 0, "d" => [0, 100, 100, 20, 0, 100, 0], "m" => [], "k" => [100, 100, 20]}
+      end
+
+    Board.put_raid(
+      "r1",
+      :raid,
+      raid("bbb", "beam00") |> Map.put("island_id", "aaa") |> Map.put("frames", frames)
+    )
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "What the towers held, by altitude"
+    assert html =~ "0–50 m"
+    # Held in both frames, and the denominator is on the row.
+    assert html =~ "n=2"
+  end
+
   # ── History ─────────────────────────────────────────────────────
 
   # ⚠ ONE POINT IS NOT A TRAJECTORY. A chart of a single sample is a dot
