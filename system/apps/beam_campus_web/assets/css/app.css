@@ -236,6 +236,16 @@
 :root {
   --chart-1: #2a6fb0;
   --chart-2: #a83e66;
+  /* ⚠ THREE CATEGORICAL HUES, AND THREE IS WHAT PASSES. Validated with the
+     dataviz validator on all pairs, not by eye: lightness band, chroma floor,
+     CVD separation, normal-vision floor and contrast, in BOTH modes. Five hues
+     were tried first and every set failed, because darkening a warm hue for
+     contrast on a light surface collapses ochre into vermillion. A fourth
+     categorical hue needs secondary encoding (direct labels or texture), not a
+     new guess. */
+  --chart-cat-1: #2a6fb0;
+  --chart-cat-2: #d55e00;
+  --chart-cat-3: #009e73;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -247,6 +257,10 @@
   :root {
     --chart-1: #3f8fd0;
     --chart-2: #c95f86;
+    /* Their own steps against the dark surface, never a flip of the light ones. */
+    --chart-cat-1: #3f8fd0;
+    --chart-cat-2: #d16a15;
+    --chart-cat-3: #29a07c;
     --chart-seq-1: #2c5f88;
     --chart-seq-2: #3a789f;
     --chart-seq-3: #4b91b8;
@@ -258,6 +272,16 @@
 [data-theme="light"] {
   --chart-1: #2a6fb0;
   --chart-2: #a83e66;
+  /* ⚠ THREE CATEGORICAL HUES, AND THREE IS WHAT PASSES. Validated with the
+     dataviz validator on all pairs, not by eye: lightness band, chroma floor,
+     CVD separation, normal-vision floor and contrast, in BOTH modes. Five hues
+     were tried first and every set failed, because darkening a warm hue for
+     contrast on a light surface collapses ochre into vermillion. A fourth
+     categorical hue needs secondary encoding (direct labels or texture), not a
+     new guess. */
+  --chart-cat-1: #2a6fb0;
+  --chart-cat-2: #d55e00;
+  --chart-cat-3: #009e73;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -266,6 +290,9 @@
 }
 
 [data-theme="dark"] {
+  --chart-cat-1: #3f8fd0;
+  --chart-cat-2: #d16a15;
+  --chart-cat-3: #29a07c;
   --chart-1: #3f8fd0;
   --chart-2: #c95f86;
   --chart-seq-1: #2c5f88;

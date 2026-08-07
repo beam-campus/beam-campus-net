@@ -397,21 +397,112 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
 
       <div class="instrument mt-2 p-3">
-        <div class="flex h-32 items-end gap-px" role="img" aria-label={bars_spoken(@d)}>
-          <div
-            :for={b <- @d.bins}
-            class="flex-1 rounded-t-sm bg-[var(--chart-seq-3)]"
-            style={"height: #{bar_height(b, @d)}%"}
-            title={"#{b.from} to #{b.to} ticks: #{b.count}"}
-          >
-          </div>
-        </div>
-
-        <div class="mt-1 flex justify-between font-mono text-[10px] opacity-50">
-          <span>0</span>
-          <span>{@d.longest} ticks</span>
+        <div
+          id="fight-durations"
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-64 w-full"
+          role="img"
+          aria-label={bars_spoken(@d)}
+          data-spec={histogram_spec(@d)}
+        >
         </div>
       </div>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".Chart">
+        // A CHART, DRAWN BY A CHARTING LIBRARY. Everything on this page was hand
+        // rolled SVG and divs before this: no axes, no ticks, no tooltips, no
+        // legend, and a bar chart that was a row of coloured rectangles with the
+        // scale printed underneath as two numbers.
+        //
+        // ⚠ THE COLOURS COME FROM THE STYLESHEET, NEVER FROM THE SPEC. The server
+        // sends shape and data; the browser reads --chart-cat-* off :root so a
+        // theme switch repaints without a round trip, and so there is exactly one
+        // place the brand palette lives.
+        //
+        // ⚠⚠ AND phx-update="ignore" IS LOAD-BEARING. ECharts owns the DOM inside
+        // this element; letting LiveView patch it would fight the renderer. New
+        // data arrives through the data-spec attribute, which `updated()` reads.
+        // ⚠ THE `@' ALIAS, NOT A RELATIVE PATH. A colocated hook is EXTRACTED to
+        // `_build/dev/phoenix-colocated/...' before esbuild sees it, so "../vendor"
+        // resolves against that directory and not against assets/. The esbuild args
+        // carry `--alias:@=.' with the assets dir as cwd, which is the way in.
+        import * as echarts from "@/vendor/echarts.esm.js"
+
+        const palette = () => {
+          const css = getComputedStyle(document.documentElement)
+          return [1, 2, 3]
+            .map((n) => css.getPropertyValue(`--chart-cat-${n}`).trim())
+            .filter(Boolean)
+        }
+
+        const ink = () => {
+          const css = getComputedStyle(document.documentElement)
+          return css.getPropertyValue("--color-base-content").trim() || "#666"
+        }
+
+        export default {
+          mounted() {
+            this.chart = echarts.init(this.el, null, {renderer: "svg"})
+            this.draw()
+            this.onResize = () => this.chart.resize()
+            window.addEventListener("resize", this.onResize)
+
+            // A theme toggle changes the custom properties under us, and the
+            // chart has already resolved them, so it has to be told.
+            this.theme = new MutationObserver(() => this.draw())
+            this.theme.observe(document.documentElement, {
+              attributes: true,
+              attributeFilter: ["data-theme"]
+            })
+          },
+
+          updated() { this.draw() },
+
+          destroyed() {
+            window.removeEventListener("resize", this.onResize)
+            this.theme?.disconnect()
+            this.chart?.dispose()
+          },
+
+          draw() {
+            const spec = JSON.parse(this.el.dataset.spec)
+            const colour = palette()
+            const text = ink()
+
+            this.chart.setOption({
+              color: colour,
+              textStyle: {color: text, fontFamily: "inherit"},
+              grid: {left: 44, right: 12, top: 28, bottom: 34},
+              tooltip: {trigger: "axis", axisPointer: {type: "shadow"}},
+              legend: {show: spec.series.length > 1, top: 0, textStyle: {color: text}},
+              xAxis: {
+                type: "category",
+                name: spec.x_name,
+                nameLocation: "middle",
+                nameGap: 24,
+                data: spec.categories,
+                axisLabel: {color: text, opacity: 0.6},
+                axisLine: {lineStyle: {opacity: 0.2}}
+              },
+              yAxis: {
+                type: "value",
+                name: spec.y_name,
+                minInterval: 1,
+                axisLabel: {color: text, opacity: 0.6},
+                splitLine: {lineStyle: {opacity: 0.12}}
+              },
+              series: spec.series.map((s) => ({
+                name: s.name,
+                type: "bar",
+                stack: "all",
+                emphasis: {focus: "series"},
+                data: s.data
+              }))
+            }, {notMerge: true})
+          }
+        }
+      </script>
 
       <table class="mt-3 text-xs">
         <thead>
@@ -441,13 +532,16 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
-  # A bar is a share of the tallest bin, so an empty bin draws as nothing rather
-  # than as a sliver that reads like one raid.
-  defp bar_height(%{count: 0}, _d), do: 0
-
-  defp bar_height(bin, d) do
-    tallest = d.bins |> Enum.map(& &1.count) |> Enum.max()
-    round(bin.count * 100 / tallest)
+  # ⚠ SHAPE AND DATA ONLY, NEVER COLOUR. The browser reads the palette off the
+  # stylesheet so a theme switch does not need a round trip and the brand lives
+  # in exactly one place.
+  defp histogram_spec(d) do
+    Jason.encode!(%{
+      x_name: "ticks",
+      y_name: "raids",
+      categories: Enum.map(d.bins, & &1.from),
+      series: d.series
+    })
   end
 
   defp bars_spoken(d) do

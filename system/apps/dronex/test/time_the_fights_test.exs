@@ -88,6 +88,29 @@ defmodule Dronex.TimeTheFightsTest do
     assert d.bins == []
   end
 
+  # ⚠ STACKED BY WHO WON. A short bar made of "raider won" and a short bar made of
+  # "island held" are opposite findings, and one flat colour hides that.
+  test "each outcome is its own series over the same bins" do
+    d =
+      Time.distribution([
+        raid(50, "attacker"),
+        raid(150, "attacker"),
+        raid(150, "defender")
+      ])
+
+    assert [%{name: "raider won", data: [1, 1]}, %{name: "island held", data: [0, 1]}] = d.series
+  end
+
+  test "an outcome nobody achieved gets no series rather than a row of zeroes" do
+    d = Time.distribution([raid(50, "attacker")])
+
+    assert Enum.map(d.series, & &1.name) == ["raider won"]
+  end
+
+  test "nothing timed has no series" do
+    assert Time.distribution([]).series == []
+  end
+
   test "an even count takes the midpoint of the two middle values" do
     d = Time.distribution([raid(100, "attacker"), raid(200, "attacker")])
 

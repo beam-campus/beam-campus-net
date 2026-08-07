@@ -78,7 +78,7 @@ defmodule Dronex.TimeTheFights do
   defp kept(_absent, _winner), do: []
 
   defp summarised([]) do
-    %{n: 0, bins: [], longest: nil, at_longest: 0, bin: @bin, by_outcome: []}
+    %{n: 0, bins: [], longest: nil, at_longest: 0, bin: @bin, by_outcome: [], series: []}
   end
 
   defp summarised(points) do
@@ -90,8 +90,33 @@ defmodule Dronex.TimeTheFights do
       longest: longest,
       at_longest: Enum.count(points, &(&1.ticks == longest)),
       bin: @bin,
-      by_outcome: by_outcome(points, longest)
+      by_outcome: by_outcome(points, longest),
+      series: series(points, longest)
     }
+  end
+
+  @doc """
+  One series per outcome, counts per bin, ready to stack.
+
+  ⚠ STACKED BY WHO WON RATHER THAN ONE FLAT BAR, because duration on its own
+  cannot say who was better and a single-colour histogram invites exactly that
+  reading. A short bar made of "raider won" and a short bar made of "island held"
+  are opposite findings.
+
+  Only outcomes that actually occurred get a series. An outcome nobody achieved
+  is absent rather than a row of zeroes, which would put a dead entry in the
+  legend and spend one of three categorical hues on nothing.
+  """
+  @spec series([map()], pos_integer()) :: [map()]
+  def series(points, longest) do
+    slots = 0..div(longest, @bin)
+
+    for {key, label} <- @outcomes,
+        side = Enum.filter(points, &(&1.winner == key)),
+        side != [] do
+      counts = Enum.frequencies_by(side, &div(&1.ticks, @bin))
+      %{name: label, data: Enum.map(slots, &Map.get(counts, &1, 0))}
+    end
   end
 
   # Every bin from zero to the longest, including the empty ones, because a gap
