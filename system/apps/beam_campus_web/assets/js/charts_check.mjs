@@ -19,7 +19,7 @@
 //
 // Run: node apps/beam_campus_web/assets/js/charts_check.mjs
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption, examOption, ablationOption} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption, examProfileOption} from "./dronex_charts.js"
 
 const W = 900
 const H = 288
@@ -159,6 +159,32 @@ check("the ablation never uses a side colour",
   !asvg.includes(SIDES.attacker) && !asvg.includes(SIDES.defender))
 check("lines rendered without NaN", !/NaN/.test(asvg))
 check("no readings draws nothing", ablationOption({spec: {at: [], series: []}, colour: [], text: INK}) === null)
+
+console.log("exam profiles")
+const profSpec = {
+  drills: ["hoverer", "orbiter", "evader", "chaser", "duellist", "sniper"],
+  series: [
+    {island: "beam00 8ddd", rates: [96, 98, 98, 44, 50, 85]},
+    {island: "beam01 a6b1", rates: [50, 48, 56, 6, 21, 50]},
+    {island: "beam02 60ac", rates: [90, 92, 92, 90, 92, 85]}
+  ]
+}
+const prof = examProfileOption({spec: profSpec, colour: ["#2a6fb0", "#d55e00", "#009e73"], text: INK})
+const psvg = render(prof)
+
+// ⚠ ALWAYS 0 TO 100. An axis fitted to the data makes a fleet at 90-97% look as
+// spread out as one at 6-98%.
+check("the profile axis is the real ceiling, not the data range",
+  prof.yAxis.min === 0 && prof.yAxis.max === 100, `${prof.yAxis.min}..${prof.yAxis.max}`)
+check("the ladder keeps its difficulty order",
+  prof.xAxis.data[0] === "hoverer" && prof.xAxis.data[5] === "sniper")
+check("one series per island", prof.series.length === 3)
+// An island is an identity, not a side.
+check("the profile never uses a side colour",
+  !psvg.includes(SIDES.attacker) && !psvg.includes(SIDES.defender))
+check("bars rendered without NaN", !/NaN/.test(psvg))
+check("nobody having sat it draws nothing",
+  examProfileOption({spec: {drills: [], series: []}, colour: [], text: INK}) === null)
 
 console.log("skew")
 check("an unknown spec returns nothing", barsOption({spec: {kind: "something-new"}, colour: [], text: INK, fill: SIDES}) === null)

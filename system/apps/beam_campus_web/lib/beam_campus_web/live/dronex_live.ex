@@ -438,7 +438,7 @@ defmodule BeamCampusWeb.DronexLive do
         // resolves against that directory and not against assets/. The esbuild args
         // carry `--alias:@=.' with the assets dir as cwd, which is the way in.
         import * as echarts from "@/vendor/echarts.esm.js"
-        import {barsOption, matrixOption, examOption, ablationOption} from "@/js/dronex_charts.js"
+        import {barsOption, matrixOption, examOption, ablationOption, examProfileOption} from "@/js/dronex_charts.js"
 
         // Six, in the order the stylesheet declares them, because that order is
         // what the colour-blindness check was run against. Taking them in any
@@ -508,6 +508,8 @@ defmodule BeamCampusWeb.DronexLive do
             const option =
               spec.kind === "matrix"
                 ? matrixOption({spec, fill: sides(), text, height: this.el.clientHeight || 288})
+                : spec.kind === "exam_profile"
+                  ? examProfileOption({spec, colour: palette(), text})
                 : spec.kind === "exam"
                   ? examOption({spec, ramp: ramp(), text})
                   : spec.kind === "ablation"
@@ -668,6 +670,129 @@ defmodule BeamCampusWeb.DronexLive do
         %{name: "both silenced", data: Enum.map(samples, & &1.all)}
       ]
     })
+  end
+
+  @doc """
+  The whole archipelago in one row of numbers, before any chart.
+
+  ⚠ A DASHBOARD LEADS WITH FIGURES, and this page led with a matrix. Everything
+  here was already on the page, several screens down, spread across five
+  instruments and reachable only by reading their captions. A visitor's first
+  four questions are: is it alive, how much has happened, is either side
+  winning, and how old is any of this.
+  """
+  attr :islands, :list, required: true
+  attr :raids, :list, required: true
+
+  def at_a_glance(assigns) do
+    settled = Enum.filter(assigns.raids, &match?(%{parts: %{raid: [_ | _]}}, &1))
+    won = Enum.count(settled, &(raid_winner(&1) == "attacker"))
+
+    assigns =
+      assign(assigns,
+        settled: length(settled),
+        flying: length(assigns.raids) - length(settled),
+        share: (settled != [] && round(won * 100 / length(settled))) || nil,
+        captures:
+          assigns.islands
+          |> Enum.map(&num(Dronex.fact(&1, :vitals) || %{}, "captures"))
+          |> Enum.sum(),
+        rounds:
+          assigns.islands
+          |> Enum.map(&num(Dronex.fact(&1, :vitals) || %{}, "rounds"))
+          |> Enum.max(fn -> 0 end)
+      )
+
+    ~H"""
+    <div class="instrument mt-4 grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 lg:grid-cols-5">
+      <.figure label="islands" value={length(@islands)} note="heard from" />
+      <.figure label="raids settled" value={@settled} note={"#{@flying} still out"} />
+      <.figure
+        label="raider wins"
+        value={(@share && "#{@share}%") || "–"}
+        note="of settled raids"
+      />
+      <.figure
+        label="longest lineage"
+        value={@rounds}
+        note="breeding rounds"
+      />
+      <.figure label="genomes captured" value={@captures} note="taken and kept" />
+    </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :value, :any, required: true
+  attr :note, :string, default: nil
+
+  defp figure(assigns) do
+    ~H"""
+    <div>
+      <div class="text-xs uppercase tracking-widest opacity-40">{@label}</div>
+      <div class="mt-1 font-mono text-2xl tabular-nums">{@value}</div>
+      <div :if={@note} class="text-xs opacity-40">{@note}</div>
+    </div>
+    """
+  end
+
+  defp raid_winner(%{parts: %{raid: [f | _]}}), do: Map.get(f, "winner")
+  defp raid_winner(_unsettled), do: nil
+
+  @doc """
+  Every island's exam profile against every drill, which is what the exam is for.
+
+  ⚠ A PROFILE, NOT A RANK. `REGISTER D.15` is that the single percentage swings a
+  hundred points in a day on a locally bred champion, and nobody knows why. A
+  number that unstable should not be the thing a table sorts on, but the six
+  numbers behind it are readable: the drills are named and ordered by difficulty,
+  so WHERE an island fails is a sentence rather than a score.
+  """
+  attr :islands, :list, required: true
+
+  def exam_profiles(assigns) do
+    spec = Dronex.CompareTheExams.profiles(assigns.islands)
+    assigns = assign(assigns, spec: spec)
+
+    ~H"""
+    <section :if={@spec.drills != []} class="mt-8">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-base font-semibold">What each island can actually do</h2>
+        <span class="font-mono text-xs opacity-40">the drills, easiest first</span>
+      </div>
+
+      <div class="instrument mt-2 p-3">
+        <div
+          id="exam-profiles"
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-64 w-full"
+          role="img"
+          aria-label={"exam win rate per drill for #{length(@spec.series)} islands"}
+          data-spec={Jason.encode!(Map.put(@spec, :kind, "exam_profile"))}
+        >
+        </div>
+      </div>
+
+      <p class="mt-2 max-w-3xl text-xs opacity-50">
+        The frozen exam is the only <strong>absolute</strong>
+        measure here: six fixed opponents no island ever trains against, each sat
+        the same number of times. Raids cannot do this job, because every island
+        can improve at once and the win rate stays near a coin flip.
+        <span class="mt-1 block">
+          The drills run easiest to hardest. The first three are unarmed, so they
+          ask only whether a swarm can kill. The last three shoot back, and two of
+          them close the distance. <strong>A cliff between them is a named
+          deficit</strong>: a controller that can hit a target but cannot fight
+          something coming at it.
+        </span>
+        <span class="mt-1 block">
+          Only drills every island has sat are drawn, because a gap beside a score
+          reads as a failure.
+        </span>
+      </p>
+    </section>
+    """
   end
 
   # ── Who is who ──────────────────────────────────────────────────
@@ -1869,6 +1994,7 @@ defmodule BeamCampusWeb.DronexLive do
         </span>
       </div>
 
+      <.at_a_glance islands={@islands} raids={@raids} />
       <.ledger islands={@islands} raids={@raids} focus={@focus} />
       <.how_long_fights_last raids={@raids} />
 
@@ -1878,6 +2004,7 @@ defmodule BeamCampusWeb.DronexLive do
 
       <.captures islands={@ordered_islands} />
 
+      <.exam_profiles islands={@islands} />
       <.leaderboard standings={@shown} focus={@focus} />
 
       <%!-- ⚠ FLEET-SCOPED, SO IT LIVES WITH THE FLEET. This sat on the per-island

@@ -258,3 +258,46 @@ export function ablationOption({spec, colour, text}) {
     }))
   }
 }
+
+// ⚠ THE EXAM AS A PROFILE, WHICH IS THE ONLY WAY IT CAN BE READ. The drills are
+// NAMED and ORDERED by difficulty, so a grouped bar keeps that order on the axis
+// and puts every island against every drill. Two islands on the same score can
+// have opposite shapes, and one number cannot say so.
+//
+// ⚠⚠ CATEGORICAL HUES, ONE PER ISLAND. An island is an identity, not a side and
+// not a magnitude, so this takes the categorical ramp and never `--side-*`.
+export function examProfileOption({spec, colour, text}) {
+  if (!spec || !Array.isArray(spec.series) || spec.series.length === 0) return null
+  if (!Array.isArray(spec.drills) || spec.drills.length === 0) return null
+
+  return {
+    color: colour,
+    textStyle: {color: text, fontFamily: "inherit"},
+    grid: {left: 40, right: 12, top: 30, bottom: 30},
+    tooltip: {trigger: "axis", axisPointer: {type: "shadow"}},
+    legend: {show: true, top: 0, textStyle: {color: text}},
+    xAxis: {
+      type: "category",
+      data: spec.drills,
+      axisLabel: {color: text, opacity: 0.7, fontSize: 10},
+      axisLine: {lineStyle: {opacity: 0.2}}
+    },
+    yAxis: {
+      type: "value",
+      // ⚠ ALWAYS 0 TO 100, NEVER FITTED TO THE DATA. A win rate has a real
+      // ceiling, and an axis that rescales to the range makes a fleet at 90–97%
+      // look as spread out as one at 3–97%.
+      min: 0,
+      max: 100,
+      axisLabel: {color: text, opacity: 0.6, formatter: "{value}%"},
+      splitLine: {lineStyle: {opacity: 0.12}}
+    },
+    series: spec.series.map((s) => ({
+      name: s.island,
+      type: "bar",
+      barMaxWidth: 14,
+      emphasis: {focus: "series"},
+      data: s.rates
+    }))
+  }
+}
