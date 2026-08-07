@@ -77,20 +77,27 @@ defmodule BeamCampusWeb.DronexFight do
             not a colour change. --%>
       <div class="mt-2 flex h-3 w-full gap-0.5 overflow-hidden rounded">
         <div
-          style={"width: #{@losses.weapon_share}%; background: var(--chart-1)"}
+          style={"width: #{@losses.weapon_share}%; background: var(--chart-cat-2)"}
           title={"#{@losses.weapon_share}% of damage fell in exact 25 or 50 point steps — weapons"}
         >
         </div>
         <div
-          style={"width: #{@losses.other_share}%; background: var(--chart-2)"}
+          style={"width: #{@losses.other_share}%; background: var(--chart-cat-3)"}
           title={"#{@losses.other_share}% could not have come from a weapon — collisions or the arena edge"}
         >
         </div>
       </div>
 
       <div class="mt-1 flex flex-wrap justify-between gap-x-4 text-xs">
-        <span><span style="color: var(--chart-1)">■</span> weapons {@losses.weapon_share}%</span>
-        <span><span style="color: var(--chart-2)">■</span> not weapons {@losses.other_share}%</span>
+        <%!-- ⚠ ORANGE AND GREEN, NEVER THE BLUE/ROSE PAIR THIS USED TO USE.
+              A visitor learns red=raider, blue=island from the player a few
+              hundred pixels above. In that pair this bar reads as "40% of the
+              damage was done by the attackers", which is not what it measures:
+              both swarms shoot and both swarms ram. Damage TYPE is not a side. --%>
+        <span><span style="color: var(--chart-cat-2)">■</span> weapons {@losses.weapon_share}%</span>
+        <span>
+          <span style="color: var(--chart-cat-3)">■</span> not weapons {@losses.other_share}%
+        </span>
       </div>
 
       <details class="mt-2">
@@ -634,7 +641,8 @@ defmodule BeamCampusWeb.DronexFight do
       <div class="flex items-baseline justify-between">
         <h3 class="text-base font-semibold">The last fight</h3>
         <span class="text-xs opacity-50">
-          {@kind} · {@ticks} ticks · won by {@winner}
+          {@kind} · {@ticks} ticks · won by
+          <span style={"color: #{side_colour(@winner)}"}>{@winner}</span>
         </span>
       </div>
 
@@ -730,7 +738,7 @@ defmodule BeamCampusWeb.DronexFight do
             <div
               :if={b.coverage}
               class="h-3 rounded-sm"
-              style={"width: #{b.coverage}%; background: var(--chart-1)"}
+              style={"width: #{b.coverage}%; background: var(--side-attacker)"}
               title={"#{b.held} of #{b.frames} raider-frames held"}
             >
             </div>
@@ -772,5 +780,12 @@ defmodule BeamCampusWeb.DronexFight do
 
   # The same deep blue-black the maps use. A function and not a module attribute:
   # inside a `~H` sigil `@backdrop` means `assigns.backdrop`.
+  # ⚠ THE WINNER IS A SIDE, so it takes the side's colour. "won by attacker" in
+  # neutral text made the one word that decides the whole fight the only word on
+  # the panel with nothing to distinguish it.
+  defp side_colour("attacker"), do: "var(--side-attacker)"
+  defp side_colour("defender"), do: "var(--side-defender)"
+  defp side_colour(_draw), do: "var(--side-draw)"
+
   defp backdrop, do: "bg-[#0a1220]"
 end

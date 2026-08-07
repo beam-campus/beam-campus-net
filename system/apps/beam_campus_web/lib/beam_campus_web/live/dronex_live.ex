@@ -225,8 +225,16 @@ defmodule BeamCampusWeb.DronexLive do
   # twelve a side; how many of each came back is the whole outcome, and it is the
   # only part of the ranking's own description that is not the same string on
   # most rows. A training bout has no two sides, so it says so instead.
-  defp survivors(%{kind: :raid, fact: f}),
-    do: "#{num(f, "raiders_home")}–#{num(f, "defenders_home")}"
+  # ⚠ TWO SIDES, AND IT READ AS ONE NUMBER PAIR. "8–3" here is raiders home
+  # against defenders home; "5–2" in the ledger is one island's wins against its
+  # losses. Identical shapes, opposite meanings, and nothing told them apart.
+  defp survivors(%{kind: :raid, fact: f}) do
+    assigns = %{home: num(f, "raiders_home"), held: num(f, "defenders_home")}
+
+    ~H"""
+    <span style="color: var(--side-attacker)">{@home}</span><span class="opacity-40">–</span><span style="color: var(--side-defender)">{@held}</span>
+    """
+  end
 
   defp survivors(_bout), do: "drill"
 
@@ -1053,7 +1061,7 @@ defmodule BeamCampusWeb.DronexLive do
             <div
               :for={p <- dots}
               class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
-              style={"left: #{50 + p.gap / @reach * 46}%; background: var(--chart-1)"}
+              style={"left: #{50 + p.gap / @reach * 46}%; background: #{lane_colour(lane)}"}
               title={"#{p.gap} rounds: raider #{p.attacker_rounds}, island #{p.defender_rounds}"}
             >
             </div>
@@ -1245,13 +1253,13 @@ defmodule BeamCampusWeb.DronexLive do
       <div
         :for={{v, i} <- Enum.with_index(@samples)}
         class="absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full opacity-50"
-        style={"left: #{50 + min(max(v, -100), 100) / 2}%; top: #{3 + rem(i, 6) * 2}px; background: var(--chart-1)"}
+        style={"left: #{50 + min(max(v, -100), 100) / 2}%; top: #{3 + rem(i, 6) * 2}px; background: var(--chart-cat-3)"}
       >
       </div>
 
       <div
         class="absolute inset-y-0 w-0.5"
-        style={"left: #{50 + min(max(@mean, -100), 100) / 2}%; background: var(--chart-2)"}
+        style={"left: #{50 + min(max(@mean, -100), 100) / 2}%; background: var(--chart-cat-2)"}
       >
       </div>
     </div>
@@ -1288,11 +1296,15 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  # ⚠ SIGN, NOT SIDE. Left is "the swarm flew better silent" and right is "the
+  # radio helped". This used the blue/rose generic pair, which on a page that
+  # teaches red=raider and blue=island reads as two sides rather than two
+  # directions. Orange and green are neither.
   defp bar_style(points, width) when points > 0,
-    do: "left: 50%; width: #{width}%; background: var(--chart-1)"
+    do: "left: 50%; width: #{width}%; background: var(--chart-cat-3)"
 
   defp bar_style(_points, width),
-    do: "right: 50%; width: #{width}%; background: var(--chart-2)"
+    do: "right: 50%; width: #{width}%; background: var(--chart-cat-2)"
 
   # ⚠ THE TRAJECTORY, NOT THE LATEST. The wire republishes one exercise; the
   # board samples it every 30s, so this is the only place readings accumulate.
@@ -2025,6 +2037,14 @@ defmodule BeamCampusWeb.DronexLive do
     </p>
     """
   end
+
+  # ⚠ THE LANES ARE THE SIDES. `WeighTheExperience.lanes/1` names them "raider
+  # won", "drawn" and "island held", and every dot in all three was drawn in the
+  # same blue, so the page's flagship chart was set to contradict the histogram
+  # directly above it on the day it finally gets data.
+  defp lane_colour("raider won"), do: "var(--side-attacker)"
+  defp lane_colour("island held"), do: "var(--side-defender)"
+  defp lane_colour(_drawn), do: "var(--side-draw)"
 
   defp num(map, key), do: Map.get(map, key, 0)
 
