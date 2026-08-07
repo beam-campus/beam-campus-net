@@ -226,6 +226,60 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "1 raids"
   end
 
+  # ── Does breeding longer win wars ───────────────────────────────
+
+  # ⚠ A CHART THAT SILENTLY DREW WHAT IT HAD WOULD ANSWER A DIFFERENT QUESTION
+  # CONVINCINGLY. The stamp shipped after these islands had been fighting for
+  # days, so a fleet mid-roll carries raids with one side stamped and not the
+  # other, and those must be counted out loud rather than drawn at a fabricated
+  # gap.
+  test "an unplottable raid is reported rather than drawn", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    # Settled, but only the attacker carries a stamp.
+    Board.put_raid("r1", :raid, raid("aaa", "beam01") |> Map.put("island_id", "bbb"))
+
+    Board.put_raid("r1", :committed, %{
+      "raid_id" => "r1",
+      "role" => "attacker",
+      "island_id" => "aaa",
+      "opponent_id" => "bbb",
+      "rounds" => 9000
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "Does breeding longer win wars"
+    assert html =~ "Nothing to plot yet"
+    assert html =~ "waiting"
+  end
+
+  test "a raid stamped on both sides is plotted with its sign", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    Board.put_raid(
+      "r1",
+      :raid,
+      raid("aaa", "beam01") |> Map.merge(%{"island_id" => "bbb", "rounds" => 8000})
+    )
+
+    Board.put_raid("r1", :committed, %{
+      "raid_id" => "r1",
+      "role" => "attacker",
+      "island_id" => "aaa",
+      "opponent_id" => "bbb",
+      "rounds" => 9000
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    refute html =~ "Nothing to plot yet"
+    assert html =~ "1000 rounds: raider 9000, island 8000"
+    # The lanes are named for what happened, not for a side.
+    assert html =~ "raider won"
+    assert html =~ "island held"
+  end
+
   # ── Does the radio matter ───────────────────────────────────────
   #
   # ⚠ THE ONLY CAUSAL NUMBER ON THE WIRE. Every other figure on this page is an

@@ -653,6 +653,106 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
+  Does breeding longer win wars? The chart that joins this exhibit's two halves.
+
+  ## Both answers teach, which is why it is worth the space
+
+  Everything else here measures one of two things and never both. The frozen exam
+  measures SKILL against a ladder that never changes; the raids measure WAR
+  against opponents that do. Nothing connected them, so the page could say an
+  island is good at drills and that it wins fights, and never whether the first
+  causes the second.
+
+  If the gap predicts the winner, evolution is doing what this exhibit claims. If
+  it does not, then exam skill does not transfer to combat — which for a research
+  commons is the more interesting sentence, and no other chart here can produce
+  it.
+
+  ## ⚠ IT SAYS WHAT IT COULD NOT USE
+
+  The stamp shipped after these islands had been fighting for days, and a fleet
+  mid-roll carries both versions at once: a raid between an updated attacker and
+  a defender still on the old image has one stamp and not the other. Those raids
+  are excluded rather than drawn at a fabricated gap, and the count of them sits
+  under the plot — a chart that silently drew what it had would answer a
+  different question convincingly.
+  """
+  attr :raids, :list, required: true
+
+  def experience(assigns) do
+    %{points: points, excluded: excluded} = Dronex.WeighTheExperience.gaps(assigns.raids)
+    span = Enum.map(points, & &1.gap)
+
+    assigns =
+      assign(assigns,
+        lanes: Dronex.WeighTheExperience.lanes(points),
+        n: length(points),
+        excluded: excluded,
+        reach: Enum.max([1 | Enum.map(span, &abs/1)])
+      )
+
+    ~H"""
+    <div class="mt-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="text-sm font-semibold opacity-70">Does breeding longer win wars</h3>
+        <span class="font-mono text-xs opacity-40">
+          raider's breeding rounds, less the island's
+        </span>
+      </div>
+
+      <div :if={@n > 0} class="instrument mt-2 space-y-2 p-3">
+        <div :for={{lane, dots} <- @lanes} class="flex items-center gap-2">
+          <span class="w-24 shrink-0 text-right text-xs opacity-50">{lane}</span>
+
+          <div class="relative h-6 grow rounded-sm bg-base-300/40">
+            <%!-- Zero is drawn, always. A strip plot of a difference with no
+                  centre line is a cloud of numbers nobody can read a sign off. --%>
+            <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
+
+            <div
+              :for={p <- dots}
+              class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
+              style={"left: #{50 + p.gap / @reach * 46}%; background: var(--chart-1)"}
+              title={"#{p.gap} rounds: raider #{p.attacker_rounds}, island #{p.defender_rounds}"}
+            >
+            </div>
+          </div>
+
+          <span class="w-6 shrink-0 text-right font-mono text-xs opacity-40">{length(dots)}</span>
+        </div>
+
+        <div class="flex justify-between px-24 font-mono text-[10px] opacity-30">
+          <span>island bred longer</span>
+          <span>raider bred longer</span>
+        </div>
+      </div>
+
+      <p :if={@n == 0} class="instrument mt-2 p-3 text-xs opacity-50">
+        Nothing to plot yet. A raid counts only when <strong>both</strong>
+        sides carry a breeding stamp, and the stamp shipped after these islands
+        had been fighting for days — so a raid between an updated attacker and an
+        island still on the older image has one and not the other. {@excluded.unstamped} settled {(@excluded.unstamped ==
+                                                                                                     1 &&
+                                                                                                     "raid is") ||
+          "raids are"} waiting
+        on that, and {@excluded.unsettled} more {(@excluded.unsettled == 1 && "is") || "are"} still
+        out. This fills as the fleet finishes rolling.
+      </p>
+
+      <p :if={@n > 0} class="mt-2 text-xs opacity-40">
+        One dot per settled raid, placed by how much more the raider had bred than
+        the island it attacked. {@n} raids plotted; <strong>{@excluded.unstamped} excluded</strong>
+        because one side predates the stamp, and {@excluded.unsettled} still out.
+        Measured in <strong>rounds</strong>
+        and never generations: a captured genome enters at generation zero, so an
+        island that absorbs a swarm has its generation cut without having bred any
+        less.
+      </p>
+    </div>
+    """
+  end
+
+  @doc """
   Whether the radio matters. The only causal number this fleet publishes.
 
   ## ⚠ WHY THIS OUTRANKS EVERY OTHER CHART HERE
@@ -1221,6 +1321,8 @@ defmodule BeamCampusWeb.DronexLive do
       <.ledger islands={@islands} raids={@raids} focus={@focus} />
 
       <.comms islands={@ordered_islands} />
+
+      <.experience raids={@raids} />
 
       <.leaderboard standings={@shown} focus={@focus} />
 
