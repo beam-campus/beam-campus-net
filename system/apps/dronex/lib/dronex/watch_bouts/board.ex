@@ -318,6 +318,33 @@ defmodule Dronex.WatchBouts.Board do
     end
   end
 
+  @doc "How many samples a trajectory keeps, so a restore does not load more."
+  @spec max_samples() :: pos_integer()
+  def max_samples, do: @max_samples
+
+  @doc """
+  Put a trajectory back that was written down before the last restart.
+
+  ⚠ IT NEVER OVERWRITES WHAT IS LIVE. Samples taken since boot are fresher than
+  anything on disk, so a restore merges underneath them and the newest wins.
+  """
+  @spec remember_samples(binary(), [map()]) :: :ok
+  def remember_samples(id, points) when is_binary(id) and is_list(points) do
+    live = case :ets.lookup(@history, id) do
+      [{_id, samples}] -> samples
+      _none -> []
+    end
+
+    merged =
+      (live ++ points)
+      |> Enum.uniq_by(& &1.at)
+      |> Enum.sort_by(& &1.at, :desc)
+      |> Enum.take(@max_samples)
+
+    :ets.insert(@history, {id, merged})
+    :ok
+  end
+
   defp refuse do
     :ets.update_counter(@table, :refused, {2, 1}, {:refused, 0})
     :ok

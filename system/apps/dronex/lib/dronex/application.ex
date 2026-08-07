@@ -1,6 +1,6 @@
 defmodule Dronex.Application do
   @moduledoc """
-  Three children, always started, whether or not a mesh is configured.
+  Four children, always started, whether or not a mesh is configured.
 
   The subscriber creates the board and then ticks, so an unconfigured site has a
   working, empty page rather than a crashed supervisor. `Dronex.watching?/0` is
@@ -18,7 +18,8 @@ defmodule Dronex.Application do
     children = [
       Dronex.Mesh,
       Dronex.WatchBouts,
-      Dronex.RememberRaids
+      Dronex.RememberRaids,
+      Dronex.RememberVitals
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Dronex.Supervisor)

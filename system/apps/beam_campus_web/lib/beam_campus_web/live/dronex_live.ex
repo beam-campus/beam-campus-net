@@ -606,7 +606,7 @@ defmodule BeamCampusWeb.DronexLive do
         fell is a different controller wearing the same score. The single
         percentage above cannot tell those apart.
         <span class="mt-1 block">
-          Kept in memory, so a deploy starts it again.
+          Written down, so it survives a deploy.
         </span>
       </p>
     </div>
@@ -651,7 +651,7 @@ defmodule BeamCampusWeb.DronexLive do
         there. Drawn as steps, because the wire republishes one exercise until the
         next is run.
         <span class="mt-1 block">
-          Kept in memory, so a deploy starts it again.
+          Written down, so it survives a deploy.
         </span>
       </p>
     </div>
@@ -737,8 +737,8 @@ defmodule BeamCampusWeb.DronexLive do
     <div class="mt-4">
       <p :if={!@enough?} class="text-xs opacity-40">
         {@label} over time appears here once there are two samples. The board
-        samples every {div(Dronex.sample_every_ms(), 1000)}s and keeps it in memory
-        rather than a database, so a restart begins it again.
+        samples every {div(Dronex.sample_every_ms(), 1000)}s, and writes each one
+        down, so a restart resumes rather than starting again.
       </p>
 
       <div :if={@enough?} class="instrument p-3">
