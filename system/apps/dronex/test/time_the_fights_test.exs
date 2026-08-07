@@ -36,13 +36,33 @@ defmodule Dronex.TimeTheFightsTest do
 
     assert d.longest == 1200
     assert d.at_longest == 2
+    assert d.ceiling == 1200
   end
 
-  test "one raid at the longest value is a maximum, not yet a cap" do
+  # ⚠ ONE RAID AT THE MAXIMUM IS NOT A CEILING, IT IS THE MAXIMUM, and there is
+  # always exactly one of those. Reporting it under a column headed "at the
+  # ceiling" put a 1 on the page directly beneath a caption saying no ceiling was
+  # visible. Measured on the live board 2026-08-07: 64 raids, longest 1123, none
+  # at the 1200 cap then in force. The tautology was the only thing that column
+  # had ever shown.
+  test "one raid at the longest value is a maximum, not a ceiling" do
     d = Time.distribution([raid(300, "attacker"), raid(900, "defender")])
 
     assert d.longest == 900
     assert d.at_longest == 1
+    assert d.ceiling == nil
+    assert Enum.all?(d.by_outcome, &is_nil(&1.at_ceiling))
+  end
+
+  test "two raids stopping on the same tick is a ceiling" do
+    d = Time.distribution([raid(300, "attacker"), raid(900, "defender"), raid(900, "attacker")])
+
+    assert d.ceiling == 900
+    assert [%{at_ceiling: 1}, %{at_ceiling: 1}] = d.by_outcome
+  end
+
+  test "nothing timed has no ceiling" do
+    assert Time.distribution([]).ceiling == nil
   end
 
   # Duration alone cannot say who was better, so it is never reported alone.

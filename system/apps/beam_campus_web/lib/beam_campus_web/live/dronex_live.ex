@@ -386,13 +386,15 @@ defmodule BeamCampusWeb.DronexLive do
       <p class="mt-1 max-w-2xl text-sm opacity-70">
         {@d.n} settled {(@d.n == 1 && "raid") || "raids"}, in ticks, because the island
         publishes its clock in ticks and not its rate.
-        <strong :if={@d.at_longest > 1}>
-          {@d.at_longest} of them end on exactly {@d.longest}, which is a ceiling
+        <%!-- One raid at the maximum is not a ceiling, it is the maximum, and there is
+             always exactly one of those. A ceiling is a PILE. --%>
+        <strong :if={@d.ceiling}>
+          {@d.at_longest} of them end on exactly {@d.ceiling}, which is a ceiling
           rather than a duration: those fights were stopped, not finished.
         </strong>
-        <span :if={@d.at_longest <= 1}>
-          Nothing is piled on the longest value, so no ceiling is visible in this
-          sample.
+        <span :if={is_nil(@d.ceiling)}>
+          The longest ran {@d.longest} and nothing else stopped there, so no clock
+          is cutting these off.
         </span>
       </p>
 
@@ -513,7 +515,7 @@ defmodule BeamCampusWeb.DronexLive do
             <th class="pr-3 text-left font-normal">outcome</th>
             <th class="pr-3 text-right font-normal">n</th>
             <th class="pr-3 text-right font-normal">median</th>
-            <th class="text-right font-normal">at the ceiling</th>
+            <th :if={@d.ceiling} class="text-right font-normal">at the ceiling</th>
           </tr>
         </thead>
         <tbody>
@@ -521,7 +523,7 @@ defmodule BeamCampusWeb.DronexLive do
             <td class="pr-3">{o.outcome}</td>
             <td class="pr-3 text-right font-mono tabular-nums">{o.n}</td>
             <td class="pr-3 text-right font-mono tabular-nums">{o.median}</td>
-            <td class="text-right font-mono tabular-nums">{o.at_longest}</td>
+            <td :if={@d.ceiling} class="text-right font-mono tabular-nums">{o.at_ceiling}</td>
           </tr>
         </tbody>
       </table>

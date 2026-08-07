@@ -17,7 +17,15 @@ defmodule Dronex.TimeTheFights do
 
   ## ⚠ THE FIRST QUESTION IS WHETHER THE CLOCK IS CUTTING THE ANSWER OFF
 
-  An engagement ends when one side is finished or when the tick cap is reached.
+  ⚠⚠ MEASURED 2026-08-07, AND THE ANSWER FOR THIS FLEET WAS NO. Over 64 settled
+  raids the longest was 1123 ticks and **not one** reached the 1200 cap that was
+  in force at the time. The censoring this module was built to detect had never
+  actually happened here, which is worth knowing before anybody reads weight into
+  the tail. The cap has since been removed, so a future pile is a real finding
+  rather than a harness artefact.
+
+  An engagement ends when one side is finished, or, while a cap existed, when it
+  was reached.
   A raid that hits the cap did not take that long; it took AT LEAST that long,
   and every average over a censored quantity is biased. Worse, the bias grows
   precisely as the two sides become evenly matched, which is what coevolution
@@ -78,19 +86,31 @@ defmodule Dronex.TimeTheFights do
   defp kept(_absent, _winner), do: []
 
   defp summarised([]) do
-    %{n: 0, bins: [], longest: nil, at_longest: 0, bin: @bin, by_outcome: [], series: []}
+    %{
+      n: 0,
+      bins: [],
+      longest: nil,
+      at_longest: 0,
+      ceiling: nil,
+      bin: @bin,
+      by_outcome: [],
+      series: []
+    }
   end
 
   defp summarised(points) do
     longest = points |> Enum.map(& &1.ticks) |> Enum.max()
+    at_longest = Enum.count(points, &(&1.ticks == longest))
+    ceiling = ceiling(longest, at_longest)
 
     %{
       n: length(points),
       bins: binned(points, longest),
       longest: longest,
-      at_longest: Enum.count(points, &(&1.ticks == longest)),
+      at_longest: at_longest,
+      ceiling: ceiling,
       bin: @bin,
-      by_outcome: by_outcome(points, longest),
+      by_outcome: by_outcome(points, ceiling),
       series: series(points, longest)
     }
   end
@@ -119,6 +139,18 @@ defmodule Dronex.TimeTheFights do
     end
   end
 
+  # ⚠ ONE RAID AT THE MAXIMUM IS NOT A CEILING, IT IS THE MAXIMUM. There is
+  # ALWAYS exactly one raid equal to the longest value, so a table column headed
+  # "at the ceiling" reporting a 1 says nothing at all, and it said it directly
+  # underneath a caption stating that no ceiling was visible. A reader is entitled
+  # to believe both, and they contradict.
+  #
+  # A ceiling is a PILE: two or more raids stopping on the same exact tick, which
+  # is a clock rather than a coincidence. Below that there is no ceiling and the
+  # column has nothing to report.
+  defp ceiling(_longest, at_longest) when at_longest < 2, do: nil
+  defp ceiling(longest, _at_longest), do: longest
+
   # Every bin from zero to the longest, including the empty ones, because a gap
   # in a distribution is a fact about it and a histogram that omits its empty
   # bins draws a different shape.
@@ -130,13 +162,16 @@ defmodule Dronex.TimeTheFights do
     end
   end
 
-  defp by_outcome(points, longest) do
+  defp at_ceiling(_side, nil), do: nil
+  defp at_ceiling(side, ceiling), do: Enum.count(side, &(&1.ticks == ceiling))
+
+  defp by_outcome(points, ceiling) do
     for {key, label} <- @outcomes, side = Enum.filter(points, &(&1.winner == key)), side != [] do
       %{
         outcome: label,
         n: length(side),
         median: median(Enum.map(side, & &1.ticks)),
-        at_longest: Enum.count(side, &(&1.ticks == longest))
+        at_ceiling: at_ceiling(side, ceiling)
       }
     end
   end
