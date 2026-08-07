@@ -19,7 +19,7 @@
 //
 // Run: node apps/beam_campus_web/assets/js/charts_check.mjs
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption} from "./dronex_charts.js"
 
 const W = 900
 const H = 288
@@ -116,6 +116,50 @@ check("bars are painted", bsvg.includes(SIDES.attacker) && bsvg.includes(SIDES.d
 check("bars rendered without NaN", !/NaN/.test(bsvg))
 
 // A spec this build does not understand must draw nothing rather than throw.
+console.log("exam")
+const RAMP = ["#8ab8dc", "#0f3d61"]
+const examSpec = {
+  rungs: 6,
+  sat: 3,
+  columns: [1, 2, 3, 4],
+  cells: [0, 1, 2, 3].flatMap((x) =>
+    [96, 98, 97, 44, 50, 85].map((rate, y) => ({x, y, rate: x === 3 ? Math.max(0, rate - 40) : rate}))
+  )
+}
+const exam = examOption({spec: examSpec, ramp: RAMP, text: INK})
+const esvg = render(exam)
+
+check("every rung gets a row", exam.yAxis.data.length === 6)
+check("every sample gets a column", exam.series[0].data.length === 24, `${exam.series[0].data.length} cells`)
+check("the scale is a magnitude, 0 to 100", exam.visualMap.min === 0 && exam.visualMap.max === 100)
+// ⚠ A DRILL HAS NO RAIDER AND NO ISLAND. Lending it a side hue would say it did.
+check("the exam never uses a side colour",
+  !esvg.includes(SIDES.attacker) && !esvg.includes(SIDES.defender))
+check("the heatmap drew cells", !/NaN/.test(esvg) && esvg.length > 2000, `${esvg.length} bytes`)
+check("an island with no vector draws nothing",
+  examOption({spec: {rungs: 0, cells: [], columns: [], sat: 0}, ramp: RAMP, text: INK}) === null)
+
+console.log("ablation")
+const ablSpec = {
+  at: [1, 2, 3, 4, 5],
+  series: [
+    {name: "air", data: [0, 25, 25, -25, 0]},
+    {name: "ground", data: [0, 0, 0, 0, 0]},
+    {name: "both", data: [25, 25, 50, 25, 25]}
+  ]
+}
+const abl = ablationOption({spec: ablSpec, colour: ["#2a6fb0", "#d55e00", "#009e73"], text: INK})
+const asvg = render(abl)
+
+check("the axis is symmetric about zero", abl.yAxis.min === -abl.yAxis.max, `${abl.yAxis.min}..${abl.yAxis.max}`)
+check("zero is drawn", abl.series.every((s) => s.markLine.data[0].yAxis === 0))
+// ⚠ STEPS, NOT SLOPES. The wire republishes one exercise until the next is run.
+check("readings are steps, not interpolated slopes", abl.series.every((s) => s.step === "end"))
+check("the ablation never uses a side colour",
+  !asvg.includes(SIDES.attacker) && !asvg.includes(SIDES.defender))
+check("lines rendered without NaN", !/NaN/.test(asvg))
+check("no readings draws nothing", ablationOption({spec: {at: [], series: []}, colour: [], text: INK}) === null)
+
 console.log("skew")
 check("an unknown spec returns nothing", barsOption({spec: {kind: "something-new"}, colour: [], text: INK, fill: SIDES}) === null)
 check("a matrix without cells returns nothing", matrixOption({spec: {kind: "matrix"}, fill: SIDES, text: INK, height: H}) === null)

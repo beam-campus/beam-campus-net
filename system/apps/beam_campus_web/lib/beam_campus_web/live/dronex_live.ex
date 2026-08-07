@@ -438,7 +438,7 @@ defmodule BeamCampusWeb.DronexLive do
         // resolves against that directory and not against assets/. The esbuild args
         // carry `--alias:@=.' with the assets dir as cwd, which is the way in.
         import * as echarts from "@/vendor/echarts.esm.js"
-        import {barsOption, matrixOption} from "@/js/dronex_charts.js"
+        import {barsOption, matrixOption, examOption, ablationOption} from "@/js/dronex_charts.js"
 
         // Six, in the order the stylesheet declares them, because that order is
         // what the colour-blindness check was run against. Taking them in any
@@ -505,9 +505,14 @@ defmodule BeamCampusWeb.DronexLive do
             const spec = JSON.parse(this.el.dataset.spec)
             const text = ink()
 
-            const option = spec.kind === "matrix"
-              ? matrixOption({spec, fill: sides(), text, height: this.el.clientHeight || 288})
-              : barsOption({spec, colour: palette(), text, fill: sides()})
+            const option =
+              spec.kind === "matrix"
+                ? matrixOption({spec, fill: sides(), text, height: this.el.clientHeight || 288})
+                : spec.kind === "exam"
+                  ? examOption({spec, ramp: ramp(), text})
+                  : spec.kind === "ablation"
+                    ? ablationOption({spec, colour: palette(), text})
+                    : barsOption({spec, colour: palette(), text, fill: sides()})
 
             if (!option) {
               console.warn("[dronex] chart spec not understood, not drawing:", spec.kind)
@@ -562,6 +567,107 @@ defmodule BeamCampusWeb.DronexLive do
   defp bars_spoken(d) do
     "#{d.n} raids by duration in bins of #{d.bin} ticks, longest #{d.longest}, " <>
       "#{d.at_longest} of them ending on exactly that value"
+  end
+
+  @doc """
+  Which drills moved, when the exam score moved. The `REGISTER D.15` instrument.
+
+  ⚠ IT DESCRIBES AND NEVER CONCLUDES. D.15 is open: an island's score swings a
+  hundred points in a day on a champion it says it bred, and nobody knows why.
+  This shows the SHAPE of a move, which is the discriminator nobody had, and it
+  is not the page's job to name a cause from it.
+  """
+  attr :row, :map, required: true
+
+  def exam_ladder(assigns) do
+    grid = Dronex.TraceTheExam.grid(Dronex.history(assigns.row.id))
+    assigns = assign(assigns, grid: grid, reading: Dronex.TraceTheExam.reading(grid))
+
+    ~H"""
+    <div :if={@grid.rungs > 0} class="mt-4">
+      <h3 class="text-sm font-semibold opacity-70">Which drills moved</h3>
+
+      <div class="instrument mt-2 p-3">
+        <div
+          id={"exam-ladder-#{@row.id}"}
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-40 w-full"
+          role="img"
+          aria-label={"win rate per drill over #{length(@grid.columns)} samples"}
+          data-spec={Jason.encode!(Map.put(@grid, :kind, "exam"))}
+        >
+        </div>
+      </div>
+
+      <p class="mt-2 max-w-2xl text-xs opacity-50">
+        One column per sample, one row per drill, darker is a higher win rate. {@reading} A vertical stripe is every drill moving together; erosion from
+        the top is a skill lost; a recovery on different drills from the ones that
+        fell is a different controller wearing the same score. The single
+        percentage above cannot tell those apart.
+        <span class="mt-1 block">
+          Kept in memory, so a deploy starts it again.
+        </span>
+      </p>
+    </div>
+    """
+  end
+
+  @doc """
+  The three ablation readings over time, which is the only way they resolve.
+
+  The board has collected `air`, `ground` and `all` every 30 seconds since it was
+  written, under a comment saying a trajectory is the only thing that settles a
+  signal this coarse. Nothing had ever drawn them.
+  """
+  attr :row, :map, required: true
+
+  def ablation_trace(assigns) do
+    samples = assigns.row.id |> Dronex.history() |> Enum.reverse()
+    assigns = assign(assigns, samples: samples, enough?: length(samples) >= 2)
+
+    ~H"""
+    <div :if={@enough?} class="mt-4">
+      <h3 class="text-sm font-semibold opacity-70">Does the radio matter, over time</h3>
+
+      <div class="instrument mt-2 p-3">
+        <div
+          id={"ablation-#{@row.id}"}
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-40 w-full"
+          role="img"
+          aria-label={"ablation deltas over #{length(@samples)} samples, zero means the channel changed nothing"}
+          data-spec={ablation_spec(@samples)}
+        >
+        </div>
+      </div>
+
+      <p class="mt-2 max-w-2xl text-xs opacity-50">
+        The change in the raider's score when a channel is silenced, sampled over
+        time. <strong>One reading is noise</strong>
+        — the measure moves in steps of about 25, so one engagement changing hands
+        is a whole step. What settles it is a line sitting off zero and staying
+        there. Drawn as steps, because the wire republishes one exercise until the
+        next is run.
+        <span class="mt-1 block">
+          Kept in memory, so a deploy starts it again.
+        </span>
+      </p>
+    </div>
+    """
+  end
+
+  defp ablation_spec(samples) do
+    Jason.encode!(%{
+      kind: "ablation",
+      at: Enum.map(samples, & &1.at),
+      series: [
+        %{name: "air silenced", data: Enum.map(samples, & &1.air)},
+        %{name: "ground silenced", data: Enum.map(samples, & &1.ground)},
+        %{name: "both silenced", data: Enum.map(samples, & &1.all)}
+      ]
+    })
   end
 
   # ── Who is who ──────────────────────────────────────────────────
@@ -810,6 +916,7 @@ defmodule BeamCampusWeb.DronexLive do
       label="Roster"
       ceiling={max(1, num(@v, "capacity"))}
     />
+    <.ablation_trace row={@row} />
 
     <p :if={@panel == :vitals} class="mt-2 text-xs opacity-40">
       An island fields at most {num(@v, "capacity")} drone controllers at once;
@@ -889,6 +996,7 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
 
       <.trend_panel row={@row} metric={:score} label="Frozen exam" ceiling={100} unit="%" />
+      <.exam_ladder row={@row} />
     </div>
     """
   end

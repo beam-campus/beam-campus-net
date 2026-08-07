@@ -154,3 +154,107 @@ export function matrixOption({spec, fill, text, height}) {
   }
 
 }
+
+// ⚠ THE D.15 INSTRUMENT. One column per sample, one row per rung, fill is the
+// win rate on that drill. A vertical stripe is every rung moving together, which
+// is a changed sitter or a changed harness; erosion from the top is a skill
+// genuinely lost; a recovery on different rungs from the ones that fell is a
+// different animal wearing the same score. None of that is visible in the single
+// percentage the leaderboard ranks on.
+//
+// ⚠⚠ ONE HUE, LIGHT TO DARK, because a win rate is a MAGNITUDE. Not the side
+// colours: a drill has no raider and no island, and lending it red would say it
+// did. Not a rainbow: `visualMap` interpolates between the two ends given, so
+// two steps of one ramp is the whole scale.
+export function examOption({spec, ramp, text}) {
+  if (!spec || !Array.isArray(spec.cells) || spec.cells.length === 0) return null
+
+  return {
+    tooltip: {
+      trigger: "item",
+      formatter: (p) => `drill ${p.data[1] + 1}: ${p.data[2]}%`
+    },
+    grid: {left: 56, right: 16, top: 10, bottom: 26},
+    xAxis: {type: "category", data: spec.columns.map((_, i) => i), show: false},
+    yAxis: {
+      type: "category",
+      data: Array.from({length: spec.rungs}, (_, i) => `drill ${i + 1}`),
+      axisLabel: {color: text, opacity: 0.6, fontSize: 10},
+      axisLine: {show: false},
+      axisTick: {show: false}
+    },
+    visualMap: {
+      min: 0,
+      max: 100,
+      calculable: false,
+      orient: "horizontal",
+      right: 16,
+      bottom: 0,
+      itemWidth: 10,
+      itemHeight: 60,
+      textStyle: {color: text, opacity: 0.5, fontSize: 10},
+      inRange: {color: ramp}
+    },
+    series: [
+      {
+        type: "heatmap",
+        data: spec.cells.map((c) => [c.x, c.y, c.rate]),
+        progressive: 0,
+        itemStyle: {borderWidth: 0}
+      }
+    ]
+  }
+}
+
+// ⚠ THE ABLATION TRIO, COLLECTED FOR HOURS AND NEVER DRAWN. `air`, `ground` and
+// `all` are the change in the raider's score when a channel is silenced. The
+// board's own comment says a trajectory is the only thing that resolves them:
+// "sampled over hours, a channel that matters drifts off zero and noise does
+// not". These three series existed for a chart that had never been built.
+//
+// ⚠⚠ CATEGORICAL HUES, NEVER `--side-*`. A silenced channel has no raider and no
+// island, and this sits on a page that teaches red means raider.
+//
+// ⚠⚠⚠ AND ZERO IS DRAWN, EXPLICITLY. The whole reading is whether a line sits
+// off zero and stays there. A chart of a signed quantity with no zero line asks
+// the reader to guess where it is.
+export function ablationOption({spec, colour, text}) {
+  if (!spec || !Array.isArray(spec.series) || spec.series.length === 0) return null
+
+  const reach = Math.max(30, ...spec.series.flatMap((s) => s.data.map((v) => Math.abs(v || 0))))
+
+  return {
+    color: colour,
+    textStyle: {color: text, fontFamily: "inherit"},
+    grid: {left: 40, right: 12, top: 24, bottom: 24},
+    tooltip: {trigger: "axis"},
+    legend: {show: true, top: 0, textStyle: {color: text}},
+    xAxis: {type: "category", data: spec.at.map((_, i) => i), show: false},
+    yAxis: {
+      type: "value",
+      min: -reach,
+      max: reach,
+      axisLabel: {color: text, opacity: 0.6, fontSize: 10},
+      splitLine: {lineStyle: {opacity: 0.1}}
+    },
+    series: spec.series.map((s) => ({
+      name: s.name,
+      type: "line",
+      // ⚠ STEPS, NOT SLOPES. The wire republishes ONE exercise until the next is
+      // run, so the samples between are the same measurement repeated. A sloped
+      // line between two identical readings draws a trend that was never
+      // measured.
+      step: "end",
+      symbol: "none",
+      lineStyle: {width: 2},
+      data: s.data,
+      markLine: {
+        silent: true,
+        symbol: "none",
+        lineStyle: {color: text, opacity: 0.35, type: "solid", width: 1},
+        data: [{yAxis: 0}],
+        label: {show: false}
+      }
+    }))
+  }
+}

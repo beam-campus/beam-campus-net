@@ -277,6 +277,19 @@ defmodule Dronex.WatchBouts.Board do
       generation: Map.get(fact, "generation", 0),
       rounds: Map.get(fact, "rounds", 0),
       captures: Map.get(fact, "captures", 0),
+      # ⚠⚠ THE PER-RUNG VECTOR, AND ITS ABSENCE WAS THE WORST THING ON THIS PAGE.
+      # `exam_score/1` collapses `benchmark_wins`, one entry per rung, into a
+      # single percentage, and only that percentage was kept. So the page could
+      # show that an island fell from 97% to 38% and could NEVER show whether
+      # every rung fell together — which smells of a changed sitter or a changed
+      # harness — or whether the ladder eroded from the top, which smells of a
+      # skill genuinely lost. Those are different diagnoses of `REGISTER D.15`,
+      # the standing anomaly, and the difference was destroyed every 30 seconds.
+      #
+      # Six small integers per sample against a 240-sample cap. It costs nothing
+      # and it is the only decomposition the wire offers.
+      rungs: rung_wins(fact),
+      starts: Map.get(fact, "benchmark_starts", 0),
       # ⚠ THE ABLATION IS A SINGLE EXERCISE, REPUBLISHED. `ablation_delta_*` is
       # the LAST exercise's result, not an average of the count beside it, and
       # its granularity is coarse enough that one engagement changing hands moves
@@ -291,6 +304,18 @@ defmodule Dronex.WatchBouts.Board do
 
     :ets.insert(@history, {id, Enum.take([point | samples], @max_samples)})
     :ok
+  end
+
+  # ⚠ AS A LIST OF INTEGERS, WHATEVER THE WIRE CALLS IT. Erlang sends a list of
+  # small integers and CBOR may hand it back as a charlist, so `[48, 48, 48]` and
+  # `~c"000"` are the same value wearing different clothes. This session already
+  # misread a perfect 288/288 as three zeroes once. Anything that is not a list
+  # of non-negative integers is no measurement rather than a measurement of zero.
+  defp rung_wins(fact) do
+    case Map.get(fact, "benchmark_wins") do
+      wins when is_list(wins) -> Enum.filter(wins, &(is_integer(&1) and &1 >= 0))
+      _absent -> []
+    end
   end
 
   defp refuse do
