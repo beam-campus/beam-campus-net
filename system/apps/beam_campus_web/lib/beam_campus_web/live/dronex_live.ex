@@ -388,8 +388,8 @@ defmodule BeamCampusWeb.DronexLive do
     assigns = assign(assigns, d: Dronex.TimeTheFights.distribution(assigns.raids))
 
     ~H"""
-    <section :if={@d.n > 0} class="mt-8">
-      <h2 class="text-base font-semibold">How long a fight lasts</h2>
+    <section :if={@d.n > 0} class="settle mt-8">
+      <h2 class="instrument-lede text-base font-semibold">How long a fight lasts</h2>
 
       <p class="mt-1 max-w-2xl text-sm opacity-70">
         {@d.n} settled {(@d.n == 1 && "raid") || "raids"}, in ticks, because the island
@@ -504,17 +504,20 @@ defmodule BeamCampusWeb.DronexLive do
           draw() {
             const spec = JSON.parse(this.el.dataset.spec)
             const text = ink()
+            // The panel behind the chart, so a mark can be separated from its
+            // neighbour by a gap in the surface rather than by a line of its own.
+            const surface = getComputedStyle(this.el.parentElement).backgroundColor
 
             const option =
               spec.kind === "matrix"
-                ? matrixOption({spec, fill: sides(), text, height: this.el.clientHeight || 288})
+                ? matrixOption({spec, fill: sides(), text, surface, height: this.el.clientHeight || 288})
                 : spec.kind === "exam_profile"
                   ? examProfileOption({spec, colour: palette(), text})
                 : spec.kind === "exam"
-                  ? examOption({spec, ramp: ramp(), text})
+                  ? examOption({spec, ramp: ramp(), text, surface})
                   : spec.kind === "ablation"
                     ? ablationOption({spec, colour: palette(), text})
-                    : barsOption({spec, colour: palette(), text, fill: sides()})
+                    : barsOption({spec, colour: palette(), text, fill: sides(), surface})
 
             if (!option) {
               console.warn("[dronex] chart spec not understood, not drawing:", spec.kind)
@@ -697,6 +700,7 @@ defmodule BeamCampusWeb.DronexLive do
           assigns.islands
           |> Enum.map(&num(Dronex.fact(&1, :vitals) || %{}, "captures"))
           |> Enum.sum(),
+        live?: Dronex.watching?(),
         rounds:
           assigns.islands
           |> Enum.map(&num(Dronex.fact(&1, :vitals) || %{}, "rounds"))
@@ -704,19 +708,11 @@ defmodule BeamCampusWeb.DronexLive do
       )
 
     ~H"""
-    <div class="instrument mt-4 grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 lg:grid-cols-5">
-      <.figure label="islands" value={length(@islands)} note="heard from" />
+    <div class="instrument settle mt-4 divide-y divide-base-content/5 p-0 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:grid-cols-5">
+      <.figure label="islands" value={length(@islands)} note="heard from" live?={@live?} />
       <.figure label="raids settled" value={@settled} note={"#{@flying} still out"} />
-      <.figure
-        label="raider wins"
-        value={(@share && "#{@share}%") || "–"}
-        note="of settled raids"
-      />
-      <.figure
-        label="longest lineage"
-        value={@rounds}
-        note="breeding rounds"
-      />
+      <.figure label="raider wins" value={(@share && "#{@share}%") || "–"} note="of settled raids" />
+      <.figure label="longest lineage" value={@rounds} note="breeding rounds" />
       <.figure label="genomes captured" value={@captures} note="taken and kept" />
     </div>
     """
@@ -725,13 +721,26 @@ defmodule BeamCampusWeb.DronexLive do
   attr :label, :string, required: true
   attr :value, :any, required: true
   attr :note, :string, default: nil
+  attr :live?, :boolean, default: false
 
   defp figure(assigns) do
     ~H"""
-    <div>
-      <div class="text-xs uppercase tracking-widest opacity-40">{@label}</div>
-      <div class="mt-1 font-mono text-2xl tabular-nums">{@value}</div>
-      <div :if={@note} class="text-xs opacity-40">{@note}</div>
+    <div class="px-4 py-3 sm:px-5 sm:py-4">
+      <div class="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.15em] opacity-40">
+        {@label}
+        <%!-- ⚠ A HEARTBEAT, NOT A DECORATION. A page of numbers that update
+              silently cannot be told from a page that has frozen, and this one
+              spent the afternoon looking identical whether the mesh was
+              delivering or not. --%>
+        <span
+          :if={@live?}
+          class="inline-block size-1.5 rounded-full bg-[var(--status-good)] motion-safe:animate-pulse"
+          title="facts are arriving"
+        >
+        </span>
+      </div>
+      <div class="mt-1.5 font-mono text-3xl leading-none tabular-nums">{@value}</div>
+      <div :if={@note} class="mt-1.5 text-xs opacity-40">{@note}</div>
     </div>
     """
   end
@@ -755,9 +764,9 @@ defmodule BeamCampusWeb.DronexLive do
     assigns = assign(assigns, spec: spec)
 
     ~H"""
-    <section :if={@spec.drills != []} class="mt-8">
+    <section :if={@spec.drills != []} class="settle mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-base font-semibold">What each island can actually do</h2>
+        <h2 class="instrument-lede text-base font-semibold">What each island can actually do</h2>
         <span class="font-mono text-xs opacity-40">the drills, easiest first</span>
       </div>
 

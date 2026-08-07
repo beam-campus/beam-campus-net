@@ -1,5 +1,11 @@
 // Chart options for /dronex, as pure functions.
 //
+// House marks, applied by every builder below:
+//   - data-ends rounded 4px and anchored to the baseline, never both ends
+//   - a 1px gap in the panel colour between stacked segments and pie slices
+//   - no axis ticks, grid lines at 12% and axis lines at 20%
+//   - a staggered entrance, because everything here arrives at once on mount
+//
 // ⚠ THESE LIVE HERE SO A MACHINE CAN LOOK AT THE PICTURE. Twice in one afternoon
 // this page shipped a chart that was arithmetically correct and visually wrong: a
 // cell tint at 48% over a dark surface that could not be seen at all, and an
@@ -12,7 +18,7 @@
 // does exactly that. Nothing in this file may touch the DOM, `window` or CSS
 // variables: the hook resolves those and passes them in.
 
-export function barsOption({spec, colour, text, fill}) {
+export function barsOption({spec, colour, text, fill, surface}) {
   if (!Array.isArray(spec.series)) return null
 
   return {
@@ -28,6 +34,7 @@ export function barsOption({spec, colour, text, fill}) {
         nameGap: 24,
         data: spec.categories,
         axisLabel: {color: text, opacity: 0.6},
+        axisTick: {show: false},
         axisLine: {lineStyle: {opacity: 0.2}}
       },
       yAxis: {
@@ -35,23 +42,36 @@ export function barsOption({spec, colour, text, fill}) {
         name: spec.y_name,
         minInterval: 1,
         axisLabel: {color: text, opacity: 0.6},
+        axisLine: {show: false},
+        axisTick: {show: false},
         splitLine: {lineStyle: {opacity: 0.12}}
       },
+      animationDuration: 520,
+      animationEasing: "cubicOut",
+      animationDelay: (i) => i * 40,
       series: spec.series.map((s, i) => ({
         name: s.name,
         type: "bar",
         stack: "all",
+        barMaxWidth: 34,
         emphasis: {focus: "series"},
         // ⚠ A ROLE OVERRIDES THE PALETTE. A raider is red and an island is blue
         // everywhere on this page; a series that names a role takes the
         // convention, and anything else falls back to its position.
-        itemStyle: {color: (s.role && fill[s.role]) || colour[i % colour.length]},
+        itemStyle: {
+          color: (s.role && fill[s.role]) || colour[i % colour.length],
+          // ⚠ THE TOP OF THE STACK ONLY. Rounding both ends of a segment would
+          // detach it from the baseline and from the segment beneath it.
+          borderRadius: i === spec.series.length - 1 ? [4, 4, 0, 0] : 0,
+          borderColor: surface,
+          borderWidth: 1
+        },
         data: s.data
       }))
   }
 }
 
-export function matrixOption({spec, fill, text, height}) {
+export function matrixOption({spec, fill, text, height, surface}) {
   if (!Array.isArray(spec.cells) || !spec.rows) return null
 
   const px = height || 288
@@ -166,7 +186,7 @@ export function matrixOption({spec, fill, text, height}) {
 // colours: a drill has no raider and no island, and lending it red would say it
 // did. Not a rainbow: `visualMap` interpolates between the two ends given, so
 // two steps of one ramp is the whole scale.
-export function examOption({spec, ramp, text}) {
+export function examOption({spec, ramp, text, surface}) {
   if (!spec || !Array.isArray(spec.cells) || spec.cells.length === 0) return null
 
   return {
@@ -200,7 +220,7 @@ export function examOption({spec, ramp, text}) {
         type: "heatmap",
         data: spec.cells.map((c) => [c.x, c.y, c.rate]),
         progressive: 0,
-        itemStyle: {borderWidth: 0}
+        itemStyle: {borderRadius: 1, borderColor: surface, borderWidth: 0.5}
       }
     ]
   }
@@ -280,6 +300,7 @@ export function examProfileOption({spec, colour, text}) {
       type: "category",
       data: spec.drills,
       axisLabel: {color: text, opacity: 0.7, fontSize: 10},
+      axisTick: {show: false},
       axisLine: {lineStyle: {opacity: 0.2}}
     },
     yAxis: {
@@ -290,13 +311,19 @@ export function examProfileOption({spec, colour, text}) {
       min: 0,
       max: 100,
       axisLabel: {color: text, opacity: 0.6, formatter: "{value}%"},
+      axisLine: {show: false},
+      axisTick: {show: false},
       splitLine: {lineStyle: {opacity: 0.12}}
     },
+    animationDuration: 520,
+    animationEasing: "cubicOut",
+    animationDelay: (i) => i * 25,
     series: spec.series.map((s) => ({
       name: s.island,
       type: "bar",
       barMaxWidth: 14,
       emphasis: {focus: "series"},
+      itemStyle: {borderRadius: [3, 3, 0, 0]},
       data: s.rates
     }))
   }
