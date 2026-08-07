@@ -32,6 +32,15 @@ defmodule Dronex.RememberRaids do
   teaching every instrument to read a second source and merge, is how a pure
   function of its input becomes something that needs a database to test.
 
+  ## The store is SQLite, and for this job that is the right shape
+
+  `BeamCampus.Repo` is `Ecto.Adapters.SQLite3`, a file on the volume the site
+  already mounts at `/data`. A read model is a rebuildable projection of facts
+  that happened to arrive, not a system of record: it wants a schema and a query
+  language and it does not want a server, replication or a network hop. One
+  writer on a thirty second timer and a handful of readers is well inside what
+  WAL mode does comfortably.
+
   ## ⚠⚠ ONLY SETTLED RAIDS, AND ONLY ONCE
 
   A raid with no recording is still in flight; it has no outcome and writing it
@@ -96,7 +105,7 @@ defmodule Dronex.RememberRaids do
   @doc "Rows currently stored, newest first. For a caller that wants the table itself."
   @spec stored(pos_integer()) :: [Raid.t()]
   def stored(limit \\ 500) do
-    Repo.all(from r in Raid, order_by: [desc: r.inserted_at], limit: ^limit)
+    Repo.all(from(r in Raid, order_by: [desc: r.inserted_at], limit: ^limit))
   end
 
   @doc "How many raids are on disk. Nil when the database cannot be reached."
@@ -176,7 +185,7 @@ defmodule Dronex.RememberRaids do
 
   defp maybe_prune(ticks) when rem(ticks, @prune_every) == 0 do
     cutoff = NaiveDateTime.utc_now() |> NaiveDateTime.add(-retention_days() * 86_400, :second)
-    Repo.delete_all(from r in Raid, where: r.inserted_at < ^cutoff)
+    Repo.delete_all(from(r in Raid, where: r.inserted_at < ^cutoff))
   rescue
     _unreachable -> :ok
   end

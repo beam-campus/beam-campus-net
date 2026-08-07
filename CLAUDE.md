@@ -37,13 +37,23 @@ mirroring `macula-internal/macula-realm`'s operational practices.
 cd system
 mix setup && mix phx.server      # http://localhost:4000
 ```
-The landing page renders without a database. `mix ecto.create` needs Postgres.
+The landing page renders without a database.
+
+⚠ **THE DATABASE IS SQLITE, NOT POSTGRES.** `BeamCampus.Repo` is
+`Ecto.Adapters.SQLite3`: a file at `beam_campus_dev.db` in dev, `beam_campus_test*.db`
+in test, and `/data/beam_campus.db` on a named volume in production. There is no
+Postgres server for the site anywhere, so `mix ecto.create` needs nothing running.
+This file previously said it needed Postgres, and that sentence sent a session
+building a read model against an engine the site does not use.
 
 ## Full stack
 
-`docker/dev/docker-compose.yml` — site + Postgres + Hanko (+ its own Postgres) +
-Caddy. TLS is Caddy's job (automatic Let's Encrypt in prod, internal CA on
-localhost in dev).
+`docker/dev/docker-compose.yml` — site + Hanko + `hanko-postgres` + Caddy. The
+ONLY Postgres in that stack is Hanko's own, which Hanko requires and the site
+never touches. Production runs no Postgres at all: site, Caddy, watchtower.
+
+TLS is Caddy's job (automatic Let's Encrypt in prod, internal CA on localhost in
+dev).
 
 ## Practices mirrored from macula-realm
 

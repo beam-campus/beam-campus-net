@@ -36,7 +36,8 @@ defmodule BeamCampus.Repo.Migrations.CreateDronexRaids do
       add :defenders, :integer
       add :defenders_home, :integer
 
-      # ⚠ JSONB RATHER THAN A COLUMN PER NUMBER. These are computed once at
+      # ⚠ A JSON DOCUMENT RATHER THAN A COLUMN PER NUMBER. `:map` on SQLite is
+      # TEXT holding JSON, encoded and decoded by the adapter. These are computed once at
       # ingest from frames that are then thrown away, and which readings exist
       # changes as instruments are added: damage today, coverage today, whatever
       # the ablation needs next. A column per reading would make every new
