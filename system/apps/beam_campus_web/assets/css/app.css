@@ -290,6 +290,25 @@
      floor on purpose: that check exists to stop an identity colour reading as
      grey, and here grey IS the identity. */
   --side-draw: #8a8a86;
+
+  /* ⚠ THE ARENA HAS ITS OWN GROUND AND IT IS ALWAYS DARK. The replay canvas
+     paints a night sky whatever the page theme is, so these are declared ONCE
+     and never overridden per mode: a light-mode override would put light-mode
+     colours on a dark canvas.
+
+     They lived as five hex literals inside the replay hook, under a comment
+     saying colours come from the stylesheet. They did not.
+
+     ⚠⚠ THE MASTS STAY TEAL AND MUST NOT BECOME `--side-defender'. They are the
+     defender's ground, so they belong to the same family and need a DISTINCT
+     mark: merging them into defender blue would lose the towers inside the swarm
+     that stands over them, which is the invisibility the teal was chosen to fix. */
+  --arena-floor: #0a1220;
+  --arena-ground: #45c8d8;
+  --arena-sensor: #9ae9f2;
+  --munition-guided: #e8a33d;
+  --munition-ballistic: #9aa3af;
+  --drone-withdrawn: #7bc47f;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -381,6 +400,25 @@
      floor on purpose: that check exists to stop an identity colour reading as
      grey, and here grey IS the identity. */
   --side-draw: #8a8a86;
+
+  /* ⚠ THE ARENA HAS ITS OWN GROUND AND IT IS ALWAYS DARK. The replay canvas
+     paints a night sky whatever the page theme is, so these are declared ONCE
+     and never overridden per mode: a light-mode override would put light-mode
+     colours on a dark canvas.
+
+     They lived as five hex literals inside the replay hook, under a comment
+     saying colours come from the stylesheet. They did not.
+
+     ⚠⚠ THE MASTS STAY TEAL AND MUST NOT BECOME `--side-defender'. They are the
+     defender's ground, so they belong to the same family and need a DISTINCT
+     mark: merging them into defender blue would lose the towers inside the swarm
+     that stands over them, which is the invisibility the teal was chosen to fix. */
+  --arena-floor: #0a1220;
+  --arena-ground: #45c8d8;
+  --arena-sensor: #9ae9f2;
+  --munition-guided: #e8a33d;
+  --munition-ballistic: #9aa3af;
+  --drone-withdrawn: #7bc47f;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;

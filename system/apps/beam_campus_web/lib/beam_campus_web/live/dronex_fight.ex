@@ -157,7 +157,7 @@ defmodule BeamCampusWeb.DronexFight do
             this.ctx = this.el.getContext("2d")
             // Read once: a canvas cannot use a custom property, and resolving
             // one per drone per frame would do it thousands of times a second.
-            this.sides = this.readSides()
+            this.palette = this.readPalette()
             this.i = 0
             this.playing = true
             this.read()
@@ -175,11 +175,25 @@ defmodule BeamCampusWeb.DronexFight do
             window.removeEventListener("resize", this.resize)
           },
 
-          readSides() {
+          // ⚠ EVERY COLOUR THE CANVAS PAINTS, READ ONCE. A canvas cannot use a
+          // custom property, so each one has to be resolved to a string; doing
+          // that per drone per frame would run getComputedStyle thousands of
+          // times a second. The fallbacks are the values these had while they
+          // were literals, so a stylesheet that fails to load degrades to the
+          // picture that shipped rather than to black on black.
+          readPalette() {
             const css = getComputedStyle(document.documentElement)
+            const get = (name, fallback) =>
+              css.getPropertyValue(name).trim() || fallback
+
             return {
-              attacker: css.getPropertyValue("--side-attacker").trim() || "#e2556e",
-              defender: css.getPropertyValue("--side-defender").trim() || "#4c8dff"
+              attacker: get("--side-attacker", "#e2556e"),
+              defender: get("--side-defender", "#4c8dff"),
+              ground: get("--arena-ground", "#45c8d8"),
+              sensor: get("--arena-sensor", "#9ae9f2"),
+              guided: get("--munition-guided", "#e8a33d"),
+              ballistic: get("--munition-ballistic", "#9aa3af"),
+              withdrawn: get("--drone-withdrawn", "#7bc47f")
             }
           },
 
@@ -305,7 +319,7 @@ defmodule BeamCampusWeb.DronexFight do
             const [tx, ty] = this.project(x, y, top)
 
             c.globalAlpha = 1
-            c.strokeStyle = "#45C8D8"
+            c.strokeStyle = this.palette.ground
             c.lineWidth = 2
             c.beginPath()
             c.moveTo(lx, ly); c.lineTo(tx, ty); c.lineTo(rx, ry)
@@ -324,12 +338,12 @@ defmodule BeamCampusWeb.DronexFight do
 
             // The head that does the looking.
             c.globalAlpha = 1
-            c.fillStyle = "#9AE9F2"
+            c.fillStyle = this.palette.sensor
             c.beginPath(); c.arc(tx, ty, 3.5, 0, 6.284); c.fill()
 
             // A pad on the floor, so the tower is planted rather than hovering.
             const [bx, by] = this.project(x, y, z)
-            c.fillStyle = "#45C8D8"
+            c.fillStyle = this.palette.ground
             c.globalAlpha = 0.55
             c.beginPath()
             c.moveTo(bx - 6, by); c.lineTo(bx, by - 2.4)
@@ -497,7 +511,7 @@ defmodule BeamCampusWeb.DronexFight do
             for (let n = 0; n + this.kstride <= k.length; n += this.kstride) {
               const [px, py] = this.project(k[n], k[n + 1], k[n + 2])
               c.globalAlpha = 0.32
-              c.strokeStyle = "#45C8D8"
+              c.strokeStyle = this.palette.ground
               c.lineWidth = 1
               c.beginPath(); c.arc(px, py, 3, 0, 6.284); c.stroke()
             }
@@ -535,7 +549,7 @@ defmodule BeamCampusWeb.DronexFight do
             for (let k = 0; k + this.mstride <= f.m.length; k += this.mstride) {
               const [px, py] = this.project(f.m[k + 1], f.m[k + 2], f.m[k + 3])
               c.globalAlpha = 1
-              c.fillStyle = f.m[k + 4] ? "#E8A33D" : "#9AA3AF"
+              c.fillStyle = f.m[k + 4] ? this.palette.guided : this.palette.ballistic
               c.beginPath()
               c.arc(px, py, f.m[k + 4] ? 2.5 : 1.5, 0, 6.284)
               c.fill()
@@ -561,7 +575,7 @@ defmodule BeamCampusWeb.DronexFight do
               // ⚠ FROM THE STYLESHEET, NOT FROM HERE. These were two hex
               // literals in this file, which is why nothing else could follow
               // the convention and the duration histogram contradicted it.
-              const colour = attacker ? this.sides.attacker : this.sides.defender
+              const colour = attacker ? this.palette.attacker : this.palette.defender
               const [px, py] = this.project(x, y, z)
               const [gx, gy] = this.project(x, y, 0)
 
@@ -580,7 +594,7 @@ defmodule BeamCampusWeb.DronexFight do
               })
 
               // ⚠ A GROUND MARK, NOT A SHADOW, AND THE DIFFERENCE IS THAT ONE OF
-              // THEM IS VISIBLE. This drew black at alpha 0.16 — on a #0a1220
+              // THEM IS VISIBLE. This drew black at alpha 0.16 — on `--arena-floor'
               // floor, which is near enough black that it painted nothing at
               // all. It was inherited from a canvas with a lighter background
               // and was probably never visible there either.
@@ -602,7 +616,7 @@ defmodule BeamCampusWeb.DronexFight do
 
               c.globalAlpha = state === 2 ? 0.25 : 1
               const r = 4
-              c.fillStyle = state === 1 ? "#7BC47F" : colour
+              c.fillStyle = state === 1 ? this.palette.withdrawn : colour
               c.beginPath(); c.arc(px, py, r, 0, 6.284); c.fill()
 
               if (state === 0) {
@@ -787,5 +801,5 @@ defmodule BeamCampusWeb.DronexFight do
   defp side_colour("defender"), do: "var(--side-defender)"
   defp side_colour(_draw), do: "var(--side-draw)"
 
-  defp backdrop, do: "bg-[#0a1220]"
+  defp backdrop, do: "bg-[var(--arena-floor)]"
 end
