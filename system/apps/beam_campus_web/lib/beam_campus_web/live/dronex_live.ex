@@ -465,22 +465,40 @@ defmodule BeamCampusWeb.DronexLive do
         }
 
         export default {
+          // ⚠ NOTHING IN HERE MAY TAKE THE PAGE WITH IT. A hook callback throwing
+          // during `applyJoinPatch' aborts the join, and the visitor gets
+          // "Something went wrong, attempting to reconnect" instead of a page.
+          // That happened on 2026-08-07: a browser holding the PREVIOUS bundle
+          // live-navigated into markup carrying a spec shape that bundle had
+          // never heard of, read `spec.series.length' off a matrix, and threw.
+          //
+          // Deploy skew cannot be fixed from the new side, because the old code
+          // is what runs. What can be fixed is the blast radius: a chart that
+          // cannot draw is an empty box, never a dead page.
+          safely(what) {
+            try {
+              what()
+            } catch (e) {
+              console.error("[dronex] chart not drawn:", e)
+            }
+          },
+
           mounted() {
             this.chart = echarts.init(this.el, null, {renderer: "svg"})
-            this.draw()
-            this.onResize = () => this.chart.resize()
+            this.safely(() => this.draw())
+            this.onResize = () => this.safely(() => this.chart.resize())
             window.addEventListener("resize", this.onResize)
 
             // A theme toggle changes the custom properties under us, and the
             // chart has already resolved them, so it has to be told.
-            this.theme = new MutationObserver(() => this.draw())
+            this.theme = new MutationObserver(() => this.safely(() => this.draw()))
             this.theme.observe(document.documentElement, {
               attributes: true,
               attributeFilter: ["data-theme"]
             })
           },
 
-          updated() { this.draw() },
+          updated() { this.safely(() => this.draw()) },
 
           destroyed() {
             window.removeEventListener("resize", this.onResize)
@@ -491,6 +509,14 @@ defmodule BeamCampusWeb.DronexLive do
           draw() {
             const spec = JSON.parse(this.el.dataset.spec)
             if (spec.kind === "matrix") return this.drawMatrix(spec)
+
+            // ⚠ A SHAPE THIS BUILD DOES NOT KNOW IS NOT AN EXCEPTION. The server
+            // may be newer than this file; say so and draw nothing.
+            if (!Array.isArray(spec.series)) {
+              console.warn("[dronex] unknown chart spec, not drawing:", spec.kind)
+              return
+            }
+
             const colour = palette()
             const text = ink()
 
@@ -538,6 +564,7 @@ defmodule BeamCampusWeb.DronexLive do
           // case for a slice that is the whole circle — which was wrong on the
           // first attempt, and is a bug a pie library does not have.
           drawMatrix(spec) {
+            if (!Array.isArray(spec.cells) || !spec.rows) return
             const css = getComputedStyle(document.documentElement)
             const text = ink()
             const fill = {
