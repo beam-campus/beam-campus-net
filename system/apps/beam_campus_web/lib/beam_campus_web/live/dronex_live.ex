@@ -1406,7 +1406,7 @@ defmodule BeamCampusWeb.DronexLive do
                 >
                   <div
                     class="absolute inset-0 rounded-sm"
-                    style={"background: #{route_step(@pairs[{a.id, d.id}], @busiest)}"}
+                    style={"background: #{route_step(@pairs[{a.id, d.id}])}"}
                   >
                   </div>
                   <span class="relative font-mono tabular-nums">
@@ -1420,8 +1420,11 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each cell is the row island raiding the column island, written as its own <strong>wins–losses</strong>. Shading is how busy that route is against the
-        busiest one{(@busiest && ", #{@busiest} raids") || ""}. A dot is a raid
+        Each cell is the row island raiding the column island, written as its own <strong>wins–losses</strong>. Colour is <strong>which way that pair leans</strong>: red where the raider prevails,
+        blue where the island holds, grey where it is even. A cell stays uncoloured
+        until <strong>three</strong> raids have been decided there, because one raid won is
+        100% and would shout louder than anything else on the grid. The busiest
+        route has {@busiest || 0} raids. A dot is a raid
         still out: both sides commit on acceptance and the defender publishes the
         recording when it ends, so a pair with commitments and no recording is
         either in flight or one whose defender went dark, which look the same from
@@ -1442,12 +1445,23 @@ defmodule BeamCampusWeb.DronexLive do
 
   # ⚠ NO DATA IS NOT A ZERO ROUTE. A pair that has never fought must not shade
   # like one that fought and always lost.
-  defp route_step(nil, _busiest), do: "transparent"
-  defp route_step(%{raids: 0}, _busiest), do: "transparent"
-  defp route_step(_cell, nil), do: "transparent"
+  # ⚠ THE FILL IS THE DIRECTION NOW, NOT THE TRAFFIC. Colour is read before text
+  # is, and this grid was spending it on how busy a route was while the finding,
+  # who beats whom, sat in small mono digits. `ReadTheLedger.lean/1` owns the
+  # judgement so it can be tested without a browser; this only paints it.
+  defp route_step(cell), do: tint(Dronex.ReadTheLedger.lean(cell))
 
-  defp route_step(%{raids: r}, busiest),
-    do: "var(--chart-seq-#{min(5, div((r - 1) * 5, busiest) + 1)})"
+  # ⚠⚠ TOO FEW AND DEAD EVEN ARE DIFFERENT ANSWERS. A pair that has fought ten
+  # times to a standstill has told you something; a pair that has fought once has
+  # not, and painting both blank would say the same thing about both.
+  defp tint(:thin), do: "transparent"
+  defp tint(:even), do: "color-mix(in oklab, var(--side-draw) 22%, transparent)"
+
+  defp tint({:attacker, n}),
+    do: "color-mix(in oklab, var(--side-attacker) #{n * 16}%, transparent)"
+
+  defp tint({:defender, n}),
+    do: "color-mix(in oklab, var(--side-defender) #{n * 16}%, transparent)"
 
   @doc """
   Every island against every drill, as one matrix.

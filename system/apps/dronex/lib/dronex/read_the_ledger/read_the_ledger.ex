@@ -82,6 +82,48 @@ defmodule Dronex.ReadTheLedger do
   # A draw is settled and is neither side's win. It still cost both of them.
   defp add(c, _draw), do: %{c | raids: c.raids + 1}
 
+  # ⚠ HOW MANY DECIDED RAIDS BEFORE A CELL IS ALLOWED TO CLAIM A DIRECTION.
+  # A pair that has fought once and won is 100%, and painted like one it shouts
+  # the loudest thing on the grid off a single fight. Below this the cell is
+  # drawn neutral and its numbers still show: the reader can see 1-0 and judge it.
+  @min_decided 3
+
+  @doc """
+  Which way a pair leans and how far, on a scale of one to five.
+
+  ⚠ THIS IS WHAT THE GRID IS FOR AND IT WAS NOT BEING DRAWN. The cell fill used
+  to shade by raid COUNT, so the matrix answered "how busy is this route", a
+  quantity both sides own equally, while the direction sat in small text. Colour
+  is read before text is, so the page led with the least interesting number.
+
+  Measured 2026-08-07: the fleet total is 31 attacker wins in 64 raids, which
+  reads as a coin flip. Per pair it ranges from 0 of 4 to 3 of 3. The whole
+  finding lives in the spread and nothing was drawing it.
+
+  `:even` and `:thin` are DIFFERENT and must render differently. A pair that has
+  fought ten times to a standstill has told you something; a pair that has fought
+  once has not.
+
+  Draws are excluded from the direction rather than counted as half. A draw says
+  neither side prevailed, which is not evidence about which one would.
+  """
+  @spec lean(map() | nil) :: {:attacker | :defender, 1..5} | :even | :thin
+  def lean(nil), do: :thin
+
+  def lean(%{wins: w, losses: l}) when w + l < @min_decided, do: :thin
+  def lean(%{wins: w, losses: l}) when 2 * w == w + l, do: :even
+  def lean(%{wins: w, losses: l}) when 2 * w > w + l, do: {:attacker, step(w, w + l)}
+  def lean(%{wins: w, losses: l}), do: {:defender, step(l, w + l)}
+
+  # Distance from a coin flip, in five steps. Never zero: a pair that is not even
+  # must not render as though it were, and 60% is a real if weak lean.
+  defp step(favoured, decided) do
+    (favoured / decided - 0.5) * 10
+    |> round()
+    |> max(1)
+    |> min(5)
+  end
+
   @doc """
   The busiest single route, so a caption can say what the darkest cell means.
 
