@@ -760,6 +760,40 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # purpose: it fails loudly when the drawing goes away, which is better than the
   # page failing quietly.
 
+  # ⚠⚠ TWO ISLANDS MAY CALL THEMSELVES THE SAME THING, and in an archipelago
+  # meant to admit strangers they eventually will. `dronex_identity' says so in
+  # its own header: "Anyone may type your island's name into their own config".
+  #
+  # The board always kept them apart, because every row is keyed on `island_id'.
+  # It was THIS PAGE that merged them, by never rendering an id anywhere, so two
+  # correct and separate rows were byte-identical on screen and a reader saw one
+  # island contradicting itself.
+  #
+  # The fixtures elsewhere in this file use ids of three characters, which is
+  # shorter than a mark, so they never exercised this. These are real ones.
+  test "two islands with one name are told apart on the page", %{conn: conn} do
+    first = "a6b1605a0f8f82d8dde1bfa260e41168"
+    second = "e649229946edce4883dec30091566da5"
+
+    Board.put(first, :vitals, %{"island" => "beam01", "island_id" => first, "roster" => 90})
+    Board.put(second, :vitals, %{"island" => "beam01", "island_id" => second, "roster" => 90})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "a6b1"
+    assert html =~ "e649"
+  end
+
+  # And the mark rides along in the text-only places too, where markup cannot go.
+  test "the panel heading names the island and says which one", %{conn: conn} do
+    id = "a6b1605a0f8f82d8dde1bfa260e41168"
+    Board.put(id, :vitals, %{"island" => "beam01", "island_id" => id, "roster" => 90})
+
+    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert panel_island(render_click(view, "focus_island", %{"id" => id})) == "beam01 a6b1"
+  end
+
   # ⚠ CLICKING AN ISLAND FILTERS BOTH ROLES, NOT JUST THE HOST. A raid is
   # published by the DEFENDER because the defender hosted it, so filtering on the
   # publisher alone would answer "fights fought in this airspace" and silently
@@ -880,12 +914,18 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
   # Which island the side panel says it is showing. One heading, because the
   # scope used to be announced three times in one 300px column.
+  # ⚠ THE HEADING HOLDS MARKUP NOW, so this strips tags rather than refusing to
+  # match them. An island's name is rendered beside the four characters of its id
+  # that say WHICH island, in its own muted span, so `[^<]+' stopped matching the
+  # moment names stopped being bare text.
   defp panel_island(html) do
-    case Regex.run(~r|<h2 class="text-base font-semibold">\s*([^<]+?)\s*</h2>|, html) do
-      [_, name] -> name
+    case Regex.run(~r|<h2 class="text-base font-semibold">(.*?)</h2>|s, html) do
+      [_, inner] -> inner |> String.replace(~r|<[^>]*>|, "") |> squashed()
       _ -> nil
     end
   end
+
+  defp squashed(text), do: text |> String.replace(~r|\s+|, " ") |> String.trim()
 
   # ⚠ THE DEFAULT IS EVERYTHING, and it has to be. The map reports what it is
   # showing only after it has painted, so before that — and for anyone on a

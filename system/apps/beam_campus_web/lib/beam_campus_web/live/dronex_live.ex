@@ -357,6 +357,40 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  # ── Who is who ──────────────────────────────────────────────────
+
+  @doc """
+  An island's name, and the four characters that say WHICH island.
+
+  ⚠ **A NAME IS A STRING SOMEBODY TYPED ABOUT THEMSELVES.** Two islands may both
+  call themselves `beam01`, and in an archipelago meant to admit strangers they
+  eventually will. The board already keeps them apart, since every row is keyed
+  on `island_id`; it was this page that merged them, by never showing an id at
+  all. The reasoning, and what this does NOT fix, is in `Dronex.TellIslandsApart`.
+
+  The mark is muted so it reads as a qualifier rather than as part of the name.
+
+  ⚠ **AND IT IS NOT `aria-hidden`, WHICH THE FIRST VERSION HAD.** Hiding the mark
+  from a screen reader hides the disambiguation from exactly the readers who
+  cannot see the styling, so two islands called `beam01` would be told apart for
+  sighted visitors and merged for everybody else. The separator is a real space
+  INSIDE the span rather than an `ml-1`, because a CSS margin is not a space: the
+  text read out was "beam01a6b1".
+  """
+  attr :row, :map, required: true
+  attr :class, :string, default: "font-mono text-xs opacity-70"
+
+  def island_name(assigns) do
+    {name, mark} = Dronex.TellIslandsApart.named(assigns.row)
+    assigns = assign(assigns, name: name, mark: mark)
+
+    ~H"""
+    <span class={@class}>
+      {@name}<span :if={@mark} class="opacity-50">{" " <> @mark}</span>
+    </span>
+    """
+  end
+
   # ── History ─────────────────────────────────────────────────────
 
   @doc """
@@ -707,7 +741,7 @@ defmodule BeamCampusWeb.DronexLive do
       <div :if={@series != []} class="instrument mt-2 grid gap-4 p-3 sm:grid-cols-2 lg:grid-cols-3">
         <figure :for={{row, samples} <- @series}>
           <figcaption class="flex items-baseline justify-between gap-2">
-            <span class="font-mono text-xs opacity-70">{Dronex.label(row)}</span>
+            <.island_name row={row} />
             <span class="font-mono text-sm tabular-nums">{List.last(samples).captures}</span>
           </figcaption>
 
@@ -715,7 +749,7 @@ defmodule BeamCampusWeb.DronexLive do
             viewBox="0 0 200 44"
             class="mt-1 h-auto w-full"
             role="img"
-            aria-label={"#{Dronex.label(row)} has captured #{List.last(samples).captures} genomes, against a fleet high of #{@ceiling}"}
+            aria-label={"#{Dronex.TellIslandsApart.spoken(row)} has captured #{List.last(samples).captures} genomes, against a fleet high of #{@ceiling}"}
           >
             <polyline
               points={sparkline(samples, @ceiling)}
@@ -919,7 +953,7 @@ defmodule BeamCampusWeb.DronexLive do
           </thead>
           <tbody>
             <tr :for={row <- @islands}>
-              <td class="font-mono text-xs opacity-70">{Dronex.label(row)}</td>
+              <td><.island_name row={row} /></td>
 
               <%!-- ⚠ VOID SPANS THE ARMS RATHER THAN DRAWING THREE ZEROES.
                     Nothing was transmitted, so there is no measurement to plot,
@@ -1119,14 +1153,14 @@ defmodule BeamCampusWeb.DronexLive do
           <thead>
             <tr>
               <th></th>
-              <th :for={d <- @ordered} class="px-1 pb-1 text-center font-normal opacity-50">
-                {Dronex.label(d)}
+              <th :for={d <- @ordered} class="px-1 pb-1 text-center font-normal">
+                <.island_name row={d} class="font-mono text-xs opacity-50" />
               </th>
             </tr>
           </thead>
           <tbody>
             <tr :for={a <- @ordered} class={[@focus == a.id && "font-semibold"]}>
-              <td class="py-0.5 pr-2 text-right font-mono opacity-70">{Dronex.label(a)}</td>
+              <td class="py-0.5 pr-2 text-right"><.island_name row={a} /></td>
               <td :for={d <- @ordered} class="p-0.5">
                 <%!-- An island does not raid itself, so the diagonal is blank
                       rather than zero. --%>
@@ -1142,7 +1176,13 @@ defmodule BeamCampusWeb.DronexLive do
                     "relative flex h-7 w-14 items-center justify-center rounded-sm border",
                     (@focus == a.id && "border-primary/60") || "border-base-300"
                   ]}
-                  title={cell_title(Dronex.label(a), Dronex.label(d), @pairs[{a.id, d.id}])}
+                  title={
+                    cell_title(
+                      Dronex.TellIslandsApart.spoken(a),
+                      Dronex.TellIslandsApart.spoken(d),
+                      @pairs[{a.id, d.id}]
+                    )
+                  }
                 >
                   <div
                     class="absolute inset-0 rounded-sm"
@@ -1236,7 +1276,7 @@ defmodule BeamCampusWeb.DronexLive do
           <tbody>
             <tr :for={row <- @islands} class={[@focus == row.id && "font-semibold"]}>
               <td class="whitespace-nowrap py-0.5 pr-2 text-right font-mono opacity-70">
-                {Dronex.label(row)}
+                <.island_name row={row} />
                 <%!-- ⚠ AN ISLAND SITTING A CAPTURED CHAMPION IS NOT REPORTING ITS
                       OWN BREEDING. `roster:best/1` sits the exam and a raid
                       admits foreign genomes into the roster it is chosen from. --%>
@@ -1254,7 +1294,7 @@ defmodule BeamCampusWeb.DronexLive do
                     "flex h-7 w-14 items-center justify-center rounded-sm border",
                     (@focus == row.id && "border-primary/60") || "border-base-300"
                   ]}
-                  title={"#{Dronex.label(row)}: #{wins} won, #{drew} drawn, #{lost} lost of #{starts}"}
+                  title={"#{Dronex.TellIslandsApart.spoken(row)}: #{wins} won, #{drew} drawn, #{lost} lost of #{starts}"}
                 >
                   <%!-- ⚠ A STEP FROM THE RAMP, NOT AN OPACITY ON A BRAND HUE.
                         Fading `primary' moves lightness and chroma together and
@@ -1477,9 +1517,9 @@ defmodule BeamCampusWeb.DronexLive do
           phx-click="focus_island"
           phx-value-id={@focus}
           class="badge badge-primary badge-sm gap-1"
-          aria-label={"showing #{Dronex.label(@focused)} only. Activate to show every island."}
+          aria-label={"showing #{Dronex.TellIslandsApart.spoken(@focused)} only. Activate to show every island."}
         >
-          showing {Dronex.label(@focused)} <span aria-hidden="true">✕</span>
+          showing <.island_name row={@focused} class="" /> <span aria-hidden="true">✕</span>
         </button>
 
         <span :if={!@focused} class="text-xs opacity-40">
@@ -1567,11 +1607,12 @@ defmodule BeamCampusWeb.DronexLive do
     <section class="mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-base font-semibold">
-          {(@focused && Dronex.label(@focused)) || "Every island"}
+          <.island_name :if={@focused} row={@focused} class="" />
+          <span :if={!@focused}>Every island</span>
         </h2>
 
         <span :if={@panel != :fights and !@selected?} class="text-xs opacity-40">
-          {Dronex.label(@row)}, shown because nothing is selected
+          <.island_name row={@row} class="" />, shown because nothing is selected
         </span>
       </div>
 

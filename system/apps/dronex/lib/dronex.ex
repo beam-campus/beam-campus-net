@@ -32,6 +32,7 @@ defmodule Dronex do
   calling it a raid would be the first lie this track told.
   """
 
+  alias Dronex.TellIslandsApart
   alias Dronex.WatchBouts
   alias Dronex.WatchBouts.Board
 
@@ -379,17 +380,18 @@ defmodule Dronex do
   defp why([]), do: "a raid, and nothing else to say for it"
   defp why(reasons), do: reasons |> Enum.max_by(&elem(&1, 0)) |> elem(1)
 
-  defp title(:raid, f), do: "#{name_of(Map.get(f, "attacker_id"))} → #{Map.get(f, "island")}"
-  defp title(:bout, f), do: "#{Map.get(f, "island")} against a drill"
-
-  defp name_of(nil), do: "somebody"
-
-  defp name_of(id) do
-    case island(id) do
-      nil -> String.slice(to_string(id), 0, 8)
-      row -> label(row)
-    end
+  # ⚠ BOTH SIDES CARRY THEIR MARK, and the defender's is not taken from the fact.
+  # A raid fact ships `island' (the defender's own label) and `attacker_id' (an
+  # id with no name), so this used to print a self-declared string on one side of
+  # the arrow and a looked-up one on the other. Both are self-declared either
+  # way, which is exactly why neither may appear without the id that separates
+  # two islands who typed the same thing. See `Dronex.TellIslandsApart'.
+  defp title(:raid, f) do
+    "#{TellIslandsApart.spoken_id(Map.get(f, "attacker_id"))} → " <>
+      TellIslandsApart.spoken_id(Map.get(f, "island_id"))
   end
+
+  defp title(:bout, f), do: "#{TellIslandsApart.spoken_id(Map.get(f, "island_id"))} against a drill"
 
   @doc """
   Islands ranked, and ranked on the FROZEN BENCHMARK rather than on raids.
@@ -415,8 +417,11 @@ defmodule Dronex do
   defp standing(row) do
     v = fact(row, :vitals) || %{}
 
+    {name, mark} = TellIslandsApart.named(row)
+
     %{
-      island: label(row),
+      island: name,
+      mark: mark,
       id: row.id,
       score: Board.exam_score(v),
       # "bred" | "captured" | "unknown" — an older island publishes none of them.
