@@ -65,7 +65,8 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     assert html =~ "training"
-    assert html =~ "won by attacker"
+    # The page speaks raider/island now; `attacker` stays on the wire only.
+    assert html =~ "raider won"
     assert html =~ "beam01"
 
     # ⚠ A TRAINING BOUT MUST NOT BE DRESSED AS A RAID. The assertion used to be
@@ -365,7 +366,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     assert html =~ "Does the radio matter"
     assert html =~ "+ means the swarm got worse without it"
-    assert html =~ "25 points of attacker score"
+    assert html =~ "25 points of raider score"
   end
 
   # ⚠ VOID IS NOT ZERO. Nothing was transmitted, so there is no measurement — and
@@ -424,7 +425,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     # Three readings, mean 16.7 — and the mean is drawn, not the latest.
-    assert html =~ "3 readings, mean 16.7 points of attacker score"
+    assert html =~ "3 readings, mean 16.7 points of raider score"
   end
 
   # ── Who raids whom, which replaced the map ──────────────────────

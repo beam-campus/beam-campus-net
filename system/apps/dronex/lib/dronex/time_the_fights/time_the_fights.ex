@@ -62,11 +62,11 @@ defmodule Dronex.TimeTheFights do
   # not a palette slot. Blue is us, red is what is coming at us, which is how the
   # replay player has drawn the same two sides all along. Taking the next
   # categorical hue instead made this chart contradict the animation beside it.
-  @outcomes [
-    {"attacker", "raider won", "attacker"},
-    {"draw", "drawn", "draw"},
-    {"defender", "island held", "defender"}
-  ]
+  # ⚠ FROM `SayWhoWon', NOT SPELLED OUT HERE. These same three strings were
+  # written independently in this module, in `WeighTheExperience' and in the
+  # replay header, and a page that says "raider won" in one panel and "won by
+  # attacker" in another asks a visitor to work out that they are the same thing.
+  @outcomes Dronex.SayWhoWon.every()
 
   @doc """
   The distribution of settled raid durations.

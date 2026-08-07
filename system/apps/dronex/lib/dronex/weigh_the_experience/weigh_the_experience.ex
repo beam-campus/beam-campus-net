@@ -109,10 +109,7 @@ defmodule Dronex.WeighTheExperience do
   def lanes(points) do
     by = Enum.group_by(points, &Map.get(&1, "winner", &1.winner))
 
-    [
-      {"raider won", Map.get(by, "attacker", [])},
-      {"drawn", Map.get(by, "draw", [])},
-      {"island held", Map.get(by, "defender", [])}
-    ]
+    # The same three words the histogram and the replay use, from one place.
+    for {wire, said, _role} <- Dronex.SayWhoWon.every(), do: {said, Map.get(by, wire, [])}
   end
 end

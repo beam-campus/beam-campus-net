@@ -655,8 +655,8 @@ defmodule BeamCampusWeb.DronexFight do
       <div class="flex items-baseline justify-between">
         <h3 class="text-base font-semibold">The last fight</h3>
         <span class="text-xs opacity-50">
-          {@kind} · {@ticks} ticks · won by
-          <span style={"color: #{side_colour(@winner)}"}>{@winner}</span>
+          {@kind} · {@ticks} ticks ·
+          <span style={"color: #{side_colour(@winner)}"}>{Dronex.SayWhoWon.said(@winner)}</span>
         </span>
       </div>
 
@@ -681,7 +681,7 @@ defmodule BeamCampusWeb.DronexFight do
           (@big && "aspect-[16/9]") || "aspect-[5/3]"
         ]}
         role="img"
-        aria-label={"a #{@ticks} tick engagement, won by #{@winner}"}
+        aria-label={"a #{@ticks} tick engagement, #{Dronex.SayWhoWon.said(@winner)}"}
       >
       </canvas>
 

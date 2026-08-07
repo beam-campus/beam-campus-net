@@ -1197,7 +1197,7 @@ defmodule BeamCampusWeb.DronexLive do
         </summary>
         <p class="mt-2 text-xs opacity-50">
           An island re-runs the same engagements with one channel silenced and
-          reports the difference in the attacker's score. Same genome, same
+          reports the difference in the raider's score. Same genome, same
           opponents, one thing changed — which makes it the only number here
           immune to the hardware differences between these machines, and the only
           one that can answer <em>why</em>
@@ -1246,7 +1246,7 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <div
       class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
-      title={"#{@n} readings, mean #{Float.round(@mean, 1)} points of attacker score"}
+      title={"#{@n} readings, mean #{Float.round(@mean, 1)} points of raider score"}
     >
       <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
 
@@ -1275,7 +1275,7 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <div
       class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
-      title={"#{@points} points of attacker score"}
+      title={"#{@points} points of raider score"}
     >
       <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
 
@@ -1365,7 +1365,7 @@ defmodule BeamCampusWeb.DronexLive do
     <div class="mt-3">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="text-sm font-semibold opacity-70">Who raids whom</h3>
-        <span class="font-mono text-xs opacity-40">rows attack · columns defend</span>
+        <span class="font-mono text-xs opacity-40">rows are the raider · columns are the island</span>
       </div>
 
       <div class="instrument mt-2 overflow-x-auto p-3">
