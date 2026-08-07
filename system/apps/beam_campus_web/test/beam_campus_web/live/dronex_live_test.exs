@@ -91,67 +91,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # HERE, and the page says "in flight" rather than pretending to know which.
   # Only the defender publishes the recording; both sides publish a commitment,
   # which is why a paid cost always leaves a trace even when the fight does not.
-  test "a raid with commitments and no recording is shown as in flight", %{conn: conn} do
-    # ⚠ THE MAP ONLY PLACES ISLANDS IT HAS HEARD VITALS FROM, so an arc needs
-    # both ends to exist before it can be drawn at all. That is deliberate — an
-    # island known only as somebody's opponent has no position to draw to.
-    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
-    Board.put("bbb", :vitals, %{"island" => "beam02", "island_id" => "bbb"})
-
-    for {role, id, island, opponent} <- [
-          {"attacker", "aaa", "beam01", "bbb"},
-          {"defender", "bbb", "beam02", "aaa"}
-        ] do
-      Board.put_raid("r1", :committed, %{
-        "island" => island,
-        "island_id" => id,
-        "raid_id" => "r1",
-        "role" => role,
-        "opponent_id" => opponent,
-        "airframes" => 6
-      })
-    end
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    # ⚠ RE-ANCHORED ONTO THE MAP. The flows list that used to carry this was
-    # merged into the arcs — an arc that thickens with traffic says what the
-    # list said, where the traffic is drawn. The guarantee is unchanged and is
-    # now the arc's own `live` flag: a raid nobody has published a recording for
-    # is still out, and the map animates it rather than drawing it as history.
-    assert html =~ "beam01"
-    assert [%{"live" => true} | _] = arcs(html)
-  end
 
   # And once the recording arrives it stops being in flight. The recording is
   # published by the defender, so it is filed under the same raid rather than
   # under whoever published it.
-  test "a raid with a recording is shown as fought", %{conn: conn} do
-    Board.put("aaa", :vitals, %{"island" => "beam01", "island_id" => "aaa"})
-    Board.put("bbb", :vitals, %{"island" => "beam02", "island_id" => "bbb"})
-
-    Board.put_raid("r2", :committed, %{
-      "island" => "beam01",
-      "island_id" => "aaa",
-      "raid_id" => "r2",
-      "role" => "attacker",
-      "opponent_id" => "bbb",
-      "airframes" => 6
-    })
-
-    Board.put_raid("r2", :raid, %{
-      "raid_id" => "r2",
-      "kind" => "raid",
-      "winner" => "defender",
-      "raiders" => 6,
-      "raiders_home" => 2
-    })
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    # It counts toward the traffic on that route, and it is no longer in flight.
-    assert [%{"live" => false, "count" => 1}] = arcs(html)
-  end
 
   # A profile is a curve and never a total. A single number would need weights,
   # and weights are a judgement about which rung matters.
@@ -283,6 +226,54 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "1 raids"
   end
 
+  # ── Who raids whom, which replaced the map ──────────────────────
+  #
+  # ⚠ THE MAP DREW A HASH AS GEOGRAPHY. Islands sat at positions derived from a
+  # hash of their names, so distance, adjacency and arc length encoded NOTHING.
+  # These are the facts the arcs actually carried, now asserted against the table
+  # that carries them without the invented coordinate system.
+
+  test "a settled raid appears in the attacker's row and the defender's column", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put("bbb", :vitals, %{"island" => "beam01", "island_id" => "bbb", "roster" => 90})
+    Board.put_raid("r1", :raid, raid("aaa", "beam01") |> Map.put("island_id", "bbb"))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "Who raids whom"
+    assert html =~ "beam00 → beam01: 1 raids"
+  end
+
+  # ⚠ A RAID IN FLIGHT IS NOT A RAID THAT DID NOT HAPPEN. Counting it as zero
+  # would quietly write off every fight in progress.
+  test "a pair with commitments and no recording reads as still out", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+    Board.put("bbb", :vitals, %{"island" => "beam01", "island_id" => "bbb", "roster" => 90})
+
+    Board.put_raid("r1", :committed, %{
+      "raid_id" => "r1",
+      "role" => "attacker",
+      "island_id" => "aaa",
+      "opponent_id" => "bbb"
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "1 still out"
+  end
+
+  # The map is gone, and so is every trace of it: a canvas nobody draws is a
+  # hook nobody loads.
+  test "no map, no canvas, no viewport plumbing", %{conn: conn} do
+    Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    refute html =~ "dronex-archipelago"
+    refute html =~ "data-arcs"
+    refute html =~ "data-isles"
+  end
+
   # ⚠ FLEET-SCOPED THINGS MUST NOT HIDE BEHIND A PER-ISLAND TAB. The island ×
   # drill matrix sat on the Exam tab, so the most informative diagram on the page
   # was two clicks behind a video player and a visitor landed on a canvas and one
@@ -404,94 +395,13 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # ⚠ THE MAP IS ONE CANVAS, HOWEVER MANY ISLANDS JOIN. That is the whole reason
   # the biotope's per-island grid was removed: one canvas, one hook and one
   # animation loop, regardless of fleet size.
-  test "the archipelago is drawn as one canvas with every island on it", %{conn: conn} do
-    for {id, name} <- [{"aaa", "beam01"}, {"bbb", "beam02"}] do
-      Board.put(id, :vitals, %{
-        "island" => name,
-        "island_id" => id,
-        "roster" => 120,
-        "capacity" => 240,
-        "open" => true
-      })
-    end
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    assert html =~ ~s(id="dronex-archipelago")
-    assert html =~ "data-world-width"
-    assert html =~ "data-isles"
-    assert html =~ "data-arcs"
-
-    # Positions are a hash of a name, so any two viewers holding the same
-    # islands draw the same world. Both islands are on the one canvas.
-    [_, isles] = Regex.run(~r/data-isles="([^"]*)"/, html)
-    decoded = isles |> unescape() |> Jason.decode!()
-    assert length(decoded) == 2
-    assert Enum.map(decoded, & &1["name"]) |> Enum.sort() == ["beam01", "beam02"]
-
-    # The ring is how much roster is left: half a roster is half a ring, which
-    # is the price of being popular made visual rather than tabular.
-    assert Enum.all?(decoded, &(&1["fill"] == 0.5))
-    assert Enum.all?(decoded, & &1["open"])
-  end
 
   # ⚠ AN ARC NEEDS BOTH ENDS, AND ONE COMMITMENT NAMES BOTH. The two commitments
   # travel separately and one of them may never arrive, so a single fact has to
   # be enough to draw the arc.
-  test "a raid is drawn as an arc from attacker to defender", %{conn: conn} do
-    for {id, name} <- [{"aaa", "beam01"}, {"bbb", "beam02"}] do
-      Board.put(id, :vitals, %{
-        "island" => name,
-        "island_id" => id,
-        "roster" => 100,
-        "capacity" => 240
-      })
-    end
-
-    Board.put_raid("r9", :committed, %{
-      "island" => "beam01",
-      "island_id" => "aaa",
-      "raid_id" => "r9",
-      "role" => "attacker",
-      "opponent_id" => "bbb",
-      "airframes" => 6
-    })
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    [_, arcs] = Regex.run(~r/data-arcs="([^"]*)"/, html)
-    [arc] = arcs |> unescape() |> Jason.decode!()
-
-    # In flight, because no recording has arrived, and as many marks as the
-    # sortie so the cost is visible on the arc itself.
-    assert arc["live"]
-    assert arc["marks"] == 6
-    assert arc["x1"] != arc["x2"] or arc["y1"] != arc["y2"]
-  end
 
   # An island nobody has heard vitals from has no place on the map, so an arc to
   # it is dropped rather than drawn to a guessed position.
-  test "an arc to an island the map has never heard of is dropped", %{conn: conn} do
-    Board.put("aaa", :vitals, %{
-      "island" => "beam01",
-      "island_id" => "aaa",
-      "roster" => 100,
-      "capacity" => 240
-    })
-
-    Board.put_raid("r10", :committed, %{
-      "island_id" => "aaa",
-      "raid_id" => "r10",
-      "role" => "attacker",
-      "opponent_id" => "never-heard-of",
-      "airframes" => 6
-    })
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    [_, arcs] = Regex.run(~r/data-arcs="([^"]*)"/, html)
-    assert arcs |> unescape() |> Jason.decode!() == []
-  end
 
   # ⚠ THE TOWERS MUST REACH THE PAGE, NOT MERELY THE WIRE. The island published
   # `ground' for a while before anything read it, which draws exactly the same
@@ -648,22 +558,6 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # HTML, so this reads the source. That is a guard probe and it is brittle on
   # purpose: it fails loudly when the drawing goes away, which is better than the
   # page failing quietly.
-  test "the replay hook actually draws the tracks it is sent" do
-    # ⚠ THE HOOK LIVES WITH THE PLAYER, and this test reads it by PATH, so it
-    # breaks when the player moves rather than when the player breaks. Kept
-    # anyway: it is the only thing standing between "the function is defined" and
-    # "the function is called", and a colocated hook is not reachable any other
-    # way from a test.
-    src = File.read!("lib/beam_campus_web/live/dronex_fight.ex")
-
-    # A function that consumes the per-frame track array...
-    assert src =~ "believed(f) {"
-    assert src =~ "f.k"
-    # ...and a call site, because a defined-and-uncalled function draws nothing.
-    assert src =~ "this.believed(f)"
-    # And the masts, which vanished into the drone layer when drawn first.
-    assert src =~ "this.masts()"
-  end
 
   # ⚠ CLICKING AN ISLAND FILTERS BOTH ROLES, NOT JUST THE HOST. A raid is
   # published by the DEFENDER because the defender hosted it, so filtering on the
@@ -792,59 +686,15 @@ defmodule BeamCampusWeb.DronexLiveTest do
     end
   end
 
-  defp standings(html) do
-    Regex.scan(~r/data-standing="([^"]+)"/, html) |> Enum.map(&List.last/1)
-  end
-
   # ⚠ THE DEFAULT IS EVERYTHING, and it has to be. The map reports what it is
   # showing only after it has painted, so before that — and for anyone on a
   # keyboard, who cannot pan a canvas at all — an empty report would mean an
   # empty table.
-  test "the table lists every island until the map says otherwise", %{conn: conn} do
-    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}, {"ccc", "beam02"}] do
-      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
-    end
-
-    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
-
-    assert Enum.sort(standings(html)) == ["beam00", "beam01", "beam02"]
-  end
-
-  test "panning the map narrows the table to what is in view", %{conn: conn} do
-    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}, {"ccc", "beam02"}] do
-      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
-    end
-
-    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
-
-    html = render_click(view, "viewport", %{"ids" => ["aaa", "ccc"]})
-
-    assert Enum.sort(standings(html)) == ["beam00", "beam02"]
-    assert html =~ "2 of 3 islands in view"
-  end
 
   # ⚠ RANK IS OVER THE WHOLE ARCHIPELAGO, NEVER OVER THE VIEWPORT. A number that
   # renumbered as you panned would be measuring where you are looking. beam02 is
   # third on the exam and must still read as third when the top two are off
   # screen.
-  test "rank survives the viewport filter", %{conn: conn} do
-    exam = fn wins ->
-      %{"benchmark_rungs" => ["a"], "benchmark_wins" => [wins], "benchmark_starts" => 10}
-    end
-
-    Board.put("aaa", :vitals, Map.merge(exam.(10), %{"island" => "beam00", "island_id" => "aaa"}))
-    Board.put("bbb", :vitals, Map.merge(exam.(8), %{"island" => "beam01", "island_id" => "bbb"}))
-    Board.put("ccc", :vitals, Map.merge(exam.(2), %{"island" => "beam02", "island_id" => "ccc"}))
-
-    {:ok, view, _html} = live(conn, ~p"/research/workbench/dronex")
-
-    html = render_click(view, "viewport", %{"ids" => ["ccc"]})
-
-    assert standings(html) == ["beam02"]
-    # third of three, said as "3" and not renumbered to "1" or starred
-    assert html =~ ">3</span>"
-    refute html =~ "★"
-  end
 
   # The selection has to be legible as text. It was a white ellipse inside a
   # canvas, which no screen reader can see and which is off screen the moment you
@@ -859,13 +709,6 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "showing beam00"
 
     assert render_click(view, "focus_island", %{"id" => "aaa"}) =~ "every island"
-  end
-
-  # The map's arcs, decoded. They are the only place a raid's in-flight state is
-  # drawn now that the flows list has gone into them.
-  defp arcs(html) do
-    [_, raw] = Regex.run(~r/data-arcs="([^"]*)"/, html)
-    raw |> unescape() |> Jason.decode!()
   end
 
   defp watch_keys(html) do

@@ -44,7 +44,6 @@ defmodule BeamCampusWeb.DronexLive do
 
   use BeamCampusWeb, :live_view
 
-  import BeamCampusWeb.DronexMap, only: [archipelago: 1]
   import BeamCampusWeb.DronexFight, only: [fight: 1]
 
   @redraw_ms 500
@@ -60,9 +59,7 @@ defmodule BeamCampusWeb.DronexLive do
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
      |> assign(fight: nil, payload: nil, frame_count: 0)
-     # `nil` means the map has not told us what it is showing. Before the first
-     # report, and for anyone who never moves it, that has to mean EVERYTHING.
-     |> assign(panel: :fights, in_view: nil)
+     |> assign(panel: :fights)
      |> load()}
   end
 
@@ -120,14 +117,6 @@ defmodule BeamCampusWeb.DronexLive do
 
   def handle_event("show_panel", %{"panel" => panel}, socket) do
     {:noreply, push_patch(socket, to: dronex_path(socket.assigns.focus, panel_of(panel)))}
-  end
-
-  # ⚠ WHAT THE MAP IS SHOWING, DEBOUNCED AND ONLY ON CHANGE. The hook computes
-  # this every frame because a raid in flight animates, but it only tells us when
-  # the SET of visible islands differs — a message per frame would be sixty
-  # round trips a second to move a table nobody asked to move.
-  def handle_event("viewport", %{"ids" => ids}, socket) do
-    {:noreply, assign(socket, in_view: MapSet.new(ids))}
   end
 
   # ⚠ NOT `path/2'. `Phoenix.VerifiedRoutes' imports one, and defining a private
@@ -314,7 +303,6 @@ defmodule BeamCampusWeb.DronexLive do
             islands={@islands}
             raids={@raids}
             standings={@ranked}
-            in_view={@in_view}
             focus={@focus}
             focused={@focused}
             readings={@readings}
@@ -665,6 +653,123 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
+  Who raided whom, as a table. This replaced the map.
+
+  ## ⚠ THE MAP DREW A HASH AS GEOGRAPHY
+
+  Islands sat at positions derived from a hash of their names — `Archipelago`
+  said so plainly — so distance, adjacency and the length of a raid arc encoded
+  NOTHING. Four real facts were wrapped in a coordinate system that carried no
+  information, and the wrapping was the part that looked impressive. Every one of
+  those facts is in this table and the invented geography is not.
+
+  ## ⚠⚠ THE ARCHIPELAGO TOTAL HIDES THE DIRECTION
+
+  Over the recordings held, the winner runs close to even, which reads as a coin
+  flip and is why the fights looked like they carried nothing. That is the SUM
+  over every pair. An island that beats one neighbour and is beaten by another is
+  invisible in a total and obvious in a grid.
+
+  Rows attack, columns defend, and the record in a cell is the ROW's — a table
+  whose two axes mean different things is a table nobody can read.
+  """
+  attr :islands, :list, required: true
+  attr :raids, :list, required: true
+  attr :focus, :string, default: nil
+
+  def ledger(assigns) do
+    pairs = Dronex.ReadTheLedger.pairs(assigns.raids)
+
+    assigns =
+      assign(assigns,
+        pairs: pairs,
+        busiest: Dronex.ReadTheLedger.busiest(pairs),
+        ordered: Enum.sort_by(assigns.islands, &Dronex.label/1)
+      )
+
+    ~H"""
+    <div class="mt-3">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="text-sm font-semibold opacity-70">Who raids whom</h3>
+        <span class="font-mono text-xs opacity-40">rows attack · columns defend</span>
+      </div>
+
+      <div class="instrument mt-2 overflow-x-auto p-3">
+        <table class="text-xs">
+          <thead>
+            <tr>
+              <th></th>
+              <th :for={d <- @ordered} class="px-1 pb-1 text-center font-normal opacity-50">
+                {Dronex.label(d)}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={a <- @ordered} class={[@focus == a.id && "font-semibold"]}>
+              <td class="py-0.5 pr-2 text-right font-mono opacity-70">{Dronex.label(a)}</td>
+              <td :for={d <- @ordered} class="p-0.5">
+                <%!-- An island does not raid itself, so the diagonal is blank
+                      rather than zero. --%>
+                <div
+                  :if={a.id == d.id}
+                  class="h-7 w-14 rounded-sm border border-dashed border-base-300/50"
+                >
+                </div>
+
+                <div
+                  :if={a.id != d.id}
+                  class={[
+                    "relative flex h-7 w-14 items-center justify-center rounded-sm border",
+                    (@focus == a.id && "border-primary/60") || "border-base-300"
+                  ]}
+                  title={cell_title(Dronex.label(a), Dronex.label(d), @pairs[{a.id, d.id}])}
+                >
+                  <div
+                    class="absolute inset-0 rounded-sm"
+                    style={"background: #{route_step(@pairs[{a.id, d.id}], @busiest)}"}
+                  >
+                  </div>
+                  <span class="relative font-mono tabular-nums">
+                    {cell_text(@pairs[{a.id, d.id}])}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-2 text-xs opacity-40">
+        Each cell is the row island raiding the column island, written as its own <strong>wins–losses</strong>. Shading is how busy that route is against the
+        busiest one{(@busiest && ", #{@busiest} raids") || ""}. A dot is a raid
+        still out: both sides commit on acceptance and the defender publishes the
+        recording when it ends, so a pair with commitments and no recording is
+        either in flight or one whose defender went dark, which look the same from
+        here.
+      </p>
+    </div>
+    """
+  end
+
+  defp cell_text(nil), do: "·"
+  defp cell_text(%{raids: 0, in_flight: n}) when n > 0, do: "◦"
+  defp cell_text(%{wins: w, losses: l}), do: "#{w}–#{l}"
+
+  defp cell_title(a, d, nil), do: "#{a} has not raided #{d}"
+
+  defp cell_title(a, d, %{raids: r, wins: w, losses: l, in_flight: f}),
+    do: "#{a} → #{d}: #{r} raids, #{w} won, #{l} lost#{(f > 0 && ", #{f} still out") || ""}"
+
+  # ⚠ NO DATA IS NOT A ZERO ROUTE. A pair that has never fought must not shade
+  # like one that fought and always lost.
+  defp route_step(nil, _busiest), do: "transparent"
+  defp route_step(%{raids: 0}, _busiest), do: "transparent"
+  defp route_step(_cell, nil), do: "transparent"
+
+  defp route_step(%{raids: r}, busiest),
+    do: "var(--chart-seq-#{min(5, div((r - 1) * 5, busiest) + 1)})"
+
+  @doc """
   Every island against every drill, as one matrix.
 
   ## ⚠ THE ONE DIAGRAM THE DATA ALWAYS SUPPORTED AND NOTHING DREW
@@ -900,20 +1005,12 @@ defmodule BeamCampusWeb.DronexLive do
   attr :islands, :list, required: true
   attr :raids, :list, required: true
   attr :standings, :list, required: true
-  attr :in_view, :any, default: nil
   attr :focus, :string, default: nil
   attr :focused, :any, default: nil
   attr :readings, :map, required: true
 
   def one_world(assigns) do
-    shown = visible(assigns.standings, assigns.in_view)
-
-    assigns =
-      assign(assigns,
-        shown: shown,
-        hidden: length(assigns.standings) - length(shown),
-        rungs: rungs_of(assigns.islands)
-      )
+    assigns = assign(assigns, shown: assigns.standings, rungs: rungs_of(assigns.islands))
 
     ~H"""
     <section class="mt-6">
@@ -941,12 +1038,7 @@ defmodule BeamCampusWeb.DronexLive do
         </span>
       </div>
 
-      <.archipelago islands={@islands} raids={@raids} focus={@focus} class="mt-2" />
-
-      <p :if={@hidden > 0} class="mt-2 text-xs opacity-50">
-        {length(@shown)} of {length(@standings)} islands in view. Double-click the
-        map to fit them all.
-      </p>
+      <.ledger islands={@islands} raids={@raids} focus={@focus} />
 
       <.leaderboard standings={@shown} focus={@focus} />
 
@@ -979,11 +1071,6 @@ defmodule BeamCampusWeb.DronexLive do
       end
     end)
   end
-
-  # `nil` means the map has not reported yet — on first paint, and for anyone who
-  # never moves it. Everything, rather than nothing, is the right answer then.
-  defp visible(standings, nil), do: standings
-  defp visible(standings, in_view), do: Enum.filter(standings, &MapSet.member?(in_view, &1.id))
 
   @doc """
   Everything one selection scopes, in one place, beside the fight.
