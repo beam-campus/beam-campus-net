@@ -914,12 +914,16 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
   # Which island the side panel says it is showing. One heading, because the
   # scope used to be announced three times in one 300px column.
-  # ⚠ THE HEADING HOLDS MARKUP NOW, so this strips tags rather than refusing to
+  # ⚠ FOUND BY A DATA HOOK, NOT BY ITS CLASSES. A class-based match finds whichever
+  # section was added to the page most recently, and it picked up "How long a fight
+  # lasts" the moment that instrument landed above the panel.
+  #
+  # ⚠⚠ AND IT HOLDS MARKUP, so this strips tags rather than refusing to
   # match them. An island's name is rendered beside the four characters of its id
   # that say WHICH island, in its own muted span, so `[^<]+' stopped matching the
   # moment names stopped being bare text.
   defp panel_island(html) do
-    case Regex.run(~r|<h2 class="text-base font-semibold">(.*?)</h2>|s, html) do
+    case Regex.run(~r|<h2 data-panel-heading[^>]*>(.*?)</h2>|s, html) do
       [_, inner] -> inner |> String.replace(~r|<[^>]*>|, "") |> squashed()
       _ -> nil
     end

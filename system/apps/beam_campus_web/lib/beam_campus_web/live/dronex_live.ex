@@ -357,6 +357,104 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  # ── How long a fight lasts ──────────────────────────────────────
+
+  @doc """
+  The distribution of raid durations, and whether a clock is cutting it off.
+
+  ⚠ **THE PILE ON THE LONGEST BAR IS THE HEADLINE, not the shape.** A raid that
+  ended because a cap was reached did not take that long, it took at least that
+  long, and every average over a censored quantity is biased. So the caption
+  leads with how many raids share the longest value seen, which is the cap
+  revealing itself as a measurement rather than as an assumption. The island does
+  not publish `max_ticks`, and hardcoding it here would put a world constant in a
+  second repository on a different release cadence.
+
+  Duration is NOT a measure of genome quality and the split by outcome is there
+  to stop it being read as one. A short raid is a crushing attacker or a suicidal
+  one; a long raid is a stout defence or two swarms that never met.
+  """
+  attr :raids, :list, required: true
+
+  def how_long_fights_last(assigns) do
+    assigns = assign(assigns, d: Dronex.TimeTheFights.distribution(assigns.raids))
+
+    ~H"""
+    <section :if={@d.n > 0} class="mt-8">
+      <h2 class="text-base font-semibold">How long a fight lasts</h2>
+
+      <p class="mt-1 max-w-2xl text-sm opacity-70">
+        {@d.n} settled {(@d.n == 1 && "raid") || "raids"}, in ticks, because the island
+        publishes its clock in ticks and not its rate.
+        <strong :if={@d.at_longest > 1}>
+          {@d.at_longest} of them end on exactly {@d.longest}, which is a ceiling
+          rather than a duration: those fights were stopped, not finished.
+        </strong>
+        <span :if={@d.at_longest <= 1}>
+          Nothing is piled on the longest value, so no ceiling is visible in this
+          sample.
+        </span>
+      </p>
+
+      <div class="instrument mt-2 p-3">
+        <div class="flex h-32 items-end gap-px" role="img" aria-label={bars_spoken(@d)}>
+          <div
+            :for={b <- @d.bins}
+            class="flex-1 rounded-t-sm bg-[var(--chart-seq-3)]"
+            style={"height: #{bar_height(b, @d)}%"}
+            title={"#{b.from} to #{b.to} ticks: #{b.count}"}
+          >
+          </div>
+        </div>
+
+        <div class="mt-1 flex justify-between font-mono text-[10px] opacity-50">
+          <span>0</span>
+          <span>{@d.longest} ticks</span>
+        </div>
+      </div>
+
+      <table class="mt-3 text-xs">
+        <thead>
+          <tr class="opacity-50">
+            <th class="pr-3 text-left font-normal">outcome</th>
+            <th class="pr-3 text-right font-normal">n</th>
+            <th class="pr-3 text-right font-normal">median</th>
+            <th class="text-right font-normal">at the ceiling</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={o <- @d.by_outcome}>
+            <td class="pr-3">{o.outcome}</td>
+            <td class="pr-3 text-right font-mono tabular-nums">{o.n}</td>
+            <td class="pr-3 text-right font-mono tabular-nums">{o.median}</td>
+            <td class="text-right font-mono tabular-nums">{o.at_longest}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="mt-2 max-w-2xl text-xs opacity-50">
+        Duration is not a measure of quality. A short raid is a crushing attacker or
+        a suicidal one, and a long one is a stout defence or two swarms that never
+        met, which is why it is never shown without who won.
+      </p>
+    </section>
+    """
+  end
+
+  # A bar is a share of the tallest bin, so an empty bin draws as nothing rather
+  # than as a sliver that reads like one raid.
+  defp bar_height(%{count: 0}, _d), do: 0
+
+  defp bar_height(bin, d) do
+    tallest = d.bins |> Enum.map(& &1.count) |> Enum.max()
+    round(bin.count * 100 / tallest)
+  end
+
+  defp bars_spoken(d) do
+    "#{d.n} raids by duration in bins of #{d.bin} ticks, longest #{d.longest}, " <>
+      "#{d.at_longest} of them ending on exactly that value"
+  end
+
   # ── Who is who ──────────────────────────────────────────────────
 
   @doc """
@@ -1528,6 +1626,7 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <.ledger islands={@islands} raids={@raids} focus={@focus} />
+      <.how_long_fights_last raids={@raids} />
 
       <.comms islands={@ordered_islands} />
 
@@ -1606,7 +1705,11 @@ defmodule BeamCampusWeb.DronexLive do
     ~H"""
     <section class="mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-base font-semibold">
+        <%!-- ⚠ A STABLE HOOK, because a test that finds this heading by its CLASS finds
+             whichever section was added most recently instead. That has now happened
+             twice in one day: once when the name grew a span and once when a second
+             `h2' with the same classes appeared above it. --%>
+        <h2 data-panel-heading class="text-base font-semibold">
           <.island_name :if={@focused} row={@focused} class="" />
           <span :if={!@focused}>Every island</span>
         </h2>
