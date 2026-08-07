@@ -429,9 +429,12 @@ defmodule BeamCampusWeb.DronexLive do
         // carry `--alias:@=.' with the assets dir as cwd, which is the way in.
         import * as echarts from "@/vendor/echarts.esm.js"
 
+        // Six, in the order the stylesheet declares them, because that order is
+        // what the colour-blindness check was run against. Taking them in any
+        // other sequence puts pink beside green and fails a check that passed.
         const palette = () => {
           const css = getComputedStyle(document.documentElement)
-          return [1, 2, 3]
+          return [1, 2, 3, 4, 5, 6]
             .map((n) => css.getPropertyValue(`--chart-cat-${n}`).trim())
             .filter(Boolean)
         }

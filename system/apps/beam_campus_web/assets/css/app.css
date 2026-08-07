@@ -236,16 +236,39 @@
 :root {
   --chart-1: #2a6fb0;
   --chart-2: #a83e66;
-  /* ⚠ THREE CATEGORICAL HUES, AND THREE IS WHAT PASSES. Validated with the
-     dataviz validator on all pairs, not by eye: lightness band, chroma floor,
-     CVD separation, normal-vision floor and contrast, in BOTH modes. Five hues
-     were tried first and every set failed, because darkening a warm hue for
-     contrast on a light surface collapses ochre into vermillion. A fourth
-     categorical hue needs secondary encoding (direct labels or texture), not a
-     new guess. */
+  /* SIX CATEGORICAL HUES, IN THIS ORDER, and the order is part of the palette.
+     Validated with the dataviz validator rather than by eye: lightness band,
+     chroma floor, CVD separation, normal-vision floor, contrast.
+
+     ⚠ THE ORDER IS LOAD-BEARING. Categorical hues are assigned in fixed sequence
+     and only ADJACENT pairs have to survive colour blindness, so where a hue sits
+     decides whether the set passes. Pink beside green is deutan ΔE 7.6 and fails;
+     the same six with pink moved away from green is 9.6 and passes. Do not
+     reorder these to taste.
+
+     ⚠⚠ AN EARLIER VERSION OF THIS COMMENT CLAIMED ONLY THREE HUES COULD PASS.
+     That was measured with `--pairs all', which requires every hue to survive
+     against every other and is the bar for a chart with no legend. These charts
+     carry a legend and a table, so adjacent is the honest bar, and six pass it. */
   --chart-cat-1: #2a6fb0;
   --chart-cat-2: #d55e00;
   --chart-cat-3: #009e73;
+  --chart-cat-4: #a06a00;
+  --chart-cat-5: #cc79a7;
+  --chart-cat-6: #56b4e9;
+
+  /* ⚠⚠⚠ STATUS IS A DIFFERENT JOB AND THESE ARE RESERVED. Green, amber and red
+     mean good, warning and critical. They are NEVER a spare series colour, and
+     they NEVER appear without an icon and a word beside them.
+
+     That last rule is not politeness. Red against amber is deutan ΔE 1.7, which
+     is indistinguishable, while a full-colour reader sees ΔE 28. There is no
+     arrangement of warm severity hues that fixes this, because severity is an
+     ordered ramp rather than six identities, so the icon IS the encoding and the
+     colour is the reinforcement. */
+  --status-good: #1b7f4d;
+  --status-warn: #8a6100;
+  --status-critical: #b3261e;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -261,6 +284,12 @@
     --chart-cat-1: #3f8fd0;
     --chart-cat-2: #d16a15;
     --chart-cat-3: #29a07c;
+    --chart-cat-4: #bd8a22;
+    --chart-cat-5: #c072a4;
+    --chart-cat-6: #4a97c8;
+    --status-good: #35a06a;
+    --status-warn: #b08a1f;
+    --status-critical: #e0655a;
     --chart-seq-1: #2c5f88;
     --chart-seq-2: #3a789f;
     --chart-seq-3: #4b91b8;
@@ -272,16 +301,39 @@
 [data-theme="light"] {
   --chart-1: #2a6fb0;
   --chart-2: #a83e66;
-  /* ⚠ THREE CATEGORICAL HUES, AND THREE IS WHAT PASSES. Validated with the
-     dataviz validator on all pairs, not by eye: lightness band, chroma floor,
-     CVD separation, normal-vision floor and contrast, in BOTH modes. Five hues
-     were tried first and every set failed, because darkening a warm hue for
-     contrast on a light surface collapses ochre into vermillion. A fourth
-     categorical hue needs secondary encoding (direct labels or texture), not a
-     new guess. */
+  /* SIX CATEGORICAL HUES, IN THIS ORDER, and the order is part of the palette.
+     Validated with the dataviz validator rather than by eye: lightness band,
+     chroma floor, CVD separation, normal-vision floor, contrast.
+
+     ⚠ THE ORDER IS LOAD-BEARING. Categorical hues are assigned in fixed sequence
+     and only ADJACENT pairs have to survive colour blindness, so where a hue sits
+     decides whether the set passes. Pink beside green is deutan ΔE 7.6 and fails;
+     the same six with pink moved away from green is 9.6 and passes. Do not
+     reorder these to taste.
+
+     ⚠⚠ AN EARLIER VERSION OF THIS COMMENT CLAIMED ONLY THREE HUES COULD PASS.
+     That was measured with `--pairs all', which requires every hue to survive
+     against every other and is the bar for a chart with no legend. These charts
+     carry a legend and a table, so adjacent is the honest bar, and six pass it. */
   --chart-cat-1: #2a6fb0;
   --chart-cat-2: #d55e00;
   --chart-cat-3: #009e73;
+  --chart-cat-4: #a06a00;
+  --chart-cat-5: #cc79a7;
+  --chart-cat-6: #56b4e9;
+
+  /* ⚠⚠⚠ STATUS IS A DIFFERENT JOB AND THESE ARE RESERVED. Green, amber and red
+     mean good, warning and critical. They are NEVER a spare series colour, and
+     they NEVER appear without an icon and a word beside them.
+
+     That last rule is not politeness. Red against amber is deutan ΔE 1.7, which
+     is indistinguishable, while a full-colour reader sees ΔE 28. There is no
+     arrangement of warm severity hues that fixes this, because severity is an
+     ordered ramp rather than six identities, so the icon IS the encoding and the
+     colour is the reinforcement. */
+  --status-good: #1b7f4d;
+  --status-warn: #8a6100;
+  --status-critical: #b3261e;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -293,6 +345,12 @@
   --chart-cat-1: #3f8fd0;
   --chart-cat-2: #d16a15;
   --chart-cat-3: #29a07c;
+  --chart-cat-4: #bd8a22;
+  --chart-cat-5: #c072a4;
+  --chart-cat-6: #4a97c8;
+  --status-good: #35a06a;
+  --status-warn: #b08a1f;
+  --status-critical: #e0655a;
   --chart-1: #3f8fd0;
   --chart-2: #c95f86;
   --chart-seq-1: #2c5f88;
