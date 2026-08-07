@@ -490,6 +490,7 @@ defmodule BeamCampusWeb.DronexLive do
 
           draw() {
             const spec = JSON.parse(this.el.dataset.spec)
+            if (spec.kind === "matrix") return this.drawMatrix(spec)
             const colour = palette()
             const text = ink()
 
@@ -523,6 +524,108 @@ defmodule BeamCampusWeb.DronexLive do
                 itemStyle: {color: roleColour(s.role) || colour[i % colour.length]},
                 data: s.data
               }))
+            }, {notMerge: true})
+          },
+
+          // ⚠ ONE INSTANCE FOR THE WHOLE GRID, NOT ONE PER CELL. ECharts places a
+          // pie by its centre, so a matrix is N pie series in a single chart
+          // rather than twenty-five charts in a table. Twenty-five renderers,
+          // each with its own resize observer, is what "a pie per cell" costs if
+          // you take it literally.
+          //
+          // ⚠⚠ AND THE ARCS ARE THE LIBRARY'S. The version this replaces computed
+          // SVG arc paths by hand, with sin, cos, large-arc flags and a special
+          // case for a slice that is the whole circle — which was wrong on the
+          // first attempt, and is a bug a pie library does not have.
+          drawMatrix(spec) {
+            const css = getComputedStyle(document.documentElement)
+            const text = ink()
+            const fill = {
+              attacker: css.getPropertyValue("--side-attacker").trim(),
+              defender: css.getPropertyValue("--side-defender").trim(),
+              draw: css.getPropertyValue("--side-draw").trim()
+            }
+
+            const left = 20, top = 14
+            const w = (100 - left) / spec.cols.length
+            const h = (100 - top) / spec.rows.length
+            const unit = Math.min(w, h)
+
+            const at = (r, c) => [left + (c + 0.5) * w, top + (r + 0.5) * h]
+
+            // Area proportional to raids, so the radius goes as the root: the eye
+            // judges area, and a linear radius would make eight raids look
+            // sixty-four times the weight of one.
+            const radius = (n) =>
+              `${Math.max(1.2, unit * 0.44 * Math.sqrt(n / spec.busiest))}%`
+
+            const series = spec.cells.map((cell) => {
+              const [cx, cy] = at(cell.r, cell.c)
+              return {
+                type: "pie",
+                name: cell.of,
+                tip: cell,
+                center: [`${cx}%`, `${cy}%`],
+                radius: radius(cell.n),
+                silent: false,
+                label: {show: false},
+                labelLine: {show: false},
+                emphasis: {scale: true, scaleSize: 3},
+                data: [
+                  {value: cell.a, name: "raider won", itemStyle: {color: fill.attacker}},
+                  {value: cell.x, name: "drawn", itemStyle: {color: fill.draw}},
+                  {value: cell.d, name: "island held", itemStyle: {color: fill.defender}}
+                ].filter((s) => s.value > 0)
+              }
+            })
+
+            // ⚠ A RAID STILL OUT IS NOT AN EMPTY CELL. Both sides commit on
+            // acceptance and only the defender publishes the recording, so a pair
+            // with commitments and nothing settled is either mid-fight or one
+            // whose defender went dark. A dashed ring says "something is
+            // happening here" where a pie has nothing to slice.
+            const flying = spec.cells.filter((c) => c.f > 0).map((c) => {
+              const [cx, cy] = at(c.r, c.c)
+              const r = c.n > 0 ? unit * 0.5 : unit * 0.18
+              return {
+                type: "circle",
+                left: `${cx}%`,
+                top: `${cy}%`,
+                shape: {cx: 0, cy: 0, r: 6},
+                style: {fill: "none", stroke: fill.draw, lineDash: [2, 2], lineWidth: 1},
+                z: 10,
+                scaleX: r / 6 * 4,
+                scaleY: r / 6 * 4
+              }
+            })
+
+            const labels = [
+              ...spec.rows.map((name, r) => ({
+                type: "text",
+                left: `${left - 1.5}%`,
+                top: `${at(r, 0)[1]}%`,
+                style: {text: name, fill: text, opacity: 0.6, font: "11px monospace", align: "right", verticalAlign: "middle"}
+              })),
+              ...spec.cols.map((name, c) => ({
+                type: "text",
+                left: `${at(0, c)[0]}%`,
+                top: `${top - 8}%`,
+                style: {text: name, fill: text, opacity: 0.5, font: "11px monospace", align: "center"}
+              }))
+            ]
+
+            this.chart.setOption({
+              tooltip: {
+                trigger: "item",
+                formatter: (p) => {
+                  const c = p.data && p.data.tip ? p.data.tip : (p.seriesModel || {})
+                  const t = spec.cells.find((x) => x.of === p.seriesName) || {}
+                  const out = t.f > 0 ? `, ${t.f} still out` : ""
+                  return `${p.seriesName}: ${t.n} raids, ${t.a} won, ${t.d} held${out}`
+                }
+              },
+              graphic: [...labels, ...flying],
+              series
             }, {notMerge: true})
           }
         }
@@ -1369,55 +1472,51 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <div class="instrument mt-2 overflow-x-auto p-3">
-        <table class="text-xs">
-          <thead>
-            <tr>
-              <th></th>
-              <th :for={d <- @ordered} class="px-1 pb-1 text-center font-normal">
-                <.island_name row={d} class="font-mono text-xs opacity-50" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={a <- @ordered} class={[@focus == a.id && "font-semibold"]}>
-              <td class="py-0.5 pr-2 text-right"><.island_name row={a} /></td>
-              <td :for={d <- @ordered} class="p-0.5">
-                <%!-- An island does not raid itself, so the diagonal is blank
-                      rather than zero. --%>
-                <div
-                  :if={a.id == d.id}
-                  class="h-7 w-14 rounded-sm border border-dashed border-base-300/50"
-                >
-                </div>
+        <div
+          id="who-raids-whom"
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-72 w-full"
+          role="img"
+          aria-label={matrix_spoken(@ordered, @pairs)}
+          data-spec={matrix_spec(@ordered, @pairs, @busiest)}
+        >
+        </div>
 
-                <div
-                  :if={a.id != d.id}
-                  class={[
-                    "relative flex h-7 w-14 items-center justify-center rounded-sm border",
-                    (@focus == a.id && "border-primary/60") || "border-base-300"
-                  ]}
-                  title={
-                    cell_title(
-                      Dronex.TellIslandsApart.spoken(a),
-                      Dronex.TellIslandsApart.spoken(d),
-                      @pairs[{a.id, d.id}]
-                    )
-                  }
-                >
-                  <.route_pie cell={@pairs[{a.id, d.id}]} busiest={@busiest} />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <%!-- ⚠ THE NUMBERS STAY REACHABLE. A canvas is not readable by a screen
+              reader and is not selectable, so the grid keeps a table beside it
+              rather than instead of it. --%>
+        <details class="mt-2">
+          <summary class="cursor-pointer text-xs opacity-40">The routes, as a table</summary>
+          <table class="mt-2 text-xs">
+            <thead>
+              <tr class="opacity-50">
+                <th class="pr-3 text-left font-normal">raider</th>
+                <th class="pr-3 text-left font-normal">island</th>
+                <th class="pr-3 text-right font-normal">raids</th>
+                <th class="pr-3 text-right font-normal">won</th>
+                <th class="text-right font-normal">held</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={{{a, d}, c} <- Enum.sort_by(@pairs, fn {_k, c} -> -c.raids end)}>
+                <td class="pr-3">{Dronex.TellIslandsApart.spoken_id(a)}</td>
+                <td class="pr-3">{Dronex.TellIslandsApart.spoken_id(d)}</td>
+                <td class="pr-3 text-right font-mono tabular-nums">{c.raids}</td>
+                <td class="pr-3 text-right font-mono tabular-nums">{c.wins}</td>
+                <td class="text-right font-mono tabular-nums">{c.losses}</td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each cell is the row island raiding the column island, as a pie: <strong>red is the raider winning</strong>, blue is the island holding,
+        Each pie is the row island raiding the column island: <strong>red is the raider winning</strong>, blue is the island holding,
         grey is a draw. Its <strong>area is how many raids</strong>
         have been fought there, so a pair that has met once is a dot and the
-        busiest route, at {@busiest || 0} raids, is the largest disc. Hover for the
-        numbers. A dot is a raid
+        busiest route, at {@busiest || 0} raids, is the largest disc. Hover a slice
+        for the numbers, or open the table below. A raid
         still out: both sides commit on acceptance and the defender publishes the
         recording when it ends, so a pair with commitments and no recording is
         either in flight or one whose defender went dark, which look the same from
@@ -1427,109 +1526,53 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
-  defp cell_title(a, d, nil), do: "#{a} has not raided #{d}"
-
-  defp cell_title(a, d, %{raids: r, wins: w, losses: l, in_flight: f}),
-    do: "#{a} → #{d}: #{r} raids, #{w} won, #{l} lost#{(f > 0 && ", #{f} still out") || ""}"
-
   # ⚠ NO DATA IS NOT A ZERO ROUTE. A pair that has never fought must not shade
   # like one that fought and always lost.
-  @doc """
-  One route as a pie: how it went, drawn at a size that says how much it is worth.
-
-  ⚠ THIS REPLACED A BACKGROUND TINT THAT WAS INVISIBLE. The tint shipped, emitted
-  exactly the `color-mix` it meant to, and at 48% over a dark surface could not be
-  told from the surface. Seven tests passed on the arithmetic and nobody rendered
-  the page.
-
-  A slice is a SHAPE, and a shape survives being small and survives any surface.
-
-  ⚠⚠ AREA IS THE SAMPLE SIZE, which is what makes the minimum-raids rule
-  unnecessary. Radius goes as the square root, because area is what the eye
-  judges. One raid won is still 100% red and is now 100% of a full stop, so it
-  can no longer shout as loudly as a route fought over all week.
-  """
-  attr :cell, :map, default: nil
-  attr :busiest, :integer, default: nil
-
-  def route_pie(assigns) do
-    %{decided: n, parts: parts} = Dronex.ReadTheLedger.slices(assigns.cell)
-
-    assigns =
-      assign(assigns,
-        n: n,
-        arcs: arcs(parts, radius(n, assigns.busiest)),
-        # ⚠ A RAID STILL OUT IS NOT AN EMPTY CELL, and the pie would have dropped
-        # it: `slices/1` counts settled raids and a commitment has no outcome to
-        # slice. The hollow ring the text cell used to draw as "·" is kept, because
-        # a pair that is fighting right now must not look like a pair that never
-        # has.
-        flying: (is_map(assigns.cell) && Map.get(assigns.cell, :in_flight, 0)) || 0
-      )
-
-    ~H"""
-    <svg :if={@n > 0 or @flying > 0} viewBox="0 0 24 24" class="h-6 w-6" aria-hidden="true">
-      <path :for={{fill, d} <- @arcs} d={d} fill={fill} />
-      <circle
-        :if={@flying > 0}
-        cx="12"
-        cy="12"
-        r={(@n > 0 && 11) || 3}
-        fill="none"
-        stroke="var(--side-draw)"
-        stroke-width="1"
-        stroke-dasharray="2 2"
-      />
-    </svg>
-    """
-  end
-
-  # ⚠ A TRUE AREA SCALE, AND THE FIRST VERSION WAS NOT ONE. It read
-  # `3.5 + 7.0 * sqrt(share)', and that floor of 3.5 made a one-raid route a THIRD
-  # of the area of an eight-raid one instead of an eighth. A size encoding that
-  # flatters the smallest sample is the same lie as painting it at full strength,
-  # arrived at by being helpful about visibility.
+  # ⚠ THE ARCS ARE THE LIBRARY'S NOW. What stood here computed SVG pie slices by
+  # hand: sin, cos, large-arc flags, and a special case for a slice that is the
+  # whole circle, which was wrong on the first attempt and draws nothing at all
+  # when it is wrong. ECharts was vendored an hour before this was written.
   #
-  # The floor is now 2, which a route only reaches when it is under about three
-  # percent of the busiest, and it is a visibility backstop rather than part of
-  # the scale.
-  defp radius(n, busiest) when is_integer(busiest) and busiest > 0,
-    do: max(2.0, 11.0 * :math.sqrt(n / busiest))
-
-  defp radius(_n, _busiest), do: 5.0
-
-  defp arcs(parts, r) do
-    {arcs, _turned} =
-      Enum.map_reduce(parts, 0.0, fn {side, share}, from ->
-        {{fill_for(side), wedge(from, from + share, r)}, from + share}
-      end)
-
-    arcs
+  # The server sends the DATA and the browser builds the chart, because the
+  # colours are CSS custom properties and only resolve there.
+  defp matrix_spec(ordered, pairs, busiest) do
+    Jason.encode!(%{
+      kind: "matrix",
+      busiest: max(busiest || 1, 1),
+      rows: Enum.map(ordered, &Dronex.TellIslandsApart.spoken/1),
+      cols: Enum.map(ordered, &Dronex.TellIslandsApart.spoken/1),
+      cells: cells_of(ordered, pairs)
+    })
   end
 
-  defp fill_for(:attacker), do: "var(--side-attacker)"
-  defp fill_for(:defender), do: "var(--side-defender)"
-  defp fill_for(:draw), do: "var(--side-draw)"
-
-  # ⚠ A WHOLE-CIRCLE SLICE IS NOT AN ARC. An arc from a point back to itself draws
-  # nothing, and a route where one side won every raid is the loudest finding on
-  # this grid: it must not be the one that renders blank.
-  defp wedge(_from, to, r) when to >= 0.999,
-    do: "M 12 #{12 - r} A #{r} #{r} 0 1 1 11.99 #{12 - r} Z"
-
-  defp wedge(from, to, r) do
-    {x1, y1} = on_circle(from, r)
-    {x2, y2} = on_circle(to, r)
-    big = (to - from > 0.5 && 1) || 0
-
-    "M 12 12 L #{x1} #{y1} A #{r} #{r} 0 #{big} 1 #{x2} #{y2} Z"
+  defp cells_of(ordered, pairs) do
+    for {a, r} <- Enum.with_index(ordered),
+        {d, c} <- Enum.with_index(ordered),
+        a.id != d.id,
+        cell = pairs[{a.id, d.id}],
+        # ⚠ IN FLIGHT COUNTS AS SOMETHING HAPPENING. A pair with commitments and
+        # no recording is fighting right now, and filtering on settled raids alone
+        # drew it as a pair that has never met.
+        cell && (cell.raids > 0 or cell.in_flight > 0) do
+      %{
+        r: r,
+        c: c,
+        n: cell.raids,
+        a: cell.wins,
+        d: cell.losses,
+        # A draw cost both sides and settled nothing, and it is part of what
+        # happened on that route.
+        x: cell.raids - cell.wins - cell.losses,
+        f: cell.in_flight,
+        of: "#{Dronex.TellIslandsApart.spoken(a)} → #{Dronex.TellIslandsApart.spoken(d)}"
+      }
+    end
   end
 
-  # Twelve o'clock, clockwise, so the raider's slice always starts at the top and
-  # a row of cells can be compared without re-reading each one.
-  defp on_circle(share, r) do
-    a = share * 2 * :math.pi()
-    {Float.round(12 + r * :math.sin(a), 2), Float.round(12 - r * :math.cos(a), 2)}
+  # A canvas says nothing to a screen reader, so the shape of the grid is spoken.
+  defp matrix_spoken(ordered, pairs) do
+    fought = Enum.count(pairs, fn {_k, c} -> c.raids > 0 end)
+    "who raids whom, #{length(ordered)} islands, #{fought} routes fought"
   end
 
   @doc """

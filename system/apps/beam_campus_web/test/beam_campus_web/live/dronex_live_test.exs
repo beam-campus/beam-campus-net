@@ -443,7 +443,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     assert html =~ "Who raids whom"
-    assert html =~ "beam00 → beam01: 1 raids"
+    assert html =~ ~s(&quot;n&quot;:1)
   end
 
   # ⚠ A RAID IN FLIGHT IS NOT A RAID THAT DID NOT HAPPEN. Counting it as zero
@@ -461,7 +461,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "1 still out"
+    assert html =~ ~s(&quot;f&quot;:1)
   end
 
   # The map is gone, and so is every trace of it: a canvas nobody draws is a
@@ -810,8 +810,14 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "var(--side-attacker)"
-    assert html =~ "<path"
+    # ⚠ THE CHART IS DRAWN IN THE BROWSER, so the server HTML carries the DATA
+    # and not the shapes. Asserting on `<path>` here would only ever pass by
+    # accident. What must be true server-side is that the cell reached the spec
+    # with its counts intact, and that the hook is attached to draw it.
+    # A colocated hook renders fully qualified, not as the `.Chart` shorthand.
+    assert html =~ ~s(phx-hook="BeamCampusWeb.DronexLive.Chart")
+    assert html =~ "who-raids-whom"
+    assert html =~ "beam00 → beam01"
   end
 
   # ⚠⚠ A RAID STILL OUT IS NOT AN EMPTY CELL. `slices/1` counts settled raids, so
@@ -831,7 +837,8 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "stroke-dasharray"
+    # In-flight reaches the spec as `f`, which is what makes the dashed ring.
+    assert html =~ ~s(&quot;f&quot;:1)
   end
 
   # ⚠ CLICKING AN ISLAND FILTERS BOTH ROLES, NOT JUST THE HOST. A raid is
