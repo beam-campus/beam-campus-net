@@ -795,6 +795,45 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert panel_island(render_click(view, "focus_island", %{"id" => id})) == "beam01 a6b1"
   end
 
+  # ⚠ THE PICTURE, NOT THE ARITHMETIC. The previous version of this cell computed
+  # a correct tint and rendered nothing a human could see: `color-mix' at 48% over
+  # a dark surface. Seven tests passed on the numbers. So this one asserts that
+  # SHAPES reach the page, in both side colours, which is the thing that failed.
+  test "the ledger draws a pie per route, in the side colours", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}] do
+      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
+    end
+
+    # aaa wins two of three against bbb; bbb loses its one.
+    Board.put_raid("r1", :raid, raid("aaa", "beam01") |> Map.put("island_id", "bbb"))
+    Board.put_raid("r2", :raid, raid("aaa", "beam01") |> Map.put("island_id", "bbb"))
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "var(--side-attacker)"
+    assert html =~ "<path"
+  end
+
+  # ⚠⚠ A RAID STILL OUT IS NOT AN EMPTY CELL. `slices/1` counts settled raids, so
+  # a commitment has no outcome to slice and the pie would have dropped it. A pair
+  # fighting right now must not look like a pair that never has.
+  test "a route with only a raid in flight still marks the cell", %{conn: conn} do
+    for {id, name} <- [{"aaa", "beam00"}, {"bbb", "beam01"}] do
+      Board.put(id, :vitals, %{"island" => name, "island_id" => id, "roster" => 90})
+    end
+
+    Board.put_raid("out", :committed, %{
+      "raid_id" => "out",
+      "role" => "attacker",
+      "island_id" => "aaa",
+      "opponent_id" => "bbb"
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "stroke-dasharray"
+  end
+
   # ⚠ CLICKING AN ISLAND FILTERS BOTH ROLES, NOT JUST THE HOST. A raid is
   # published by the DEFENDER because the defender hosted it, so filtering on the
   # publisher alone would answer "fights fought in this airspace" and silently

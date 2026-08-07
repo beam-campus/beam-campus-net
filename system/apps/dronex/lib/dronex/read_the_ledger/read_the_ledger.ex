@@ -125,6 +125,43 @@ defmodule Dronex.ReadTheLedger do
   end
 
   @doc """
+  A cell as pie slices: which way it went, in the proportions it went.
+
+  ⚠ A TINT WAS NOT ENOUGH AND THE PAGE PROVED IT. The first version of this
+  shaded the cell background with the side colour at an alpha derived from how
+  far the pair leaned. It was deployed, it emitted exactly the CSS it meant to,
+  and on a dark surface a 48% wash is indistinguishable from no wash at all. The
+  logic had seven tests and nobody had looked at the picture.
+
+  A slice is a SHAPE. It survives being small and it survives any background.
+
+  ⚠⚠ AND THE AREA CARRIES THE SAMPLE SIZE, which is what makes the threshold
+  unnecessary. A pair that has fought once draws a dot; a pair that has fought
+  eight times draws a disc almost three times its diameter. One raid won is still
+  100% red, and it is 100% of something visibly tiny, so it can no longer shout
+  as loudly as a route that has been fought over all week.
+
+  Draws take their own slice rather than being dropped. A raid that cost both
+  sides and settled nothing is part of what happened on that route.
+  """
+  @spec slices(map() | nil) :: %{decided: non_neg_integer(), parts: [{atom(), float()}]}
+  def slices(nil), do: %{decided: 0, parts: []}
+
+  def slices(%{raids: 0}), do: %{decided: 0, parts: []}
+
+  def slices(%{raids: r, wins: w, losses: l}) do
+    %{decided: r, parts: parts(w / r, (r - w - l) / r, l / r)}
+  end
+
+  # In reading order, raider first, so a row of cells has its red always on the
+  # same side of the disc and the eye can compare them without re-reading.
+  defp parts(attacker, draw, defender) do
+    for {side, share} <- [{:attacker, attacker}, {:draw, draw}, {:defender, defender}],
+        share > 0.0,
+        do: {side, share}
+  end
+
+  @doc """
   The busiest single route, so a caption can say what the darkest cell means.
 
   Nil when nothing has been fought: a scale with no data is not a scale of zero.

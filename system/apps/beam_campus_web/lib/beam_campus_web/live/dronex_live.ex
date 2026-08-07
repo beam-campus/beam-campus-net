@@ -1404,14 +1404,7 @@ defmodule BeamCampusWeb.DronexLive do
                     )
                   }
                 >
-                  <div
-                    class="absolute inset-0 rounded-sm"
-                    style={"background: #{route_step(@pairs[{a.id, d.id}])}"}
-                  >
-                  </div>
-                  <span class="relative font-mono tabular-nums">
-                    {cell_text(@pairs[{a.id, d.id}])}
-                  </span>
+                  <.route_pie cell={@pairs[{a.id, d.id}]} busiest={@busiest} />
                 </div>
               </td>
             </tr>
@@ -1420,11 +1413,11 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each cell is the row island raiding the column island, written as its own <strong>wins–losses</strong>. Colour is <strong>which way that pair leans</strong>: red where the raider prevails,
-        blue where the island holds, grey where it is even. A cell stays uncoloured
-        until <strong>three</strong> raids have been decided there, because one raid won is
-        100% and would shout louder than anything else on the grid. The busiest
-        route has {@busiest || 0} raids. A dot is a raid
+        Each cell is the row island raiding the column island, as a pie: <strong>red is the raider winning</strong>, blue is the island holding,
+        grey is a draw. Its <strong>area is how many raids</strong>
+        have been fought there, so a pair that has met once is a dot and the
+        busiest route, at {@busiest || 0} raids, is the largest disc. Hover for the
+        numbers. A dot is a raid
         still out: both sides commit on acceptance and the defender publishes the
         recording when it ends, so a pair with commitments and no recording is
         either in flight or one whose defender went dark, which look the same from
@@ -1434,10 +1427,6 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
-  defp cell_text(nil), do: "·"
-  defp cell_text(%{raids: 0, in_flight: n}) when n > 0, do: "◦"
-  defp cell_text(%{wins: w, losses: l}), do: "#{w}–#{l}"
-
   defp cell_title(a, d, nil), do: "#{a} has not raided #{d}"
 
   defp cell_title(a, d, %{raids: r, wins: w, losses: l, in_flight: f}),
@@ -1445,23 +1434,103 @@ defmodule BeamCampusWeb.DronexLive do
 
   # ⚠ NO DATA IS NOT A ZERO ROUTE. A pair that has never fought must not shade
   # like one that fought and always lost.
-  # ⚠ THE FILL IS THE DIRECTION NOW, NOT THE TRAFFIC. Colour is read before text
-  # is, and this grid was spending it on how busy a route was while the finding,
-  # who beats whom, sat in small mono digits. `ReadTheLedger.lean/1` owns the
-  # judgement so it can be tested without a browser; this only paints it.
-  defp route_step(cell), do: tint(Dronex.ReadTheLedger.lean(cell))
+  @doc """
+  One route as a pie: how it went, drawn at a size that says how much it is worth.
 
-  # ⚠⚠ TOO FEW AND DEAD EVEN ARE DIFFERENT ANSWERS. A pair that has fought ten
-  # times to a standstill has told you something; a pair that has fought once has
-  # not, and painting both blank would say the same thing about both.
-  defp tint(:thin), do: "transparent"
-  defp tint(:even), do: "color-mix(in oklab, var(--side-draw) 22%, transparent)"
+  ⚠ THIS REPLACED A BACKGROUND TINT THAT WAS INVISIBLE. The tint shipped, emitted
+  exactly the `color-mix` it meant to, and at 48% over a dark surface could not be
+  told from the surface. Seven tests passed on the arithmetic and nobody rendered
+  the page.
 
-  defp tint({:attacker, n}),
-    do: "color-mix(in oklab, var(--side-attacker) #{n * 16}%, transparent)"
+  A slice is a SHAPE, and a shape survives being small and survives any surface.
 
-  defp tint({:defender, n}),
-    do: "color-mix(in oklab, var(--side-defender) #{n * 16}%, transparent)"
+  ⚠⚠ AREA IS THE SAMPLE SIZE, which is what makes the minimum-raids rule
+  unnecessary. Radius goes as the square root, because area is what the eye
+  judges. One raid won is still 100% red and is now 100% of a full stop, so it
+  can no longer shout as loudly as a route fought over all week.
+  """
+  attr :cell, :map, default: nil
+  attr :busiest, :integer, default: nil
+
+  def route_pie(assigns) do
+    %{decided: n, parts: parts} = Dronex.ReadTheLedger.slices(assigns.cell)
+
+    assigns =
+      assign(assigns,
+        n: n,
+        arcs: arcs(parts, radius(n, assigns.busiest)),
+        # ⚠ A RAID STILL OUT IS NOT AN EMPTY CELL, and the pie would have dropped
+        # it: `slices/1` counts settled raids and a commitment has no outcome to
+        # slice. The hollow ring the text cell used to draw as "·" is kept, because
+        # a pair that is fighting right now must not look like a pair that never
+        # has.
+        flying: (is_map(assigns.cell) && Map.get(assigns.cell, :in_flight, 0)) || 0
+      )
+
+    ~H"""
+    <svg :if={@n > 0 or @flying > 0} viewBox="0 0 24 24" class="h-6 w-6" aria-hidden="true">
+      <path :for={{fill, d} <- @arcs} d={d} fill={fill} />
+      <circle
+        :if={@flying > 0}
+        cx="12"
+        cy="12"
+        r={(@n > 0 && 11) || 3}
+        fill="none"
+        stroke="var(--side-draw)"
+        stroke-width="1"
+        stroke-dasharray="2 2"
+      />
+    </svg>
+    """
+  end
+
+  # ⚠ A TRUE AREA SCALE, AND THE FIRST VERSION WAS NOT ONE. It read
+  # `3.5 + 7.0 * sqrt(share)', and that floor of 3.5 made a one-raid route a THIRD
+  # of the area of an eight-raid one instead of an eighth. A size encoding that
+  # flatters the smallest sample is the same lie as painting it at full strength,
+  # arrived at by being helpful about visibility.
+  #
+  # The floor is now 2, which a route only reaches when it is under about three
+  # percent of the busiest, and it is a visibility backstop rather than part of
+  # the scale.
+  defp radius(n, busiest) when is_integer(busiest) and busiest > 0,
+    do: max(2.0, 11.0 * :math.sqrt(n / busiest))
+
+  defp radius(_n, _busiest), do: 5.0
+
+  defp arcs(parts, r) do
+    {arcs, _turned} =
+      Enum.map_reduce(parts, 0.0, fn {side, share}, from ->
+        {{fill_for(side), wedge(from, from + share, r)}, from + share}
+      end)
+
+    arcs
+  end
+
+  defp fill_for(:attacker), do: "var(--side-attacker)"
+  defp fill_for(:defender), do: "var(--side-defender)"
+  defp fill_for(:draw), do: "var(--side-draw)"
+
+  # ⚠ A WHOLE-CIRCLE SLICE IS NOT AN ARC. An arc from a point back to itself draws
+  # nothing, and a route where one side won every raid is the loudest finding on
+  # this grid: it must not be the one that renders blank.
+  defp wedge(_from, to, r) when to >= 0.999,
+    do: "M 12 #{12 - r} A #{r} #{r} 0 1 1 11.99 #{12 - r} Z"
+
+  defp wedge(from, to, r) do
+    {x1, y1} = on_circle(from, r)
+    {x2, y2} = on_circle(to, r)
+    big = (to - from > 0.5 && 1) || 0
+
+    "M 12 12 L #{x1} #{y1} A #{r} #{r} 0 #{big} 1 #{x2} #{y2} Z"
+  end
+
+  # Twelve o'clock, clockwise, so the raider's slice always starts at the top and
+  # a row of cells can be compared without re-reading each one.
+  defp on_circle(share, r) do
+    a = share * 2 * :math.pi()
+    {Float.round(12 + r * :math.sin(a), 2), Float.round(12 - r * :math.cos(a), 2)}
+  end
 
   @doc """
   Every island against every drill, as one matrix.
