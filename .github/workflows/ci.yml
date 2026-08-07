@@ -57,3 +57,11 @@ jobs:
       - name: Run tests
         working-directory: system
         run: mix test
+
+      # ⚠ RENDER THE CHARTS AND MEASURE THEM. Unit tests check that the numbers
+      # are right; this checks that the picture is. Twice in one day this page
+      # shipped a chart whose arithmetic passed and whose image showed nothing,
+      # and both times a human found it by looking.
+      - name: Charts
+        working-directory: system
+        run: mix charts.check

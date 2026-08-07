@@ -72,7 +72,36 @@ defmodule BeamCampus.Umbrella.MixProject do
     [
       # run `mix setup` in all child apps
       setup: ["cmd mix setup"],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # ⚠ THE CHARTS ARE RENDERED AND MEASURED, NOT EYEBALLED. This builds each
+      # chart option with the same pure functions the browser uses, renders it to
+      # SVG under Node, and asserts the geometry: equal radii, marks inside their
+      # cells, nothing at NaN, colours actually painted.
+      #
+      # It exists because this page twice shipped a chart that was arithmetically
+      # correct and visually wrong — an invisible 48% tint, and an in-flight
+      # marker drawn four rows tall — and both were found by a human sending a
+      # screenshot. Verified to go red with either bug reintroduced.
+      #
+      # ⚠ A FUNCTION, NOT `cmd'. `mix cmd' in an umbrella runs the command once
+      # per child app, from inside each one, so the path resolves in neither.
+      "charts.check": &charts_check/1,
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "charts.check",
+        "test"
+      ]
     ]
+  end
+
+  defp charts_check(_args) do
+    {out, code} =
+      System.cmd("node", ["apps/beam_campus_web/assets/js/charts_check.mjs"],
+        stderr_to_stdout: true
+      )
+
+    IO.puts(out)
+    code == 0 || Mix.raise("chart checks failed")
   end
 end
