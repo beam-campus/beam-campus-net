@@ -333,6 +333,41 @@ defmodule Dronex.WatchBouts.Board do
     :ok
   end
 
+  @doc """
+  Put a raid back that was written down before the last restart.
+
+  ⚠ THE READINGS ARE HANDED IN, NOT RECOMPUTED, because they cannot be. Damage
+  and coverage are walked out of the frames once at ingest and the frames are not
+  persisted: they are 150 KB each and only the replay player wants them. A
+  remembered raid therefore has its numbers and no film, which is exactly the
+  trade the read model is making.
+
+  ⚠⚠ AND IT NEVER OVERWRITES WHAT IS LIVE. A raid the mesh has already delivered
+  since boot is fresher than the row on disk and may carry frames this does not.
+  """
+  @spec put_remembered(binary(), map(), map()) :: :ok | :held
+  def put_remembered(raid_id, fact, readings) when is_binary(raid_id) and is_map(fact) do
+    key = {:raid, raid_id}
+    remembered(existing(key), key, raid_id, fact, readings)
+  end
+
+  defp remembered(nil, key, raid_id, fact, readings) do
+    :ets.insert(
+      @table,
+      {key,
+       %{
+         id: raid_id,
+         parts: %{raid: [fact]},
+         readings: readings,
+         last_seen: System.system_time(:millisecond)
+       }}
+    )
+
+    :ok
+  end
+
+  defp remembered(_live, _key, _raid_id, _fact, _readings), do: :held
+
   # ⚠ ONCE, AT INGEST, AND NEVER AGAIN. Walking 120 frames of 24 drones is cheap
   # once per raid and wasteful per render, and the frames will not survive to be
   # walked later anyway.
