@@ -226,6 +226,56 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "1 raids"
   end
 
+  # ⚠ "LOST IT" AND "DREW IT" WERE THE SAME CELL. On a graded ladder those are
+  # different findings: a drone that draws the sniper held station and could not
+  # finish; one that lost it was killed.
+  test "a ladder cell distinguishes a draw from a loss", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam00",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["sniper"],
+      "benchmark_wins" => [2],
+      "benchmark_draws" => [5],
+      "benchmark_losses" => [3],
+      "benchmark_starts" => 10
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "beam00: 2 won, 5 drawn, 3 lost of 10"
+  end
+
+  # ⚠ AN ISLAND SITTING A CAPTURED CHAMPION IS NOT REPORTING ITS OWN BREEDING.
+  test "an island whose exam was sat by a captured genome is badged", %{conn: conn} do
+    base = %{
+      "benchmark_rungs" => ["sniper"],
+      "benchmark_wins" => [9],
+      "benchmark_starts" => 10
+    }
+
+    Board.put(
+      "aaa",
+      :vitals,
+      Map.merge(base, %{
+        "island" => "beam00",
+        "island_id" => "aaa",
+        "benchmark_sitter" => "captured"
+      })
+    )
+
+    Board.put(
+      "bbb",
+      :vitals,
+      Map.merge(base, %{"island" => "beam01", "island_id" => "bbb", "benchmark_sitter" => "bred"})
+    )
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "captured, not one it bred"
+    # exactly one island carries it
+    assert length(Regex.scan(~r/captured, not one it bred/, html)) == 1
+  end
+
   # ── Does breeding longer win wars ───────────────────────────────
 
   # ⚠ A CHART THAT SILENTLY DREW WHAT IT HAD WOULD ANSWER A DIFFERENT QUESTION
@@ -352,6 +402,29 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     assert html =~ "one fight changing hands is a whole\nstep" or html =~ "changing hands"
     assert html =~ "the wire carries the latest exercise only"
+  end
+
+  # ⚠ ONE READING CANNOT TELL SIGNAL FROM ONE FIGHT CHANGING HANDS. What can is
+  # the SHAPE of many, so the cell becomes a spread once readings accumulate —
+  # every one drawn rather than summarised, because whether they AGREE is the
+  # thing worth seeing.
+  test "the comms cell becomes a spread once readings accumulate", %{conn: conn} do
+    with_ablation("aaa", "beam00", %{"ablation_delta_air" => 25})
+
+    # Reach past the sampler's throttle: it takes one point per 30s and this
+    # would otherwise need a test that sleeps.
+    [{_id, [p]}] = :ets.lookup(:dronex_history, "aaa")
+
+    :ets.insert(
+      :dronex_history,
+      {"aaa",
+       [%{p | air: 25}, %{p | air: 0, at: p.at - 60_000}, %{p | air: 25, at: p.at - 90_000}]}
+    )
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    # Three readings, mean 16.7 — and the mean is drawn, not the latest.
+    assert html =~ "3 readings, mean 16.7 points of attacker score"
   end
 
   # ── Who raids whom, which replaced the map ──────────────────────

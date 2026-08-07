@@ -653,6 +653,105 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
+  Where the archipelago's genetic material is going, one island at a time.
+
+  ## ⚠ SMALL MULTIPLES, NOT ONE CHART WITH FIVE LINES
+
+  Five islands on one pair of axes needs five distinguishable colours. This site
+  has a validated CATEGORICAL PAIR — two hues, checked for separation under
+  colour blindness — and inventing three more to fill a legend is how a palette
+  becomes a rainbow and stops being readable by the people it was validated for.
+
+  ## ⚠⚠ ONE SCALE ACROSS ALL OF THEM, OR THEY DO NOT COMPARE
+
+  Each sparkline is drawn against the FLEET's largest count rather than its own,
+  so an island that has taken four hundred genomes reads visibly taller than one
+  that has taken forty. Per-island scaling would draw both as the same rising
+  line, which is the classic small-multiple mistake and would make this panel say
+  the opposite of what it is for.
+
+  Captures is the number the vitals grid calls the one that says whether any of
+  this is happening: raids and defences can both climb while it stays flat, and
+  then the archipelago is five separate experiments with a light show on top.
+  """
+  attr :islands, :list, required: true
+
+  def captures(assigns) do
+    series =
+      assigns.islands
+      |> Enum.map(fn row -> {row, Dronex.history(row.id)} end)
+      |> Enum.filter(fn {_row, h} -> length(h) >= 2 end)
+
+    ceiling =
+      series
+      |> Enum.flat_map(fn {_row, h} -> Enum.map(h, & &1.captures) end)
+      |> Enum.max(fn -> 0 end)
+
+    assigns = assign(assigns, series: series, ceiling: max(ceiling, 1))
+
+    ~H"""
+    <div class="mt-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="text-sm font-semibold opacity-70">Genomes captured, over time</h3>
+        <span :if={@series != []} class="font-mono text-xs opacity-40">
+          same scale on every island
+        </span>
+      </div>
+
+      <p :if={@series == []} class="instrument mt-2 p-3 text-xs opacity-50">
+        Nothing plotted yet. The board samples every {div(Dronex.sample_every_ms(), 1000)}s and needs two points to draw a
+        line. It holds them in memory rather than a database, so this begins again
+        after every deploy.
+      </p>
+
+      <div :if={@series != []} class="instrument mt-2 grid gap-4 p-3 sm:grid-cols-2 lg:grid-cols-3">
+        <figure :for={{row, samples} <- @series}>
+          <figcaption class="flex items-baseline justify-between gap-2">
+            <span class="font-mono text-xs opacity-70">{Dronex.label(row)}</span>
+            <span class="font-mono text-sm tabular-nums">{List.last(samples).captures}</span>
+          </figcaption>
+
+          <svg
+            viewBox="0 0 200 44"
+            class="mt-1 h-auto w-full"
+            role="img"
+            aria-label={"#{Dronex.label(row)} has captured #{List.last(samples).captures} genomes, against a fleet high of #{@ceiling}"}
+          >
+            <polyline
+              points={sparkline(samples, @ceiling)}
+              fill="none"
+              stroke="var(--chart-1)"
+              stroke-width="2"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            />
+          </svg>
+        </figure>
+      </div>
+
+      <p :if={@series != []} class="mt-2 text-xs opacity-40">
+        Cumulative genomes taken from a defeated raiding party and kept. Every
+        island is drawn against the fleet's largest count, not its own, so the
+        heights compare.
+      </p>
+    </div>
+    """
+  end
+
+  # 2 to 198 across and 40 down to 4, so a 2px stroke never clips at either end.
+  defp sparkline(samples, ceiling) do
+    last = length(samples) - 1
+
+    samples
+    |> Enum.with_index()
+    |> Enum.map_join(" ", fn {p, i} ->
+      x = 2 + i * 196 / max(last, 1)
+      y = 40 - min(p.captures, ceiling) * 36 / ceiling
+      "#{Float.round(x * 1.0, 1)},#{Float.round(y * 1.0, 1)}"
+    end)
+  end
+
+  @doc """
   Does breeding longer win wars? The chart that joins this exhibit's two halves.
 
   ## Both answers teach, which is why it is worth the space
@@ -831,7 +930,7 @@ defmodule BeamCampusWeb.DronexLive do
               </td>
 
               <td :for={arm <- (!void?(row) && ~w(air ground all)) || []} class="px-1">
-                <.delta_bar points={ablation(row, arm)} />
+                <.delta_spread points={ablation(row, arm)} samples={sampled(row, arm)} />
               </td>
 
               <td class="text-right font-mono text-xs opacity-60">{ablation(row, "runs")}</td>
@@ -876,12 +975,51 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  # ⚠ THIS IS WHAT SETTLES WHETHER THE RADIO MATTERS.
+  #
+  # A single exercise moves in steps of about 25, so one reading cannot tell "the
+  # channel carries weight" from "one fight changed hands". Neither can two. What
+  # can is the SHAPE of many: a channel that matters sits off zero and stays
+  # there; noise scatters across it.
+  #
+  # Every sampled reading is drawn rather than summarised. A mean alone would
+  # hide the one thing worth seeing — whether the readings AGREE — and a fitted
+  # bell would be worse: over a handful of coarsely quantised values it asserts a
+  # generating process nobody has established. The dots are what was measured.
   attr :points, :integer, required: true
+  attr :samples, :list, default: []
+
+  defp delta_spread(%{samples: samples} = assigns) when length(samples) >= 3 do
+    mean = Enum.sum(samples) / length(samples)
+    assigns = assign(assigns, mean: mean, n: length(samples))
+
+    ~H"""
+    <div
+      class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
+      title={"#{@n} readings, mean #{Float.round(@mean, 1)} points of attacker score"}
+    >
+      <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
+
+      <div
+        :for={{v, i} <- Enum.with_index(@samples)}
+        class="absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full opacity-50"
+        style={"left: #{50 + min(max(v, -100), 100) / 2}%; top: #{3 + rem(i, 6) * 2}px; background: var(--chart-1)"}
+      >
+      </div>
+
+      <div
+        class="absolute inset-y-0 w-0.5"
+        style={"left: #{50 + min(max(@mean, -100), 100) / 2}%; background: var(--chart-2)"}
+      >
+      </div>
+    </div>
+    """
+  end
 
   # ⚠ SCALED TO THE FULL POSSIBLE RANGE, NEVER TO THE DATA. The score is a
   # percentage, so ±100 is the honest half-width; fitting the axis to the ±25
   # actually observed would draw one fight changing hands as a full bar.
-  defp delta_bar(assigns) do
+  defp delta_spread(assigns) do
     assigns = assign(assigns, width: min(abs(assigns.points), 100) / 2)
 
     ~H"""
@@ -913,6 +1051,13 @@ defmodule BeamCampusWeb.DronexLive do
 
   defp bar_style(_points, width),
     do: "right: 50%; width: #{width}%; background: var(--chart-2)"
+
+  # ⚠ THE TRAJECTORY, NOT THE LATEST. The wire republishes one exercise; the
+  # board samples it every 30s, so this is the only place readings accumulate.
+  defp sampled(row, arm) do
+    key = String.to_existing_atom(arm)
+    row.id |> Dronex.history() |> Enum.map(&Map.get(&1, key, 0))
+  end
 
   defp void?(row), do: (Dronex.fact(row, :vitals) || %{})["ablation_void"] == true
 
@@ -1090,14 +1235,26 @@ defmodule BeamCampusWeb.DronexLive do
           </thead>
           <tbody>
             <tr :for={row <- @islands} class={[@focus == row.id && "font-semibold"]}>
-              <td class="py-0.5 pr-2 text-right font-mono opacity-70">{Dronex.label(row)}</td>
-              <td :for={{wins, starts} <- rung_cells(row)} class="p-0.5">
+              <td class="whitespace-nowrap py-0.5 pr-2 text-right font-mono opacity-70">
+                {Dronex.label(row)}
+                <%!-- ⚠ AN ISLAND SITTING A CAPTURED CHAMPION IS NOT REPORTING ITS
+                      OWN BREEDING. `roster:best/1` sits the exam and a raid
+                      admits foreign genomes into the roster it is chosen from. --%>
+                <span
+                  :if={sitter(row) == "captured"}
+                  class="ml-1 text-[10px] opacity-60"
+                  title="this island's exam was sat by a controller it captured, not one it bred"
+                >
+                  captured
+                </span>
+              </td>
+              <td :for={{wins, starts, lost, drew} <- rung_cells(row)} class="p-0.5">
                 <div
                   class={[
                     "flex h-7 w-14 items-center justify-center rounded-sm border",
                     (@focus == row.id && "border-primary/60") || "border-base-300"
                   ]}
-                  title={"#{Dronex.label(row)}: #{wins} of #{starts}"}
+                  title={"#{Dronex.label(row)}: #{wins} won, #{drew} drawn, #{lost} lost of #{starts}"}
                 >
                   <%!-- ⚠ A STEP FROM THE RAMP, NOT AN OPACITY ON A BRAND HUE.
                         Fading `primary' moves lightness and chroma together and
@@ -1140,11 +1297,23 @@ defmodule BeamCampusWeb.DronexLive do
     "var(--chart-seq-#{min(5, div(wins * 5, starts) + 1)})"
   end
 
+  # ⚠ WINS ALONE MADE "LOST IT" AND "DREW IT" THE SAME CELL. On a graded ladder
+  # those are different findings: a drone that draws the sniper held station and
+  # could not finish; one that lost it was killed.
   defp rung_cells(row) do
     v = Dronex.fact(row, :vitals) || %{}
     starts = num(v, "benchmark_starts")
-    Enum.map(Map.get(v, "benchmark_wins", []), fn wins -> {wins, starts} end)
+    losses = Map.get(v, "benchmark_losses", [])
+    draws = Map.get(v, "benchmark_draws", [])
+
+    Map.get(v, "benchmark_wins", [])
+    |> Enum.with_index()
+    |> Enum.map(fn {wins, i} ->
+      {wins, starts, Enum.at(losses, i, 0), Enum.at(draws, i, 0)}
+    end)
   end
+
+  defp sitter(row), do: (Dronex.fact(row, :vitals) || %{})["benchmark_sitter"]
 
   attr :label, :string, required: true
   attr :value, :any, required: true
@@ -1323,6 +1492,8 @@ defmodule BeamCampusWeb.DronexLive do
       <.comms islands={@ordered_islands} />
 
       <.experience raids={@raids} />
+
+      <.captures islands={@ordered_islands} />
 
       <.leaderboard standings={@shown} focus={@focus} />
 
