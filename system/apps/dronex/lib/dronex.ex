@@ -159,6 +159,67 @@ defmodule Dronex do
   @spec holds?({atom(), binary()}) :: boolean()
   defdelegate holds?(key), to: Board
 
+  @doc """
+  What every raid measured, folded into one reading, with its `n`.
+
+  ⚠ THIS REPLACES TWO CHARTS THAT DESCRIBED ONE FIGHT. Where the damage came
+  from and what the towers held were computed for whichever fight was selected,
+  so both were n=1 and neither could be believed. Measured at ingest and
+  accumulated, they are distributions over every raid the board has seen — which
+  is the same code answering a question worth asking.
+  """
+  @spec fleet_readings() :: map()
+  def fleet_readings do
+    %{losses: losses, coverage: coverage, n: n} = Board.readings()
+
+    %{n: n, damage: folded_damage(losses), coverage: folded_coverage(coverage)}
+  end
+
+  defp folded_damage([]), do: nil
+
+  defp folded_damage(all) do
+    quantised = Enum.sum(Enum.map(all, & &1.quantised))
+    unquantised = Enum.sum(Enum.map(all, & &1.unquantised))
+    total = quantised + unquantised
+
+    %{
+      quantised: quantised,
+      unquantised: unquantised,
+      total: total,
+      deaths: Enum.sum(Enum.map(all, & &1.deaths)),
+      weapon_share: (total > 0 && round(quantised * 100 / total)) || nil,
+      other_share: (total > 0 && round(unquantised * 100 / total)) || nil
+    }
+  end
+
+  defp folded_coverage([]), do: nil
+
+  defp folded_coverage(all) do
+    # ⚠ FRAMES ARE SUMMED AND THE RATE IS RECOMPUTED, never averaged. A raid that
+    # spent four frames above 250 m and one that spent four hundred must not
+    # carry equal weight in a band's coverage, and a mean of percentages does
+    # exactly that.
+    bands =
+      all
+      |> Enum.flat_map(& &1.bands)
+      |> Enum.group_by(& &1.from)
+      |> Enum.map(fn {from, rows} ->
+        frames = Enum.sum(Enum.map(rows, & &1.frames))
+        held = Enum.sum(Enum.map(rows, & &1.held))
+
+        %{
+          from: from,
+          to: List.first(rows).to,
+          frames: frames,
+          held: held,
+          coverage: (frames > 0 && round(held * 100 / frames)) || nil
+        }
+      end)
+      |> Enum.sort_by(& &1.from)
+
+    %{gate: List.first(all).gate, bands: bands, frames: Enum.sum(Enum.map(bands, & &1.frames))}
+  end
+
   @doc "What an island's numbers have been doing, oldest first. Empty on restart."
   @spec history(binary()) :: [map()]
   defdelegate history(id), to: Board

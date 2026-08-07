@@ -249,7 +249,7 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "What destroyed them"
+    assert html =~ "What destroys them"
     # Two exact 25-point falls: all of it weapons, none of it a ram.
     assert html =~ "weapons 100%"
   end
@@ -274,10 +274,13 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    assert html =~ "What the towers held, by altitude"
+    assert html =~ "What the towers hold, by altitude"
     assert html =~ "0–50 m"
     # Held in both frames, and the denominator is on the row.
     assert html =~ "n=2"
+    # ⚠ AND THE FLEET COUNT, because these are accumulations over a rolling
+    # window rather than a sample anybody chose.
+    assert html =~ "1 raids"
   end
 
   # ⚠ FLEET-SCOPED THINGS MUST NOT HIDE BEHIND A PER-ISLAND TAB. The island ×

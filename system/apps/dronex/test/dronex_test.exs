@@ -251,18 +251,43 @@ defmodule DronexTest do
     assert Dronex.recording({:raid, "nope"}) == :gone
   end
 
-  # ⚠ THE TWO CAPS ARE COUPLED AND WERE SET APART. A board that lists N fights
-  # must be able to hold N recordings, or "listed" and "drawable" drift until the
-  # second is a minority of the first.
-  test "the recording budget can hold a full board" do
-    measured_recording_bytes = 1_600_000
-    max_raids = 64
+  # ⚠ THIS INVARIANT INVERTED, AND THE OLD ONE IS WORTH REMEMBERING. It used to
+  # read "the budget must hold a full board", because every ranked fight had to
+  # stay playable — 64 recordings at ~1.6 MB, so 128 MB of frames against 33 KB
+  # of board. That budget served an ANIMATION of an outcome that is a coin flip.
+  #
+  # Now the frames are read ONCE at ingest and what survives is about twenty
+  # integers per raid, so the budget only has to hold the fights somebody might
+  # press play on. The requirement that replaces it: a raid whose recording has
+  # aged out must still count.
+  test "a reading outlives the recording it was taken from" do
+    Board.put_raid("r1", :raid, %{
+      "raid_id" => "r1",
+      "island_id" => "aaa",
+      "frames" => [
+        %{"t" => 0, "d" => [0, 5, 5, 5, 0, 100, 0], "m" => [], "k" => []},
+        %{"t" => 2, "d" => [0, 5, 5, 5, 0, 75, 0], "m" => [], "k" => []}
+      ]
+    })
 
-    assert Board.max_raids() == max_raids
+    :ets.delete(:dronex_recordings, {:raid, "r1"})
+    refute Dronex.holds?({:raid, "r1"})
 
-    assert Board.budget_bytes() >= max_raids * measured_recording_bytes,
-           "budget #{Board.budget_bytes()} cannot hold #{max_raids} recordings " <>
-             "of #{measured_recording_bytes} — listed and drawable will drift apart"
+    assert Dronex.fleet_readings().n == 1
+    assert Dronex.fleet_readings().damage.quantised == 25
+  end
+
+  # ⚠ THE BOARD INGESTS FROM A PUBLIC REALM, so the frames are whatever a
+  # stranger sends and an island one version ahead is the ordinary case. A shape
+  # this cannot read must cost its own reading and nothing else — before the
+  # guard, one unexpected frame took `put_raid/3` down and every fact in that
+  # delivery with it.
+  test "a recording in an unreadable shape costs only its own reading" do
+    Board.put_raid("r1", :raid, %{"raid_id" => "r1", "frames" => [[1.0, 2.0], [3.0, 4.0]]})
+    Board.put_raid("r2", :raid, %{"raid_id" => "r2", "frames" => "not even a list"})
+
+    assert length(Board.raids()) == 2
+    assert Dronex.fleet_readings().n == 0
   end
 
   # ⚠ ONE SHAPE FOR "A FIGHT". `latest_fight/0` used to answer a bare

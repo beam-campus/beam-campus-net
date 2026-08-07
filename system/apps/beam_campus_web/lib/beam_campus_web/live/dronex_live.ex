@@ -59,7 +59,7 @@ defmodule BeamCampusWeb.DronexLive do
      # site's generic title, so four different workbench pages are one bookmark.
      |> assign(page_title: "DroneX")
      |> assign(dirty?: false, watching: nil, focus: nil)
-     |> assign(fight: nil, payload: nil, frame_count: 0, losses: nil, coverage: nil)
+     |> assign(fight: nil, payload: nil, frame_count: 0)
      # `nil` means the map has not told us what it is showing. Before the first
      # report, and for anyone who never moves it, that has to mean EVERYTHING.
      |> assign(panel: :fights, in_view: nil)
@@ -157,7 +157,8 @@ defmodule BeamCampusWeb.DronexLive do
       focused: Enum.find(islands, &(&1.id == focus)),
       ranked: ranked(),
       state: Dronex.state(),
-      refused: Dronex.refused()
+      refused: Dronex.refused(),
+      readings: Dronex.fleet_readings()
     )
     |> put_fight(watching(watchable, socket.assigns[:watching]))
   end
@@ -181,7 +182,7 @@ defmodule BeamCampusWeb.DronexLive do
   # commitments arrive before its recording does — same key, and the second
   # arrival is the one worth drawing.
   defp put_fight(socket, nil),
-    do: assign(socket, fight: nil, payload: nil, frame_count: 0, losses: nil, coverage: nil)
+    do: assign(socket, fight: nil, payload: nil, frame_count: 0)
 
   defp put_fight(%{assigns: %{fight: %{key: k, fact: f}}} = socket, %{key: k, fact: f}),
     do: socket
@@ -192,12 +193,7 @@ defmodule BeamCampusWeb.DronexLive do
     assign(socket,
       fight: entry,
       payload: encode(entry.fact, frames),
-      frame_count: length(frames),
-      # ⚠ WALKED ONCE, WITH THE PAYLOAD. This reads every drone in every frame;
-      # doing it per render would be that walk twice a second for a number that
-      # only changes when the fight does.
-      losses: Dronex.AccountForLosses.account(frames),
-      coverage: Dronex.SeeWhatTheTowersSaw.coverage(frames)
+      frame_count: length(frames)
     )
   end
 
@@ -321,6 +317,7 @@ defmodule BeamCampusWeb.DronexLive do
             in_view={@in_view}
             focus={@focus}
             focused={@focused}
+            readings={@readings}
           />
         </div>
 
@@ -354,8 +351,6 @@ defmodule BeamCampusWeb.DronexLive do
             fight={@fight}
             payload={@payload}
             frame_count={@frame_count}
-            losses={@losses}
-            coverage={@coverage}
             watchable={@watchable}
             watching={@watching}
             focused={@focused}
@@ -908,6 +903,7 @@ defmodule BeamCampusWeb.DronexLive do
   attr :in_view, :any, default: nil
   attr :focus, :string, default: nil
   attr :focused, :any, default: nil
+  attr :readings, :map, required: true
 
   def one_world(assigns) do
     shown = visible(assigns.standings, assigns.in_view)
@@ -960,6 +956,14 @@ defmodule BeamCampusWeb.DronexLive do
             most informative thing on the page two clicks behind a video player
             meant a visitor landed on a canvas and one small bar. --%>
       <.ladder :if={@rungs != []} islands={@islands} focus={@focus} rungs={@rungs} />
+
+      <%!-- ⚠ FLEET-WIDE, WHICH IS WHY THEY MOVED HERE. Both of these described
+            whichever fight was selected, so both were n=1. Measured at ingest
+            and accumulated they describe every raid the board has seen, and the
+            `n` is printed on them because the raids are a rolling window rather
+            than a sample anybody chose. --%>
+      <BeamCampusWeb.DronexFight.losses :if={@readings.damage} readings={@readings} />
+      <BeamCampusWeb.DronexFight.coverage :if={@readings.coverage} readings={@readings} />
     </section>
     """
   end
@@ -1011,8 +1015,6 @@ defmodule BeamCampusWeb.DronexLive do
   attr :fight, :any, default: nil
   attr :payload, :any, default: nil
   attr :frame_count, :integer, default: 0
-  attr :losses, :any, default: nil
-  attr :coverage, :any, default: nil
   attr :watchable, :list, required: true
   attr :watching, :any, default: nil
   attr :focused, :any, default: nil
@@ -1053,8 +1055,6 @@ defmodule BeamCampusWeb.DronexLive do
             fight={@fight}
             payload={@payload}
             frame_count={@frame_count}
-            losses={@losses}
-            coverage={@coverage}
           />
         </div>
 

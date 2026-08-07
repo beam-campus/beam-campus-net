@@ -105,6 +105,24 @@ defmodule Dronex.WatchBouts.Board do
   @max_islands 64
   @max_raids 64
 
+  # ⚠ SMALL AGAIN, AND ON PURPOSE. This was 128 MB so that all 64 ranked fights
+  # stayed playable. That budget existed to serve an ANIMATION, and the animation
+  # was the most expensive thing on the site by a factor of about three thousand:
+  # 128 MB of frames against 33 KB of board and 5 KB of history, for a picture of
+  # an outcome that is a coin flip.
+  #
+  # What the frames are actually FOR is the two analyses — where the damage came
+  # from, and what the towers held. Those now run once, HERE, when a recording
+  # arrives, and what survives is about twenty integers on the raid row. The
+  # frames are then worth keeping only for the handful of fights somebody might
+  # actually press play on.
+  #
+  # ⚠⚠ AND THE ANALYSES GOT STRONGER BY SHRINKING. Computed per selected fight
+  # they described n=1. Computed at ingest they accumulate over every raid the
+  # board has ever seen, so the page can print a distribution with its n on it.
+  #
+  # The old note, kept because the coupling it describes is still real:
+  #
   # ⚠ THIS MUST COVER A FULL BOARD, AND AT 48 MB IT DID NOT.
   #
   # The row cap and this budget were set independently on 2026-08-06 and they
@@ -124,7 +142,7 @@ defmodule Dronex.WatchBouts.Board do
   #
   # The budget still does real work: @max_recording allows 8 MB apiece, so a
   # pathological board would be 512 MB without it.
-  @budget 128 * 1024 * 1024
+  @budget 8 * 1024 * 1024
 
   # No real recording approaches this. One that does is a publisher fault or a
   # stranger, and either way it is not going in.
@@ -282,7 +300,12 @@ defmodule Dronex.WatchBouts.Board do
   @spec put_raid(binary(), atom(), map()) :: :ok
   def put_raid(raid_id, kind, fact) when is_binary(raid_id) and is_atom(kind) do
     key = {:raid, raid_id}
-    row = existing(key) || %{id: raid_id, parts: %{}, last_seen: nil}
+    row = existing(key) || %{id: raid_id, parts: %{}, readings: %{}, last_seen: nil}
+    # ⚠ READ THE FRAMES BEFORE `stow/2` TAKES THEM AWAY. This is the only moment
+    # they are in hand: after the split they belong to a byte budget that will
+    # evict them, and a recording evicted before it was read is a fight nobody
+    # can ever account for.
+    read = readings(kind, Map.get(fact, "frames"))
     light = stow({kind, raid_id}, fact)
 
     :ets.insert(
@@ -291,12 +314,52 @@ defmodule Dronex.WatchBouts.Board do
        %{
          row
          | parts: Map.update(row.parts, kind, [light], &newest([light | &1])),
+           readings: Map.merge(Map.get(row, :readings, %{}), read),
            last_seen: System.system_time(:millisecond)
        }}
     )
 
     evict_oldest_raids()
     :ok
+  end
+
+  # ⚠ ONCE, AT INGEST, AND NEVER AGAIN. Walking 120 frames of 24 drones is cheap
+  # once per raid and wasteful per render, and the frames will not survive to be
+  # walked later anyway.
+  defp readings(:raid, [%{} | _] = frames) do
+    %{
+      losses: Dronex.AccountForLosses.account(frames),
+      coverage: Dronex.SeeWhatTheTowersSaw.coverage(frames)
+    }
+  rescue
+    # ⚠ A MALFORMED RECORDING COSTS ITS OWN READING AND NOTHING ELSE. These
+    # frames arrive on a PUBLIC realm, so the shape is whatever a stranger sends,
+    # and an island one version ahead is the ordinary case rather than the
+    # adversarial one. Before this clause a single unexpected frame took the
+    # whole `put_raid/3` down and with it every fact in that delivery.
+    _malformed -> %{}
+  end
+
+  # Not a recording, or frames in a shape this cannot read.
+  defp readings(_kind, _absent), do: %{}
+
+  @doc """
+  What was measured from every raid this board has seen, folded together.
+
+  ⚠ THE `n` IS RETURNED WITH IT, ALWAYS. These are accumulations over whatever
+  raids happened to arrive and survive the row cap — a rolling window, not a
+  sample anybody chose — so a reader who cannot see how many fights are behind a
+  percentage is being invited to trust it.
+  """
+  @spec readings() :: %{losses: list(), coverage: list(), n: non_neg_integer()}
+  def readings do
+    taken = for r <- raids(), map_size(Map.get(r, :readings, %{})) > 0, do: r.readings
+
+    %{
+      losses: Enum.map(taken, & &1.losses),
+      coverage: Enum.map(taken, & &1.coverage),
+      n: length(taken)
+    }
   end
 
   # ⚠ THIS LIST HAD NO BOUND. Two commitments and one recording is the whole of a

@@ -32,8 +32,6 @@ defmodule BeamCampusWeb.DronexFight do
   attr :fight, :any, required: true
   attr :payload, :string, required: true
   attr :frame_count, :integer, required: true
-  attr :losses, :any, default: nil
-  attr :coverage, :any, default: nil
 
   def fight(%{fight: %{kind: kind, fact: b}} = assigns) do
     assigns = assign(assigns, bout: b, raid?: kind == :raid)
@@ -41,8 +39,6 @@ defmodule BeamCampusWeb.DronexFight do
     ~H"""
     <section>
       <.replay bout={@bout} payload={@payload} count={@frame_count} big={@raid?} />
-      <.losses :if={@losses && @losses.weapon_share} losses={@losses} />
-      <.coverage :if={@coverage && @coverage.frames > 0} coverage={@coverage} />
     </section>
     """
   end
@@ -59,15 +55,21 @@ defmodule BeamCampusWeb.DronexFight do
   continuous — so the part of a health drop that is not a multiple of 25 cannot
   have come from a gun.
   """
-  attr :losses, :map, required: true
+  attr :readings, :map, required: true
 
   def losses(assigns) do
+    assigns = assign(assigns, losses: assigns.readings.damage, n: assigns.readings.n)
+
     ~H"""
     <div class="instrument mt-4 p-3">
       <div class="flex items-baseline justify-between gap-2">
-        <span class="text-xs font-semibold opacity-70">What destroyed them</span>
+        <span class="text-xs font-semibold opacity-70">What destroys them</span>
+        <%!-- ⚠ THE `n` IS NOT OPTIONAL. These raids are whatever arrived and
+              survived the row cap — a rolling window, not a sample anybody
+              chose — so a share without a count invites a trust it has not
+              earned. --%>
         <span class="font-mono text-xs opacity-50">
-          {@losses.deaths} lost · {@losses.total} points of damage
+          {@n} raids · {@losses.deaths} lost · {@losses.total} points
         </span>
       </div>
 
@@ -690,14 +692,18 @@ defmodule BeamCampusWeb.DronexFight do
   raiders flying together are both covered by one track. Over-counting is the
   only direction it errs in, which is why the caption calls it a ceiling.
   """
-  attr :coverage, :map, required: true
+  attr :readings, :map, required: true
 
   def coverage(assigns) do
+    assigns = assign(assigns, coverage: assigns.readings.coverage, n: assigns.readings.n)
+
     ~H"""
     <div class="instrument mt-4 p-3">
       <div class="flex items-baseline justify-between gap-2">
-        <span class="text-xs font-semibold opacity-70">What the towers held, by altitude</span>
-        <span class="font-mono text-xs opacity-50">within {@coverage.gate} m</span>
+        <span class="text-xs font-semibold opacity-70">What the towers hold, by altitude</span>
+        <span class="font-mono text-xs opacity-50">
+          {@n} raids · within {@coverage.gate} m
+        </span>
       </div>
 
       <div class="mt-2 space-y-1">
