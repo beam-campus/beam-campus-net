@@ -58,7 +58,15 @@ defmodule Dronex.TimeTheFights do
   # not change shape every time a raid arrives.
   @bin 100
 
-  @outcomes [{"attacker", "raider won"}, {"draw", "drawn"}, {"defender", "island held"}]
+  # ⚠ THE ROLE TRAVELS WITH THE SERIES, because colour here is a CONVENTION and
+  # not a palette slot. Blue is us, red is what is coming at us, which is how the
+  # replay player has drawn the same two sides all along. Taking the next
+  # categorical hue instead made this chart contradict the animation beside it.
+  @outcomes [
+    {"attacker", "raider won", "attacker"},
+    {"draw", "drawn", "draw"},
+    {"defender", "island held", "defender"}
+  ]
 
   @doc """
   The distribution of settled raid durations.
@@ -125,17 +133,22 @@ defmodule Dronex.TimeTheFights do
 
   Only outcomes that actually occurred get a series. An outcome nobody achieved
   is absent rather than a row of zeroes, which would put a dead entry in the
-  legend and spend one of three categorical hues on nothing.
+  legend.
+
+  ⚠ EACH SERIES CARRIES ITS ROLE, and the browser colours by role rather than by
+  position. A raider is red and an island is blue everywhere on this page, which
+  is what the replay player has always drawn; letting a bar take the next
+  categorical hue made the histogram disagree with the animation above it.
   """
   @spec series([map()], pos_integer()) :: [map()]
   def series(points, longest) do
     slots = 0..div(longest, @bin)
 
-    for {key, label} <- @outcomes,
+    for {key, label, role} <- @outcomes,
         side = Enum.filter(points, &(&1.winner == key)),
         side != [] do
       counts = Enum.frequencies_by(side, &div(&1.ticks, @bin))
-      %{name: label, data: Enum.map(slots, &Map.get(counts, &1, 0))}
+      %{name: label, role: role, data: Enum.map(slots, &Map.get(counts, &1, 0))}
     end
   end
 
@@ -166,7 +179,9 @@ defmodule Dronex.TimeTheFights do
   defp at_ceiling(side, ceiling), do: Enum.count(side, &(&1.ticks == ceiling))
 
   defp by_outcome(points, ceiling) do
-    for {key, label} <- @outcomes, side = Enum.filter(points, &(&1.winner == key)), side != [] do
+    for {key, label, _role} <- @outcomes,
+        side = Enum.filter(points, &(&1.winner == key)),
+        side != [] do
       %{
         outcome: label,
         n: length(side),

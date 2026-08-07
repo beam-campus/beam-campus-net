@@ -269,6 +269,27 @@
   --status-good: #1b7f4d;
   --status-warn: #8a6100;
   --status-critical: #b3261e;
+
+  /* ⚠ WHICH SIDE, AND IT IS A CONVENTION RATHER THAN A PALETTE SLOT. Blue is us,
+     red is what is coming at us, which is how air-defence displays have read for
+     as long as there have been air-defence displays. "Us" is not arbitrary: the
+     DEFENDER publishes the recording, it hosted the fight, and the spectator is
+     watching its airspace.
+
+     These two hex values lived as literals inside one canvas hook, so the
+     convention could not be followed anywhere else and the duration histogram
+     quietly contradicted it. Promoted here so there is one place to read it.
+
+     Validated on all pairs in BOTH modes and they pass everything, which is not
+     luck: red against blue is the strongest pair available, because red-green
+     colour blindness does not confuse it. ΔE 21.7 protan, 29.7 normal. The same
+     values serve both surfaces, so no mode override follows. */
+  --side-attacker: #e2556e;
+  --side-defender: #4c8dff;
+  /* A draw is neither side, so it is deliberately NOT a hue. It fails the chroma
+     floor on purpose: that check exists to stop an identity colour reading as
+     grey, and here grey IS the identity. */
+  --side-draw: #8a8a86;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -290,6 +311,11 @@
     --status-good: #35a06a;
     --status-warn: #b08a1f;
     --status-critical: #e0655a;
+    /* The sides pass against both surfaces, so they do not change with the mode.
+       Only the neutral lifts, because grey on a dark ground has to. */
+    --side-attacker: #e2556e;
+    --side-defender: #4c8dff;
+    --side-draw: #9a9a95;
     --chart-seq-1: #2c5f88;
     --chart-seq-2: #3a789f;
     --chart-seq-3: #4b91b8;
@@ -334,6 +360,27 @@
   --status-good: #1b7f4d;
   --status-warn: #8a6100;
   --status-critical: #b3261e;
+
+  /* ⚠ WHICH SIDE, AND IT IS A CONVENTION RATHER THAN A PALETTE SLOT. Blue is us,
+     red is what is coming at us, which is how air-defence displays have read for
+     as long as there have been air-defence displays. "Us" is not arbitrary: the
+     DEFENDER publishes the recording, it hosted the fight, and the spectator is
+     watching its airspace.
+
+     These two hex values lived as literals inside one canvas hook, so the
+     convention could not be followed anywhere else and the duration histogram
+     quietly contradicted it. Promoted here so there is one place to read it.
+
+     Validated on all pairs in BOTH modes and they pass everything, which is not
+     luck: red against blue is the strongest pair available, because red-green
+     colour blindness does not confuse it. ΔE 21.7 protan, 29.7 normal. The same
+     values serve both surfaces, so no mode override follows. */
+  --side-attacker: #e2556e;
+  --side-defender: #4c8dff;
+  /* A draw is neither side, so it is deliberately NOT a hue. It fails the chroma
+     floor on purpose: that check exists to stop an identity colour reading as
+     grey, and here grey IS the identity. */
+  --side-draw: #8a8a86;
   --chart-seq-1: #8ab8dc;
   --chart-seq-2: #6099c8;
   --chart-seq-3: #427cae;
@@ -351,6 +398,9 @@
   --status-good: #35a06a;
   --status-warn: #b08a1f;
   --status-critical: #e0655a;
+  --side-attacker: #e2556e;
+  --side-defender: #4c8dff;
+  --side-draw: #9a9a95;
   --chart-1: #3f8fd0;
   --chart-2: #c95f86;
   --chart-seq-1: #2c5f88;

@@ -121,6 +121,21 @@ defmodule Dronex.TimeTheFightsTest do
     assert [%{name: "raider won", data: [1, 1]}, %{name: "island held", data: [0, 1]}] = d.series
   end
 
+  # ⚠ COLOUR BY ROLE, NOT BY POSITION. Blue is us and red is what is coming at
+  # us, which is what the replay player has always drawn. Before the role
+  # travelled with the series, a bar took the next categorical hue and the
+  # histogram contradicted the animation directly above it on the same page.
+  test "each series carries the side it belongs to" do
+    d =
+      Time.distribution([
+        raid(100, "attacker"),
+        raid(100, "draw"),
+        raid(100, "defender")
+      ])
+
+    assert Enum.map(d.series, & &1.role) == ["attacker", "draw", "defender"]
+  end
+
   test "an outcome nobody achieved gets no series rather than a row of zeroes" do
     d = Time.distribution([raid(50, "attacker")])
 

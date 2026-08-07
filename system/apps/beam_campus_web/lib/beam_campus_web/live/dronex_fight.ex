@@ -148,6 +148,9 @@ defmodule BeamCampusWeb.DronexFight do
         export default {
           mounted() {
             this.ctx = this.el.getContext("2d")
+            // Read once: a canvas cannot use a custom property, and resolving
+            // one per drone per frame would do it thousands of times a second.
+            this.sides = this.readSides()
             this.i = 0
             this.playing = true
             this.read()
@@ -163,6 +166,14 @@ defmodule BeamCampusWeb.DronexFight do
           destroyed() {
             clearInterval(this.timer)
             window.removeEventListener("resize", this.resize)
+          },
+
+          readSides() {
+            const css = getComputedStyle(document.documentElement)
+            return {
+              attacker: css.getPropertyValue("--side-attacker").trim() || "#e2556e",
+              defender: css.getPropertyValue("--side-defender").trim() || "#4c8dff"
+            }
           },
 
           read() {
@@ -540,7 +551,10 @@ defmodule BeamCampusWeb.DronexFight do
               // this is gets the friendly colour, and it lands in the same
               // family as the teal masts standing on that ground, which reads
               // correctly: the swarm and the towers are one defence.
-              const colour = attacker ? "#E2556E" : "#4C8DFF"
+              // ⚠ FROM THE STYLESHEET, NOT FROM HERE. These were two hex
+              // literals in this file, which is why nothing else could follow
+              // the convention and the duration histogram contradicted it.
+              const colour = attacker ? this.sides.attacker : this.sides.defender
               const [px, py] = this.project(x, y, z)
               const [gx, gy] = this.project(x, y, 0)
 

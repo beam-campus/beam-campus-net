@@ -441,6 +441,16 @@ defmodule BeamCampusWeb.DronexLive do
             .filter(Boolean)
         }
 
+        // ⚠ A ROLE OVERRIDES THE PALETTE. Some series are not arbitrary
+        // identities: a raider is red and an island is blue everywhere on this
+        // page, which is what the replay player draws. A series that names a
+        // role takes the convention; anything else falls back to position.
+        const roleColour = (role) => {
+          if (!role) return null
+          const css = getComputedStyle(document.documentElement)
+          return css.getPropertyValue(`--side-${role}`).trim() || null
+        }
+
         const ink = () => {
           const css = getComputedStyle(document.documentElement)
           return css.getPropertyValue("--color-base-content").trim() || "#666"
@@ -497,11 +507,12 @@ defmodule BeamCampusWeb.DronexLive do
                 axisLabel: {color: text, opacity: 0.6},
                 splitLine: {lineStyle: {opacity: 0.12}}
               },
-              series: spec.series.map((s) => ({
+              series: spec.series.map((s, i) => ({
                 name: s.name,
                 type: "bar",
                 stack: "all",
                 emphasis: {focus: "series"},
+                itemStyle: {color: roleColour(s.role) || colour[i % colour.length]},
                 data: s.data
               }))
             }, {notMerge: true})
