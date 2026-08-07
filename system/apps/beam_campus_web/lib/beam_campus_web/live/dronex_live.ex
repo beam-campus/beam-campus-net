@@ -576,28 +576,33 @@ defmodule BeamCampusWeb.DronexLive do
             const left = 20, top = 14
             const w = (100 - left) / spec.cols.length
             const h = (100 - top) / spec.rows.length
-            const unit = Math.min(w, h)
 
             const at = (r, c) => [left + (c + 0.5) * w, top + (r + 0.5) * h]
 
-            // Area proportional to raids, so the radius goes as the root: the eye
-            // judges area, and a linear radius would make eight raids look
-            // sixty-four times the weight of one.
-            const radius = (n) =>
-              `${Math.max(1.2, unit * 0.44 * Math.sqrt(n / spec.busiest))}%`
+            // ⚠ ONE SIZE FOR EVERY CELL. Area used to carry the raid count, and
+            // it cost more than it bought: the eye compares PROPORTIONS across a
+            // grid, and it cannot do that when every disc is a different size. It
+            // also made the smallest routes almost invisible. The count is a
+            // number in the middle of the ring now, which is legible at a glance
+            // and needs no judging of areas.
+            //
+            // Sized off the real cell height in pixels, not off a percentage, so
+            // a ring can never be drawn larger than the row it lives in.
+            const px = this.el.clientHeight || 288
+            const cell = (px * (100 - top) / 100) / spec.rows.length
+            const R = Math.max(8, Math.min(18, cell * 0.34))
+            const inner = R * 0.55
 
-            const series = spec.cells.map((cell) => {
+            const series = spec.cells.filter((c) => c.n > 0).map((cell) => {
               const [cx, cy] = at(cell.r, cell.c)
               return {
                 type: "pie",
                 name: cell.of,
-                tip: cell,
                 center: [`${cx}%`, `${cy}%`],
-                radius: radius(cell.n),
-                silent: false,
+                radius: [inner, R],
                 label: {show: false},
                 labelLine: {show: false},
-                emphasis: {scale: true, scaleSize: 3},
+                emphasis: {scale: true, scaleSize: 2},
                 data: [
                   {value: cell.a, name: "raider won", itemStyle: {color: fill.attacker}},
                   {value: cell.x, name: "drawn", itemStyle: {color: fill.draw}},
@@ -606,23 +611,35 @@ defmodule BeamCampusWeb.DronexLive do
               }
             })
 
-            // ⚠ A RAID STILL OUT IS NOT AN EMPTY CELL. Both sides commit on
-            // acceptance and only the defender publishes the recording, so a pair
-            // with commitments and nothing settled is either mid-fight or one
-            // whose defender went dark. A dashed ring says "something is
-            // happening here" where a pie has nothing to slice.
+            // How many raids, as a number, in the hole of the ring.
+            const counts = spec.cells.filter((c) => c.n > 0).map((c) => {
+              const [cx, cy] = at(c.r, c.c)
+              return {
+                type: "text",
+                left: `${cx}%`,
+                top: `${cy}%`,
+                style: {
+                  text: String(c.n), fill: text, opacity: 0.75,
+                  font: "10px monospace", align: "center", verticalAlign: "middle"
+                }
+              }
+            })
+
+            // ⚠⚠ A RAID STILL OUT, AND THE FIRST VERSION OF THIS WAS ENORMOUS.
+            // It set a 6px radius and then scaled it by a number computed from
+            // PERCENTAGES, so a marker meant to sit inside one cell was drawn
+            // across four rows. Pixels here, no scale transform, and it sits just
+            // outside the ring so it reads as an annotation on the cell rather
+            // than as a shape of its own.
             const flying = spec.cells.filter((c) => c.f > 0).map((c) => {
               const [cx, cy] = at(c.r, c.c)
-              const r = c.n > 0 ? unit * 0.5 : unit * 0.18
               return {
                 type: "circle",
                 left: `${cx}%`,
                 top: `${cy}%`,
-                shape: {cx: 0, cy: 0, r: 6},
-                style: {fill: "none", stroke: fill.draw, lineDash: [2, 2], lineWidth: 1},
-                z: 10,
-                scaleX: r / 6 * 4,
-                scaleY: r / 6 * 4
+                shape: {cx: 0, cy: 0, r: R + 3},
+                style: {fill: "none", stroke: fill.draw, lineDash: [3, 3], lineWidth: 1},
+                z: 10
               }
             })
 
@@ -651,7 +668,7 @@ defmodule BeamCampusWeb.DronexLive do
                   return `${p.seriesName}: ${t.n} raids, ${t.a} won, ${t.d} held${out}`
                 }
               },
-              graphic: [...labels, ...flying],
+              graphic: [...labels, ...counts, ...flying],
               series
             }, {notMerge: true})
           }
@@ -1539,11 +1556,11 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each pie is the row island raiding the column island: <strong>red is the raider winning</strong>, blue is the island holding,
-        grey is a draw. Its <strong>area is how many raids</strong>
-        have been fought there, so a pair that has met once is a dot and the
-        busiest route, at {@busiest || 0} raids, is the largest disc. Hover a slice
-        for the numbers, or open the table below. A raid
+        Each ring is the row island raiding the column island: <strong>red is the raider winning</strong>, blue is the island holding,
+        grey is a draw. The number inside is <strong>how many raids</strong>
+        have been fought there, so every ring is the same size and only the
+        proportions differ. A dashed outline is a raid still out. Hover a slice for
+        the numbers, or open the table below. A raid
         still out: both sides commit on acceptance and the defender publishes the
         recording when it ends, so a pair with commitments and no recording is
         either in flight or one whose defender went dark, which look the same from
