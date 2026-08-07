@@ -226,6 +226,80 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "1 raids"
   end
 
+  # ── Does the radio matter ───────────────────────────────────────
+  #
+  # ⚠ THE ONLY CAUSAL NUMBER ON THE WIRE. Every other figure on this page is an
+  # observation; this is an experiment — the same genome against the same
+  # opponents with one channel silenced — so it is the only one immune to the
+  # hardware differences between these machines.
+
+  defp with_ablation(id, name, extra) do
+    Board.put(
+      id,
+      :vitals,
+      Map.merge(
+        %{
+          "island" => name,
+          "island_id" => id,
+          "ablations" => 12,
+          "ablation_void" => false,
+          "signal_volume" => 500,
+          "signal_entropy" => 1200,
+          "ablation_delta_air" => 0,
+          "ablation_delta_ground" => 0,
+          "ablation_delta_all" => 0
+        },
+        extra
+      )
+    )
+  end
+
+  test "the sign convention is stated, because a reader cannot guess it", %{conn: conn} do
+    with_ablation("aaa", "beam00", %{"ablation_delta_air" => 25})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "Does the radio matter"
+    assert html =~ "+ means the swarm got worse without it"
+    assert html =~ "25 points of attacker score"
+  end
+
+  # ⚠ VOID IS NOT ZERO. Nothing was transmitted, so there is no measurement — and
+  # three empty bars would read as "the channel does not matter", which is the
+  # one thing this cannot say.
+  test "a void measurement is drawn as unmeasurable, never as zero", %{conn: conn} do
+    with_ablation("aaa", "beam00", %{"ablation_void" => true, "signal_volume" => 0})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "nothing transmitted · not measurable"
+    refute html =~ "points of attacker score"
+  end
+
+  # ⚠ SCALED TO THE FULL RANGE, NEVER TO THE DATA. The score is a percentage, so
+  # ±100 is the honest half-width; fitting the axis to the ±25 actually observed
+  # would draw one fight changing hands as a full bar.
+  test "the bar is scaled to the possible range, not the observed one", %{conn: conn} do
+    with_ablation("aaa", "beam00", %{"ablation_delta_air" => 25})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    # 25 of a ±100 range is an eighth of the track, not a full bar.
+    assert html =~ "width: 12.5%"
+    refute html =~ "width: 100.0%"
+  end
+
+  # The panel must say the resolution out loud: one fight changing hands moves
+  # this a whole step, and the run count is exercises run, not samples averaged.
+  test "the coarse resolution is stated rather than left to the bar", %{conn: conn} do
+    with_ablation("aaa", "beam00", %{"ablation_delta_all" => -25})
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "one fight changing hands is a whole\nstep" or html =~ "changing hands"
+    assert html =~ "the wire carries the latest exercise only"
+  end
+
   # ── Who raids whom, which replaced the map ──────────────────────
   #
   # ⚠ THE MAP DREW A HASH AS GEOGRAPHY. Islands sat at positions derived from a

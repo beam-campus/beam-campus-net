@@ -276,7 +276,17 @@ defmodule Dronex.WatchBouts.Board do
       roster: Map.get(fact, "roster", 0),
       generation: Map.get(fact, "generation", 0),
       rounds: Map.get(fact, "rounds", 0),
-      captures: Map.get(fact, "captures", 0)
+      captures: Map.get(fact, "captures", 0),
+      # ⚠ THE ABLATION IS A SINGLE EXERCISE, REPUBLISHED. `ablation_delta_*` is
+      # the LAST exercise's result, not an average of the count beside it, and
+      # its granularity is coarse enough that one engagement changing hands moves
+      # it 25 points. A trajectory is the only way that resolves: sampled over
+      # hours, a channel that matters drifts off zero and noise does not.
+      air: Map.get(fact, "ablation_delta_air", 0),
+      ground: Map.get(fact, "ablation_delta_ground", 0),
+      all: Map.get(fact, "ablation_delta_all", 0),
+      volume: Map.get(fact, "signal_volume", 0),
+      entropy: Map.get(fact, "signal_entropy", 0)
     }
 
     :ets.insert(@history, {id, Enum.take([point | samples], @max_samples)})

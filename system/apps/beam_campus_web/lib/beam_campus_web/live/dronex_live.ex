@@ -653,6 +653,181 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
+  Whether the radio matters. The only causal number this fleet publishes.
+
+  ## ⚠ WHY THIS OUTRANKS EVERY OTHER CHART HERE
+
+  Every other number on this page is an observation: who won, what died, what the
+  towers held. This one is an EXPERIMENT. The island re-runs the same engagements
+  with a channel silenced and reports the difference, which is the same genome
+  against the same opponents with one thing changed — so it is immune to the
+  hardware confound that makes every cross-island comparison on this page
+  suspect, and it is the only thing here that can answer *why* rather than
+  *what*.
+
+  It has been published every second since the channel shipped, and until now the
+  page did not draw it. `DESIGN_DRONES_THAT_TALK.md` asks the question; the
+  exhibit could not answer it.
+
+  ## The sign, said out loud, because a reader cannot guess it
+
+  `delta = baseline − muted`, both being the attacker's points percentage (a win
+  is 2, a draw 1, a loss 0, over twice the engagements). So **positive means
+  silencing that channel made the attacker WORSE**, which is the channel carrying
+  weight. Zero means the channel is being driven and nothing depends on it.
+  Negative means the swarm did better once it stopped talking.
+
+  ## ⚠⚠ AND THE RESOLUTION IS COARSE, WHICH THE PANEL SAYS
+
+  The delta comes from a handful of engagements, so it moves in steps of about 25
+  points: **one fight changing hands is a whole step**. The count beside each row
+  is how many ablation exercises have been RUN, not how many went into the number
+  shown — the wire carries the last exercise only. A reader who takes ±25 here
+  for a result is being misled, so the panel says so rather than letting the bar
+  do the talking.
+
+  ## Void is not zero
+
+  Signal volume of zero means nothing was ever transmitted, so a claim about
+  coordination for that period is VOID rather than null — the island publishes
+  that as its own flag precisely so the two cannot be confused, and drawing it as
+  a zero bar would undo the distinction on the way to the screen.
+  """
+  attr :islands, :list, required: true
+
+  def comms(assigns) do
+    ~H"""
+    <div class="mt-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 class="text-sm font-semibold opacity-70">Does the radio matter</h3>
+        <span class="font-mono text-xs opacity-40">
+          silencing a channel · + means the swarm got worse without it
+        </span>
+      </div>
+
+      <div class="instrument mt-2 overflow-x-auto p-3">
+        <table class="table table-xs">
+          <thead>
+            <tr class="text-xs opacity-50">
+              <th>island</th>
+              <th class="text-center">air</th>
+              <th class="text-center">ground</th>
+              <th class="text-center">all</th>
+              <th class="text-right">runs</th>
+              <th class="text-right">volume</th>
+              <th class="text-right">entropy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={row <- @islands}>
+              <td class="font-mono text-xs opacity-70">{Dronex.label(row)}</td>
+
+              <%!-- ⚠ VOID SPANS THE ARMS RATHER THAN DRAWING THREE ZEROES.
+                    Nothing was transmitted, so there is no measurement to plot,
+                    and three empty bars would read as "the channel does not
+                    matter" — which is the one thing this cannot say. --%>
+              <td :if={void?(row)} colspan="3" class="text-center text-xs opacity-40">
+                nothing transmitted · not measurable
+              </td>
+
+              <td :for={arm <- (!void?(row) && ~w(air ground all)) || []} class="px-1">
+                <.delta_bar points={ablation(row, arm)} />
+              </td>
+
+              <td class="text-right font-mono text-xs opacity-60">{ablation(row, "runs")}</td>
+              <td class="text-right font-mono text-xs opacity-40">{ablation(row, "volume")}</td>
+              <td class="text-right font-mono text-xs opacity-40">{ablation(row, "entropy")}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <details class="mt-2">
+        <summary class="cursor-pointer text-xs opacity-40">
+          How this is measured, and why ±25 is not a result
+        </summary>
+        <p class="mt-2 text-xs opacity-50">
+          An island re-runs the same engagements with one channel silenced and
+          reports the difference in the attacker's score. Same genome, same
+          opponents, one thing changed — which makes it the only number here
+          immune to the hardware differences between these machines, and the only
+          one that can answer <em>why</em>
+          rather than <em>what</em>.
+          <span class="mt-2 block">
+            ⚠ It is measured over a handful of engagements, so it moves in steps
+            of about 25 points and <strong>one fight changing hands is a whole
+            step</strong>. The run count is how many exercises have been run, not
+            how many went into the bar: the wire carries the latest exercise only.
+            Treat a single ±25 as noise. What would settle it is the same number
+            drifting off zero over hours, which the board has only just started
+            recording.
+          </span>
+          <span class="mt-2 block">
+            <strong>Volume</strong>
+            is how much was transmitted and <strong>entropy</strong>
+            is in millibits over sixteen buckets: a
+            channel driven with a constant is silence wearing a signal's clothes,
+            and it would pass a volume test. Talking, saying something, and it
+            mattering are three different facts.
+          </span>
+        </p>
+      </details>
+    </div>
+    """
+  end
+
+  attr :points, :integer, required: true
+
+  # ⚠ SCALED TO THE FULL POSSIBLE RANGE, NEVER TO THE DATA. The score is a
+  # percentage, so ±100 is the honest half-width; fitting the axis to the ±25
+  # actually observed would draw one fight changing hands as a full bar.
+  defp delta_bar(assigns) do
+    assigns = assign(assigns, width: min(abs(assigns.points), 100) / 2)
+
+    ~H"""
+    <div
+      class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
+      title={"#{@points} points of attacker score"}
+    >
+      <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
+
+      <div
+        :if={@points != 0}
+        class="absolute inset-y-0.5 rounded-sm"
+        style={bar_style(@points, @width)}
+      >
+      </div>
+
+      <span
+        :if={@points == 0}
+        class="absolute inset-0 flex items-center justify-center font-mono text-[10px] opacity-40"
+      >
+        0
+      </span>
+    </div>
+    """
+  end
+
+  defp bar_style(points, width) when points > 0,
+    do: "left: 50%; width: #{width}%; background: var(--chart-1)"
+
+  defp bar_style(_points, width),
+    do: "right: 50%; width: #{width}%; background: var(--chart-2)"
+
+  defp void?(row), do: (Dronex.fact(row, :vitals) || %{})["ablation_void"] == true
+
+  defp ablation(row, key) do
+    v = Dronex.fact(row, :vitals) || %{}
+
+    case key do
+      "runs" -> num(v, "ablations")
+      "volume" -> num(v, "signal_volume")
+      "entropy" -> num(v, "signal_entropy")
+      arm -> num(v, "ablation_delta_" <> arm)
+    end
+  end
+
+  @doc """
   Who raided whom, as a table. This replaced the map.
 
   ## ⚠ THE MAP DREW A HASH AS GEOGRAPHY
@@ -1010,7 +1185,12 @@ defmodule BeamCampusWeb.DronexLive do
   attr :readings, :map, required: true
 
   def one_world(assigns) do
-    assigns = assign(assigns, shown: assigns.standings, rungs: rungs_of(assigns.islands))
+    assigns =
+      assign(assigns,
+        shown: assigns.standings,
+        rungs: rungs_of(assigns.islands),
+        ordered_islands: Enum.sort_by(assigns.islands, &Dronex.label/1)
+      )
 
     ~H"""
     <section class="mt-6">
@@ -1039,6 +1219,8 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <.ledger islands={@islands} raids={@raids} focus={@focus} />
+
+      <.comms islands={@ordered_islands} />
 
       <.leaderboard standings={@shown} focus={@focus} />
 
