@@ -798,6 +798,103 @@ defmodule BeamCampusWeb.DronexLive do
     """
   end
 
+  @doc """
+  Which controllers have held which islands, and which of them crossed the mesh.
+
+  ⚠ THE CLAIM THIS EXHIBIT IS FOR, SHOWN AT LAST. `CHARTER.md` makes a raid the
+  way opponent diversity crosses the mesh, and until the islands began naming
+  their champion the page could only draw captures as a number going up. A genome
+  id is the sha256 of its packed form, so the same id holding two islands IS the
+  crossing.
+
+  ⚠⚠ RANKED ON STRUCTURE, NEVER ON THE EXAM. The frozen exam is saturated at 47
+  or 48 of 48 for four of five islands and `REGISTER D.15` says it swings a
+  hundred points in a day. Islands held, then tenure, then sorties survived.
+  """
+  attr :standings, :list, default: []
+
+  def champions(assigns) do
+    ranked = Dronex.FollowTheChampions.ranked(10)
+    assigns = assign(assigns, ranked: ranked, crossed: Enum.count(ranked, & &1.crossed?))
+
+    ~H"""
+    <section :if={@ranked != []} class="settle mt-8">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="instrument-lede text-base font-semibold">Which controllers have held an island</h2>
+        <span class="font-mono text-xs opacity-40">
+          {@crossed} of {length(@ranked)} crossed the mesh
+        </span>
+      </div>
+
+      <div class="instrument mt-2 overflow-x-auto p-3">
+        <table class="table table-sm">
+          <thead>
+            <tr class="text-xs opacity-50">
+              <th>controller</th>
+              <th class="text-right">islands</th>
+              <th class="text-right">held</th>
+              <th class="text-right">sorties</th>
+              <th class="text-right">generation</th>
+              <th>where it has been</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={c <- @ranked}>
+              <td class="font-mono text-xs">
+                {String.slice(c.genome_id, 0, 8)}
+                <%!-- A controller that left the machine that made it is the whole
+                      point, so it is marked rather than left to be inferred from
+                      the island count. --%>
+                <span
+                  :if={c.crossed?}
+                  class="ml-1 rounded-sm px-1 text-[10px]"
+                  style="background: color-mix(in oklab, var(--side-attacker) 25%, transparent)"
+                  title="this controller has left the island that bred it"
+                >
+                  crossed
+                </span>
+              </td>
+              <td class="text-right font-mono tabular-nums">{c.islands}</td>
+              <td class="text-right font-mono tabular-nums">{held_for(c.held_ms)}</td>
+              <td class="text-right font-mono tabular-nums">{c.sorties}</td>
+              <td class="text-right font-mono tabular-nums">{c.generation}</td>
+              <td class="font-mono text-xs opacity-70">{journey(c.reigns)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-2 max-w-3xl text-xs opacity-50">
+        A controller is identified by the <strong>sha256 of its packed genome</strong>, so the same id holding two islands is the
+        same controller, not a guess. <strong>Crossed</strong>
+        means it has left the island that bred it, either by holding another or by
+        having been taken in a raid.
+        <span class="mt-1 block">
+          Ranked on islands held, then on how long, then on sorties survived.
+          Deliberately not on the frozen exam: four of five islands sit at 47 or
+          48 of 48 on it and it can move a hundred points in a day, so a ranking
+          built on it would inherit every one of those faults.
+        </span>
+      </p>
+    </section>
+    """
+  end
+
+  # A tenure of seconds is a champion that was displaced immediately, and reading
+  # it as "0m" would lose that. Minutes once there are any.
+  defp held_for(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
+  defp held_for(ms) when ms < 3_600_000, do: "#{div(ms, 60_000)}m"
+  defp held_for(ms), do: "#{div(ms, 3_600_000)}h"
+
+  # The islands it has held, in the order it held them, which is the path.
+  defp journey(reigns) do
+    reigns
+    |> Enum.map(& &1.island)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.join(" → ")
+  end
+
   # ── Who is who ──────────────────────────────────────────────────
 
   @doc """
@@ -2020,6 +2117,7 @@ defmodule BeamCampusWeb.DronexLive do
       <.captures islands={@ordered_islands} />
 
       <.exam_profiles islands={@islands} />
+      <.champions standings={@shown} />
       <.leaderboard standings={@shown} focus={@focus} />
 
       <%!-- ⚠ FLEET-SCOPED, SO IT LIVES WITH THE FLEET. This sat on the per-island
