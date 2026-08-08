@@ -18,3 +18,7 @@ node_modules/
 package.json
 package-lock.json
 node_modules/
+
+# Python bytecode from the refactor scripts.
+__pycache__/
+*.pyc
