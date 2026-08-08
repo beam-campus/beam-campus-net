@@ -1381,7 +1381,11 @@ defmodule BeamCampusWeb.DronexLive do
               </td>
 
               <td :for={arm <- (!void?(row) && ~w(air ground all)) || []} class="px-1">
-                <.delta_spread points={ablation(row, arm)} samples={sampled(row, arm)} />
+                <.delta_spread
+                  points={ablation(row, arm)}
+                  samples={sampled(row, arm)}
+                  weighed={weighed(row, arm)}
+                />
               </td>
 
               <td class="text-right font-mono text-xs opacity-60">{ablation(row, "runs")}</td>
@@ -1406,11 +1410,19 @@ defmodule BeamCampusWeb.DronexLive do
           <span class="mt-2 block">
             ⚠ It is measured over a handful of engagements, so it moves in steps
             of about 25 points and <strong>one fight changing hands is a whole
-            step</strong>. The run count is how many exercises have been run, not
-            how many went into the bar: the wire carries the latest exercise only.
-            Treat a single ±25 as noise. What would settle it is the same number
-            drifting off zero over hours, which the board has only just started
-            recording.
+            step</strong>.
+            <span class="mt-2 block">
+              <strong>Each dot is one exercise, not one sample.</strong>
+              The wire republishes a result until the next is run and the board
+              samples every 30 seconds, so a single exercise used to be drawn up
+              to eighty times: a cloud whose weight came from the sampling rate
+              rather than from evidence. Consecutive repeats are collapsed and the
+              count that survives is printed as <code>n</code>. The run count in
+              the table is how many exercises the ISLAND has run, which is far
+              larger than how many distinct results have reached this page.
+            </span>
+            Treat a single ±25 as noise. What would settle it is the same sign
+            holding over many, which is why nothing is claimed below eight.
           </span>
           <span class="mt-2 block">
             <strong>Volume</strong>
@@ -1437,32 +1449,57 @@ defmodule BeamCampusWeb.DronexLive do
   # hide the one thing worth seeing — whether the readings AGREE — and a fitted
   # bell would be worse: over a handful of coarsely quantised values it asserts a
   # generating process nobody has established. The dots are what was measured.
+  # What each channel has actually measured, as opposed to how often the board
+  # sampled it. Computed once per island rather than once per cell.
+  # ⚠ THE COLUMN IS A STRING AND THE CHANNEL IS AN ATOM. Comparing them directly
+  # never matches, so every cell fell silently through to the old renderer and
+  # the panel looked unchanged. `sampled/2` converts for the same reason.
+  defp weighed(row, arm) do
+    key = String.to_existing_atom(arm)
+
+    row.id
+    |> Dronex.history()
+    |> Dronex.WeighTheRadio.weigh()
+    |> Enum.find(%{n: 0}, &(&1.channel == key))
+  end
+
   attr :points, :integer, required: true
   attr :samples, :list, default: []
+  attr :weighed, :map, default: %{n: 0}
 
-  defp delta_spread(%{samples: samples} = assigns) when length(samples) >= 3 do
-    mean = Enum.sum(samples) / length(samples)
-    assigns = assign(assigns, mean: mean, n: length(samples))
-
+  # ⚠ ONE DOT PER MEASUREMENT, NOT PER SAMPLE, and the difference was the whole
+  # panel. The wire republishes one exercise until the next runs and the board
+  # samples every 30 seconds, so 240 samples were between THREE and EIGHT
+  # measurements drawn up to eighty times each. The cloud looked like a
+  # distribution and its weight came from the sampling rate.
+  #
+  # `WeighTheRadio` collapses consecutive repeats and reports what is left, with
+  # `n` beside it, because on a measure that moves in steps of about 25 the count
+  # of exercises is more of the story than their average.
+  defp delta_spread(%{weighed: %{n: n}} = assigns) when n >= 1 do
     ~H"""
     <div
       class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
-      title={"#{@n} readings, mean #{Float.round(@mean, 1)} points of raider score"}
+      title={"#{Dronex.WeighTheRadio.reading(@weighed)}, from #{@weighed.low} to #{@weighed.high}"}
     >
       <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
 
       <div
-        :for={{v, i} <- Enum.with_index(@samples)}
-        class="absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full opacity-50"
+        :for={{v, i} <- Enum.with_index(@weighed.readings)}
+        class="absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full opacity-70"
         style={"left: #{50 + min(max(v, -100), 100) / 2}%; top: #{3 + rem(i, 6) * 2}px; background: var(--chart-cat-3)"}
       >
       </div>
 
       <div
         class="absolute inset-y-0 w-0.5"
-        style={"left: #{50 + min(max(@mean, -100), 100) / 2}%; background: var(--chart-cat-2)"}
+        style={"left: #{50 + min(max(@weighed.mean, -100), 100) / 2}%; background: var(--chart-cat-2)"}
       >
       </div>
+
+      <%!-- ⚠ `n` ON THE FACE OF IT. Three readings scattered across zero is
+            noise, and nothing else on this strip says how many there are. --%>
+      <span class="absolute -right-6 top-0 font-mono text-[10px] opacity-40">n{@weighed.n}</span>
     </div>
     """
   end

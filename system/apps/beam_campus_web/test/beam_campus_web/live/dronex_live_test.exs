@@ -366,7 +366,10 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     assert html =~ "Does the radio matter"
     assert html =~ "+ means the swarm got worse without it"
-    assert html =~ "25 points of raider score"
+    # ⚠ ONE READING IS ONE EXERCISE, AND THE CELL SAYS SO. It used to print the
+    # value alone, which invited a single ±25 exercise to be read as a state.
+    assert html =~ "1 exercises, too few to say"
+    assert html =~ "n1"
   end
 
   # ⚠ VOID IS NOT ZERO. Nothing was transmitted, so there is no measurement — and
@@ -384,14 +387,21 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # ⚠ SCALED TO THE FULL RANGE, NEVER TO THE DATA. The score is a percentage, so
   # ±100 is the honest half-width; fitting the axis to the ±25 actually observed
   # would draw one fight changing hands as a full bar.
-  test "the bar is scaled to the possible range, not the observed one", %{conn: conn} do
+  # ⚠ SCALED TO THE POSSIBLE RANGE, NEVER TO THE OBSERVED ONE. The score is a
+  # percentage, so ±100 is the honest half-width. Fitting the track to the ±25
+  # actually seen would draw one fight changing hands as the full width, which is
+  # the single most flattering lie this panel could tell.
+  #
+  # The spread renderer places by position rather than by width now, so the same
+  # property is asserted on where the mark sits: 25 of ±100 is an eighth right of
+  # centre, at 62.5%, not hard against the end.
+  test "a reading is placed against the possible range, not the observed one", %{conn: conn} do
     with_ablation("aaa", "beam00", %{"ablation_delta_air" => 25})
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    # 25 of a ±100 range is an eighth of the track, not a full bar.
-    assert html =~ "width: 12.5%"
-    refute html =~ "width: 100.0%"
+    assert html =~ "left: 62.5%"
+    refute html =~ "left: 100.0%"
   end
 
   # The panel must say the resolution out loud: one fight changing hands moves
@@ -402,13 +412,21 @@ defmodule BeamCampusWeb.DronexLiveTest do
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     assert html =~ "one fight changing hands is a whole\nstep" or html =~ "changing hands"
-    assert html =~ "the wire carries the latest exercise only"
+    # The caption now says the sharper version of the same thing: a dot is an
+    # exercise, not a sample, and the wire republishes one until the next runs.
+    assert html =~ "Each dot is one exercise, not one sample"
   end
 
   # ⚠ ONE READING CANNOT TELL SIGNAL FROM ONE FIGHT CHANGING HANDS. What can is
   # the SHAPE of many, so the cell becomes a spread once readings accumulate —
   # every one drawn rather than summarised, because whether they AGREE is the
   # thing worth seeing.
+  #
+  # ⚠⚠ AND IT COUNTS MEASUREMENTS, NOT SAMPLES. The wire republishes one exercise
+  # until the next runs and the board samples every 30s, so the panel was drawing
+  # 240 dots off three measurements: a cloud whose weight came from the sampling
+  # rate. The three points below are 25, 0, 25 in time order, which is THREE
+  # exercises because the repeat is not consecutive.
   test "the comms cell becomes a spread once readings accumulate", %{conn: conn} do
     with_ablation("aaa", "beam00", %{"ablation_delta_air" => 25})
 
@@ -424,8 +442,9 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
-    # Three readings, mean 16.7 — and the mean is drawn, not the latest.
-    assert html =~ "3 readings, mean 16.7 points of raider score"
+    # Three exercises, and the panel refuses to conclude on that many.
+    assert html =~ "3 exercises, too few to say"
+    assert html =~ "n3"
   end
 
   # ── Who raids whom, which replaced the map ──────────────────────
