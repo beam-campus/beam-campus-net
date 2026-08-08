@@ -30,7 +30,13 @@ defmodule BeamCampusWeb.Router do
     live "/research/workbench/red-queen", RedQueenLive, :index
     live "/research/workbench/neural-coevolution", NeuralCoevolutionLive, :index
     live "/research/workbench/asociety", ASocietyLive, :index
+    # ⚠ FOUR VIEWS, FOUR MOUNTS, ON PURPOSE. One LiveView drew all of this and
+    # loaded every panel's data on every redraw, twice a second, whatever was on
+    # screen. Each route below asks for what it draws and nothing else. The
+    # island selection rides as `?island=` across all four, because a selection
+    # is a filter and not a page.
     live "/research/workbench/dronex", DronexLive, :index
+    live "/research/workbench/dronex/radio", DronexRadioLive, :index
     live "/research/workbench/biotope", BiotopeLive, :index
     live "/research/workbench/biotope/join", BiotopeJoinLive, :index
     # DECLARED BEFORE THE :island CATCH-ALL, because routes match in order and

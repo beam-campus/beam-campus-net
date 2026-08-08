@@ -45,6 +45,7 @@ defmodule BeamCampusWeb.DronexLive do
   use BeamCampusWeb, :live_view
 
   import BeamCampusWeb.DronexFight, only: [fight: 1]
+  import BeamCampusWeb.DronexChrome, only: [island_name: 1, dronex_state: 1, nav: 1]
 
   @redraw_ms 500
 
@@ -290,6 +291,8 @@ defmodule BeamCampusWeb.DronexLive do
           </:subtitle>
         </.header>
 
+        <.nav current={:archipelago} focus={@focus} />
+
         <.dronex_state state={@state} refused={@refused} />
 
         <%!-- ⚠ THE FIGHT STILL COMES BEFORE THE DETAIL, and the band above it is
@@ -506,63 +509,6 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
     </div>
     """
-  end
-
-  @doc """
-  The three ablation readings over time, which is the only way they resolve.
-
-  The board has collected `air`, `ground` and `all` every 30 seconds since it was
-  written, under a comment saying a trajectory is the only thing that settles a
-  signal this coarse. Nothing had ever drawn them.
-  """
-  attr :row, :map, required: true
-
-  def ablation_trace(assigns) do
-    samples = assigns.row.id |> Dronex.history() |> Enum.reverse()
-    assigns = assign(assigns, samples: samples, enough?: length(samples) >= 2)
-
-    ~H"""
-    <div :if={@enough?} class="mt-4">
-      <h3 class="text-sm font-semibold opacity-70">Does the radio matter, over time</h3>
-
-      <div class="instrument mt-2 p-3">
-        <div
-          id={"ablation-#{@row.id}"}
-          phx-hook="DronexChart"
-          phx-update="ignore"
-          class="h-40 w-full"
-          role="img"
-          aria-label={"ablation deltas over #{length(@samples)} samples, zero means the channel changed nothing"}
-          data-spec={ablation_spec(@samples)}
-        >
-        </div>
-      </div>
-
-      <p class="mt-2 max-w-2xl text-xs opacity-50">
-        The change in the raider's score when a channel is silenced, sampled over
-        time. <strong>One reading is noise</strong>
-        — the measure moves in steps of about 25, so one engagement changing hands
-        is a whole step. What settles it is a line sitting off zero and staying
-        there. Drawn as steps, because the wire republishes one exercise until the
-        next is run.
-        <span class="mt-1 block">
-          Written down, so it survives a deploy.
-        </span>
-      </p>
-    </div>
-    """
-  end
-
-  defp ablation_spec(samples) do
-    Jason.encode!(%{
-      kind: "ablation",
-      at: Enum.map(samples, & &1.at),
-      series: [
-        %{name: "air silenced", data: Enum.map(samples, & &1.air)},
-        %{name: "ground silenced", data: Enum.map(samples, & &1.ground)},
-        %{name: "both silenced", data: Enum.map(samples, & &1.all)}
-      ]
-    })
   end
 
   @doc """
@@ -791,40 +737,6 @@ defmodule BeamCampusWeb.DronexLive do
     |> Enum.join(" → ")
   end
 
-  # ── Who is who ──────────────────────────────────────────────────
-
-  @doc """
-  An island's name, and the four characters that say WHICH island.
-
-  ⚠ **A NAME IS A STRING SOMEBODY TYPED ABOUT THEMSELVES.** Two islands may both
-  call themselves `beam01`, and in an archipelago meant to admit strangers they
-  eventually will. The board already keeps them apart, since every row is keyed
-  on `island_id`; it was this page that merged them, by never showing an id at
-  all. The reasoning, and what this does NOT fix, is in `Dronex.TellIslandsApart`.
-
-  The mark is muted so it reads as a qualifier rather than as part of the name.
-
-  ⚠ **AND IT IS NOT `aria-hidden`, WHICH THE FIRST VERSION HAD.** Hiding the mark
-  from a screen reader hides the disambiguation from exactly the readers who
-  cannot see the styling, so two islands called `beam01` would be told apart for
-  sighted visitors and merged for everybody else. The separator is a real space
-  INSIDE the span rather than an `ml-1`, because a CSS margin is not a space: the
-  text read out was "beam01a6b1".
-  """
-  attr :row, :map, required: true
-  attr :class, :string, default: "font-mono text-xs opacity-70"
-
-  def island_name(assigns) do
-    {name, mark} = Dronex.TellIslandsApart.named(assigns.row)
-    assigns = assign(assigns, name: name, mark: mark)
-
-    ~H"""
-    <span class={@class}>
-      {@name}<span :if={@mark} class="opacity-50">{" " <> @mark}</span>
-    </span>
-    """
-  end
-
   # ── History ─────────────────────────────────────────────────────
 
   @doc """
@@ -1037,7 +949,6 @@ defmodule BeamCampusWeb.DronexLive do
       label="Roster"
       ceiling={max(1, num(@v, "capacity"))}
     />
-    <.ablation_trace row={@row} />
 
     <p :if={@panel == :vitals} class="mt-2 text-xs opacity-40">
       An island fields at most {num(@v, "capacity")} drone controllers at once;
@@ -1293,268 +1204,6 @@ defmodule BeamCampusWeb.DronexLive do
       </p>
     </div>
     """
-  end
-
-  @doc """
-  Whether the radio matters. The only causal number this fleet publishes.
-
-  ## ⚠ WHY THIS OUTRANKS EVERY OTHER CHART HERE
-
-  Every other number on this page is an observation: who won, what died, what the
-  towers held. This one is an EXPERIMENT. The island re-runs the same engagements
-  with a channel silenced and reports the difference, which is the same genome
-  against the same opponents with one thing changed — so it is immune to the
-  hardware confound that makes every cross-island comparison on this page
-  suspect, and it is the only thing here that can answer *why* rather than
-  *what*.
-
-  It has been published every second since the channel shipped, and until now the
-  page did not draw it. `DESIGN_DRONES_THAT_TALK.md` asks the question; the
-  exhibit could not answer it.
-
-  ## The sign, said out loud, because a reader cannot guess it
-
-  `delta = baseline − muted`, both being the attacker's points percentage (a win
-  is 2, a draw 1, a loss 0, over twice the engagements). So **positive means
-  silencing that channel made the attacker WORSE**, which is the channel carrying
-  weight. Zero means the channel is being driven and nothing depends on it.
-  Negative means the swarm did better once it stopped talking.
-
-  ## ⚠⚠ AND THE RESOLUTION IS COARSE, WHICH THE PANEL SAYS
-
-  The delta comes from a handful of engagements, so it moves in steps of about 25
-  points: **one fight changing hands is a whole step**. The count beside each row
-  is how many ablation exercises have been RUN, not how many went into the number
-  shown — the wire carries the last exercise only. A reader who takes ±25 here
-  for a result is being misled, so the panel says so rather than letting the bar
-  do the talking.
-
-  ## Void is not zero
-
-  Signal volume of zero means nothing was ever transmitted, so a claim about
-  coordination for that period is VOID rather than null — the island publishes
-  that as its own flag precisely so the two cannot be confused, and drawing it as
-  a zero bar would undo the distinction on the way to the screen.
-  """
-  attr :islands, :list, required: true
-
-  def comms(assigns) do
-    ~H"""
-    <div class="mt-6">
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="text-sm font-semibold opacity-70">Does the radio matter</h3>
-        <span class="font-mono text-xs opacity-40">
-          silencing a channel · + means the swarm got worse without it
-        </span>
-      </div>
-
-      <div class="instrument mt-2 overflow-x-auto p-3">
-        <table class="table table-xs">
-          <thead>
-            <tr class="text-xs opacity-50">
-              <th>island</th>
-              <th class="text-center">air</th>
-              <th class="text-center">ground</th>
-              <th class="text-center">all</th>
-              <th class="text-right">runs</th>
-              <th class="text-right">volume</th>
-              <th class="text-right">entropy</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={row <- @islands}>
-              <td><.island_name row={row} /></td>
-
-              <%!-- ⚠ VOID SPANS THE ARMS RATHER THAN DRAWING THREE ZEROES.
-                    Nothing was transmitted, so there is no measurement to plot,
-                    and three empty bars would read as "the channel does not
-                    matter" — which is the one thing this cannot say. --%>
-              <td :if={void?(row)} colspan="3" class="text-center text-xs opacity-40">
-                nothing transmitted · not measurable
-              </td>
-
-              <td :for={arm <- (!void?(row) && ~w(air ground all)) || []} class="px-1">
-                <.delta_spread
-                  points={ablation(row, arm)}
-                  samples={sampled(row, arm)}
-                  weighed={weighed(row, arm)}
-                />
-              </td>
-
-              <td class="text-right font-mono text-xs opacity-60">{ablation(row, "runs")}</td>
-              <td class="text-right font-mono text-xs opacity-40">{ablation(row, "volume")}</td>
-              <td class="text-right font-mono text-xs opacity-40">{ablation(row, "entropy")}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <details class="mt-2">
-        <summary class="cursor-pointer text-xs opacity-40">
-          How this is measured, and why ±25 is not a result
-        </summary>
-        <p class="mt-2 text-xs opacity-50">
-          An island re-runs the same engagements with one channel silenced and
-          reports the difference in the raider's score. Same genome, same
-          opponents, one thing changed — which makes it the only number here
-          immune to the hardware differences between these machines, and the only
-          one that can answer <em>why</em>
-          rather than <em>what</em>.
-          <span class="mt-2 block">
-            ⚠ It is measured over a handful of engagements, so it moves in steps
-            of about 25 points and <strong>one fight changing hands is a whole
-            step</strong>.
-            <span class="mt-2 block">
-              <strong>Each dot is one exercise, not one sample.</strong>
-              The wire republishes a result until the next is run and the board
-              samples every 30 seconds, so a single exercise used to be drawn up
-              to eighty times: a cloud whose weight came from the sampling rate
-              rather than from evidence. Consecutive repeats are collapsed and the
-              count that survives is printed as <code>n</code>. The run count in
-              the table is how many exercises the ISLAND has run, which is far
-              larger than how many distinct results have reached this page.
-            </span>
-            Treat a single ±25 as noise. What would settle it is the same sign
-            holding over many, which is why nothing is claimed below eight.
-          </span>
-          <span class="mt-2 block">
-            <strong>Volume</strong>
-            is how much was transmitted and <strong>entropy</strong>
-            is in millibits over sixteen buckets: a
-            channel driven with a constant is silence wearing a signal's clothes,
-            and it would pass a volume test. Talking, saying something, and it
-            mattering are three different facts.
-          </span>
-        </p>
-      </details>
-    </div>
-    """
-  end
-
-  # ⚠ THIS IS WHAT SETTLES WHETHER THE RADIO MATTERS.
-  #
-  # A single exercise moves in steps of about 25, so one reading cannot tell "the
-  # channel carries weight" from "one fight changed hands". Neither can two. What
-  # can is the SHAPE of many: a channel that matters sits off zero and stays
-  # there; noise scatters across it.
-  #
-  # Every sampled reading is drawn rather than summarised. A mean alone would
-  # hide the one thing worth seeing — whether the readings AGREE — and a fitted
-  # bell would be worse: over a handful of coarsely quantised values it asserts a
-  # generating process nobody has established. The dots are what was measured.
-  # What each channel has actually measured, as opposed to how often the board
-  # sampled it. Computed once per island rather than once per cell.
-  # ⚠ THE COLUMN IS A STRING AND THE CHANNEL IS AN ATOM. Comparing them directly
-  # never matches, so every cell fell silently through to the old renderer and
-  # the panel looked unchanged. `sampled/2` converts for the same reason.
-  defp weighed(row, arm) do
-    key = String.to_existing_atom(arm)
-
-    row.id
-    |> Dronex.history()
-    |> Dronex.WeighTheRadio.weigh()
-    |> Enum.find(%{n: 0}, &(&1.channel == key))
-  end
-
-  attr :points, :integer, required: true
-  attr :samples, :list, default: []
-  attr :weighed, :map, default: %{n: 0}
-
-  # ⚠ ONE DOT PER MEASUREMENT, NOT PER SAMPLE, and the difference was the whole
-  # panel. The wire republishes one exercise until the next runs and the board
-  # samples every 30 seconds, so 240 samples were between THREE and EIGHT
-  # measurements drawn up to eighty times each. The cloud looked like a
-  # distribution and its weight came from the sampling rate.
-  #
-  # `WeighTheRadio` collapses consecutive repeats and reports what is left, with
-  # `n` beside it, because on a measure that moves in steps of about 25 the count
-  # of exercises is more of the story than their average.
-  defp delta_spread(%{weighed: %{n: n}} = assigns) when n >= 1 do
-    ~H"""
-    <div
-      class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
-      title={"#{Dronex.WeighTheRadio.reading(@weighed)}, from #{@weighed.low} to #{@weighed.high}"}
-    >
-      <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
-
-      <div
-        :for={{v, i} <- Enum.with_index(@weighed.readings)}
-        class="absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full opacity-70"
-        style={"left: #{50 + min(max(v, -100), 100) / 2}%; top: #{3 + rem(i, 6) * 2}px; background: var(--chart-cat-3)"}
-      >
-      </div>
-
-      <div
-        class="absolute inset-y-0 w-0.5"
-        style={"left: #{50 + min(max(@weighed.mean, -100), 100) / 2}%; background: var(--chart-cat-2)"}
-      >
-      </div>
-
-      <%!-- ⚠ `n` ON THE FACE OF IT. Three readings scattered across zero is
-            noise, and nothing else on this strip says how many there are. --%>
-      <span class="absolute -right-6 top-0 font-mono text-[10px] opacity-40">n{@weighed.n}</span>
-    </div>
-    """
-  end
-
-  # ⚠ SCALED TO THE FULL POSSIBLE RANGE, NEVER TO THE DATA. The score is a
-  # percentage, so ±100 is the honest half-width; fitting the axis to the ±25
-  # actually observed would draw one fight changing hands as a full bar.
-  defp delta_spread(assigns) do
-    assigns = assign(assigns, width: min(abs(assigns.points), 100) / 2)
-
-    ~H"""
-    <div
-      class="relative mx-auto h-4 w-24 rounded-sm bg-base-300/40"
-      title={"#{@points} points of raider score"}
-    >
-      <div class="absolute inset-y-0 left-1/2 w-px bg-base-content/30"></div>
-
-      <div
-        :if={@points != 0}
-        class="absolute inset-y-0.5 rounded-sm"
-        style={bar_style(@points, @width)}
-      >
-      </div>
-
-      <span
-        :if={@points == 0}
-        class="absolute inset-0 flex items-center justify-center font-mono text-[10px] opacity-40"
-      >
-        0
-      </span>
-    </div>
-    """
-  end
-
-  # ⚠ SIGN, NOT SIDE. Left is "the swarm flew better silent" and right is "the
-  # radio helped". This used the blue/rose generic pair, which on a page that
-  # teaches red=raider and blue=island reads as two sides rather than two
-  # directions. Orange and green are neither.
-  defp bar_style(points, width) when points > 0,
-    do: "left: 50%; width: #{width}%; background: var(--chart-cat-3)"
-
-  defp bar_style(_points, width),
-    do: "right: 50%; width: #{width}%; background: var(--chart-cat-2)"
-
-  # ⚠ THE TRAJECTORY, NOT THE LATEST. The wire republishes one exercise; the
-  # board samples it every 30s, so this is the only place readings accumulate.
-  defp sampled(row, arm) do
-    key = String.to_existing_atom(arm)
-    row.id |> Dronex.history() |> Enum.map(&Map.get(&1, key, 0))
-  end
-
-  defp void?(row), do: (Dronex.fact(row, :vitals) || %{})["ablation_void"] == true
-
-  defp ablation(row, key) do
-    v = Dronex.fact(row, :vitals) || %{}
-
-    case key do
-      "runs" -> num(v, "ablations")
-      "volume" -> num(v, "signal_volume")
-      "entropy" -> num(v, "signal_entropy")
-      arm -> num(v, "ablation_delta_" <> arm)
-    end
   end
 
   @doc """
@@ -2006,8 +1655,6 @@ defmodule BeamCampusWeb.DronexLive do
       <.ledger islands={@islands} raids={@raids} focus={@focus} />
       <.how_long_fights_last raids={@raids} />
 
-      <.comms islands={@ordered_islands} />
-
       <.experience raids={@raids} />
 
       <.captures islands={@ordered_islands} />
@@ -2262,37 +1909,6 @@ defmodule BeamCampusWeb.DronexLive do
         </p>
       </details>
     </div>
-    """
-  end
-
-  # ── The fight ───────────────────────────────────────────────────
-
-  # ── States ──────────────────────────────────────────────────────
-
-  attr :state, :atom, required: true
-  attr :refused, :integer, required: true
-
-  defp dronex_state(assigns) do
-    ~H"""
-    <div
-      :if={@state != :watching}
-      class="mt-6 rounded-lg border border-base-content/10 bg-base-200 p-6 text-sm"
-    >
-      <p :if={@state == :unconfigured}>
-        This site is not configured to read this track. It needs <code>BEAM_CAMPUS_DRONEX_SEEDS</code>, which has no default on purpose:
-        naming a public realm costs nothing, dialling a production station from
-        every clone does.
-      </p>
-      <p :if={@state == :dark}>Configured, and not connected to the mesh yet. Retrying.</p>
-      <p :if={@state == :silent}>
-        Connected, and no island has said anything yet. Either none is running, or
-        they are publishing on a different realm or namespace.
-      </p>
-    </div>
-    <p :if={@refused > 0} class="mt-4 text-sm text-warning">
-      {@refused} island(s) refused because this page's cap was reached. The view
-      below is incomplete.
-    </p>
     """
   end
 

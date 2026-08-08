@@ -88,10 +88,39 @@ def collapse(ms):
     return merged
 
 
+def remove(names):
+    """Delete whole member blocks in place, refusing anything ambiguous.
+
+    ⚠ IT RE-READS AND RE-PARSES FOR EACH NAME rather than deleting a batch of
+    ranges computed up front. Ranges computed against the original file go stale
+    the moment the first one is deleted, and an off-by-a-block deletion here
+    removes the tail of one component and the head of the next, which still
+    compiles surprisingly often.
+    """
+    for name in names:
+        lines = SRC.read_text().splitlines(keepends=True)
+        index = {n: (top, end) for n, top, end in collapse(members(lines))}
+        if name not in index:
+            sys.exit(f"no such member: {name}")
+        top, end = index[name]
+        SRC.write_text("".join(lines[:top] + lines[end:]))
+        print(f"removed {name:28} {end - top:4} lines", file=sys.stderr)
+
+    print(f"{SRC} is now {len(SRC.read_text().splitlines())} lines", file=sys.stderr)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--emit", nargs="*", help="member names to print, in order")
+    ap.add_argument(
+        "--remove",
+        nargs="*",
+        help="member names to DELETE from the source file, in place",
+    )
     args = ap.parse_args()
+
+    if args.remove:
+        return remove(args.remove)
 
     lines = SRC.read_text().splitlines(keepends=True)
     ms = collapse(members(lines))
