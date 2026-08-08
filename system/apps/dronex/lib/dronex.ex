@@ -394,24 +394,38 @@ defmodule Dronex do
   defp title(:bout, f), do: "#{TellIslandsApart.spoken_id(Map.get(f, "island_id"))} against a drill"
 
   @doc """
-  Islands ranked, and ranked on the FROZEN BENCHMARK rather than on raids.
+  Islands ranked, and ranked on the HELD-OUT exam.
 
   ⚠ **THE RAID RECORD IS SHOWN AND IS DELIBERATELY NOT THE RANKING.** Raids are
   not comparable between islands: who you fought, how often, and whether your
   neighbours were awake all move the number, and an island that raided a weak
-  neighbour twenty times would top a table it never earned. The benchmark is the
-  only number every island earns on identical terms — the same scripted drills
+  neighbour twenty times would top a table it never earned. An exam is the only
+  number every island earns on identical terms — the same scripted opponents
   from the same fixed starts, flown as an AWAY game with no ground network at
   all, so it scores the controller and never the terrain.
 
-  That is also why the benchmark was built before any breeding existed: a rising
-  number against a moving exam is an artifact, and a leaderboard is exactly the
-  place that artifact would be laundered into a fact.
+  ⚠⚠ **IT RANKED ON THE CURRICULUM UNTIL 2026-08-08, AND THAT WAS WRONG TWICE.**
+  `REGISTER I.22`: those six drills are also six of the opponents each island
+  breeds against, so the column was rewarding familiarity as much as skill. And
+  `D.16`: it is saturated, with four of five islands at 47 or 48 of 48 on every
+  rung, so it could not separate them anyway. A leaderboard is exactly the place
+  where "a rising number against an exam you train on" gets laundered into a
+  fact, which is the failure the exam was built early to avoid.
+
+  ⚠⚠⚠ **AN ISLAND WITH NO HELD-OUT READING SORTS LAST AND SAYS SO.** Islands
+  roll one at a time and the held-out exam arrived at fact version 5, so mid
+  deploy some publish it and some do not. Falling back to the curriculum score
+  for those would rank two different exams in one column, which is worse than
+  either: the number would mean something different per row with nothing saying
+  which.
   """
   def leaderboard do
     islands()
     |> Enum.map(&standing/1)
-    |> Enum.sort_by(& &1.score, :desc)
+    # Descending on the held-out score, with islands that have not sat it last.
+    # `rounds` breaks a tie because it is the one effort measure that IS
+    # commensurable across islands.
+    |> Enum.sort_by(&{&1.held_out?, &1.held_out, &1.rounds}, :desc)
   end
 
   defp standing(row) do
@@ -423,7 +437,16 @@ defmodule Dronex do
       island: name,
       mark: mark,
       id: row.id,
-      score: Board.exam_score(v),
+      score: Board.exam_score(v, "benchmark"),
+      # ⚠ THE ONE THAT MAY BE CALLED IMPROVEMENT, and the one this table sorts
+      # on. `held_out?` separates "has not sat it" from "sat it and scored zero".
+      held_out: Board.exam_score(v, "trials"),
+      held_out?: Board.has_exam?(v, "trials"),
+      # ⚠ ROUNDS, NOT GENERATION. A generation is lineage depth and `raid:absorb`
+      # admits captured genomes at generation 0, so an island that has been
+      # raided hard reports a SHALLOWER lineage while having bred more. Rounds is
+      # attempts made, which is comparable across islands and across time.
+      rounds: num(v, "rounds"),
       # "bred" | "captured" | "unknown" — an older island publishes none of them.
       sitter: Map.get(v, "benchmark_sitter", "unknown"),
       rungs: length(Map.get(v, "benchmark_rungs", [])),

@@ -1095,8 +1095,9 @@ defmodule BeamCampusWeb.DronexLive do
             <tr class="text-xs opacity-50">
               <th class="w-8">#</th>
               <th>island</th>
-              <th class="text-right">frozen exam</th>
-              <th class="text-right">generation</th>
+              <th class="text-right">held-out exam</th>
+              <th class="text-right">curriculum</th>
+              <th class="text-right">rounds</th>
               <th class="text-right">roster</th>
               <th class="text-right">raids</th>
               <th class="text-right">held</th>
@@ -1148,9 +1149,26 @@ defmodule BeamCampusWeb.DronexLive do
                     an evolutionary result — which is live right now: beam03 went
                     288/288, then 1/288, then 27% inside a day while absorbing
                     2,113 foreign genomes. --%>
-              <td class={["text-right font-mono", s.score < 10 && "text-error font-semibold"]}>
-                {s.score}%
-                <span :if={s.score < 10} class="ml-1 opacity-70" title="the exam has collapsed">
+              <%!-- ⚠ THE HELD-OUT SCORE IS THE RANKING AND LEADS THE ROW. Until
+                    2026-08-08 this column was the curriculum exam, which is both
+                    saturated and inside the training set: `REGISTER I.22`. --%>
+              <td class={[
+                "text-right font-mono",
+                s.held_out? && s.held_out < 10 && "text-error font-semibold"
+              ]}>
+                <span
+                  :if={!s.held_out?}
+                  class="opacity-40"
+                  title="this island has not published a held-out exam yet"
+                >
+                  not sat
+                </span>
+                <span :if={s.held_out?}>{s.held_out}%</span>
+                <span
+                  :if={s.held_out? && s.held_out < 10}
+                  class="ml-1 opacity-70"
+                  title="the exam has collapsed"
+                >
                   ⚠
                 </span>
                 <span
@@ -1161,7 +1179,19 @@ defmodule BeamCampusWeb.DronexLive do
                   captured
                 </span>
               </td>
-              <td class="text-right font-mono opacity-60">{s.generation}</td>
+              <%!-- Kept, and muted, because it is a real quantity that is not
+                    improvement. A number withdrawn leaves a hole in a history. --%>
+              <td
+                class="text-right font-mono opacity-40"
+                title="performance against the six drills this island also breeds against"
+              >
+                {s.score}%
+              </td>
+              <%!-- ⚠ ROUNDS REPLACED GENERATION HERE. `raid:absorb` admits every
+                    captured genome at generation 0, so a heavily raided island
+                    reports a SHALLOWER lineage while having bred more. Rounds is
+                    breeding attempts and is comparable across islands. --%>
+              <td class="text-right font-mono opacity-60">{s.rounds}</td>
               <td class="text-right font-mono opacity-60">{s.roster}/{s.capacity}</td>
               <td class="text-right font-mono opacity-60">{s.raids}</td>
               <td class="text-right font-mono opacity-60">{s.defences}</td>

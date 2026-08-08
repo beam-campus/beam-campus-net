@@ -323,16 +323,19 @@ defmodule BeamCampusWeb.DronexLiveTest do
 
   # ⚠ THE RANKING COLUMN AND THE INTERESTING COLUMNS ARE NOT THE SAME COLUMNS.
   # Ranking on raids would let an island that raided a sleepy neighbour twenty
-  # times top a table it never earned; the benchmark is the only number every
-  # island earns on identical terms.
-  test "the leaderboard ranks on the frozen benchmark, not on raids", %{conn: conn} do
+  # times top a table it never earned; an exam is the only number every island
+  # earns on identical terms.
+  #
+  # ⚠⚠ AND IT IS THE HELD-OUT EXAM SINCE 2026-08-08. It ranked on the curriculum
+  # before, which is both saturated and inside the training set: `REGISTER I.22`.
+  test "the leaderboard ranks on the held-out exam, not on raids", %{conn: conn} do
     Board.put("aaa", :vitals, standing("beam00", [1, 1], 8, 40))
     Board.put("bbb", :vitals, standing("beam01", [6, 6], 8, 0))
 
     {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
 
     ranked = Regex.scan(~r/data-standing="([^"]*)"/, html) |> Enum.map(&List.last/1)
-    # beam01 has 75% of the benchmark and no raids; beam00 has 12% and forty.
+    # beam01 has 75% of the exam and no raids; beam00 has 12% and forty.
     assert ranked == ["beam01", "beam00"]
     assert html =~ "deliberately not on"
   end
@@ -437,8 +440,16 @@ defmodule BeamCampusWeb.DronexLiveTest do
   # an island that has stopped earning it at all is the most interesting row on
   # the page rather than the least.
   test "an exam that has collapsed is marked, and a merely low one is not", %{conn: conn} do
+    # The marker follows the RANKING column, which is the held-out exam.
     rung = fn wins ->
-      %{"benchmark_rungs" => ["a"], "benchmark_wins" => [wins], "benchmark_starts" => 100}
+      %{
+        "trials_rungs" => ["a"],
+        "trials_wins" => [wins],
+        "trials_starts" => 100,
+        "benchmark_rungs" => ["a"],
+        "benchmark_wins" => [wins],
+        "benchmark_starts" => 100
+      }
     end
 
     Board.put("aaa", :vitals, Map.merge(rung.(1), %{"island" => "beam03", "island_id" => "aaa"}))
@@ -513,6 +524,9 @@ defmodule BeamCampusWeb.DronexLiveTest do
     }
   end
 
+  # ⚠ BOTH EXAMS, BECAUSE EVERY ISLAND ON FACT VERSION 5 PUBLISHES BOTH. The
+  # held-out one drives the ranking; the curriculum one is shown beside it and
+  # ranks nothing. `REGISTER I.22`.
   defp standing(name, wins, starts, raids) do
     %{
       "island" => name,
@@ -521,8 +535,12 @@ defmodule BeamCampusWeb.DronexLiveTest do
       "benchmark_rungs" => ["hoverer", "sniper"],
       "benchmark_wins" => wins,
       "benchmark_starts" => starts,
+      "trials_rungs" => ["circler", "leader"],
+      "trials_wins" => wins,
+      "trials_starts" => starts,
       "raids" => raids,
       "captures" => raids,
+      "rounds" => 1000,
       "generation" => 3
     }
   end
@@ -578,5 +596,64 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert html =~ "Every island, every drill"
     assert html =~ "hoverer"
     refute html =~ "Every island, every held-out rung"
+  end
+
+  # ⚠⚠ THE TWO EXAMS DISAGREE, AND THE RANKING FOLLOWS THE HELD-OUT ONE. This is
+  # the case the old ranking got wrong and no existing test could catch, because
+  # every fixture gave both exams the same numbers. Here beam00 is perfect on the
+  # curriculum it breeds against and poor on the one nothing trains against;
+  # beam01 is the reverse. `REGISTER I.22` and `D.16`.
+  test "when the exams disagree the ranking follows the held-out one", %{conn: conn} do
+    exams = fn name, id, curriculum, held_out ->
+      Board.put(id, :vitals, %{
+        "island" => name,
+        "island_id" => id,
+        "benchmark_rungs" => ["hoverer", "sniper"],
+        "benchmark_wins" => curriculum,
+        "benchmark_starts" => 48,
+        "trials_rungs" => ["circler", "leader"],
+        "trials_wins" => held_out,
+        "trials_starts" => 48
+      })
+    end
+
+    exams.("beam00", "aaa", [48, 48], [10, 10])
+    exams.("beam01", "bbb", [20, 20], [44, 44])
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    ranked = Regex.scan(~r/data-standing="([^"]*)"/, html) |> Enum.map(&List.last/1)
+    assert ranked == ["beam01", "beam00"]
+  end
+
+  # ⚠ AN ISLAND MID-DEPLOY HAS NO HELD-OUT READING, and falling back to its
+  # curriculum score would rank two different exams in one column: the number
+  # would mean something different per row with nothing saying which. It sorts
+  # last and the cell says "not sat" rather than "0%", which is charter rule 4.
+  test "an island with no held-out exam sorts last and says so", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam00",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["hoverer"],
+      "benchmark_wins" => [48],
+      "benchmark_starts" => 48
+    })
+
+    Board.put("bbb", :vitals, %{
+      "island" => "beam01",
+      "island_id" => "bbb",
+      "benchmark_rungs" => ["hoverer"],
+      "benchmark_wins" => [5],
+      "benchmark_starts" => 48,
+      "trials_rungs" => ["circler"],
+      "trials_wins" => [20],
+      "trials_starts" => 48
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    ranked = Regex.scan(~r/data-standing="([^"]*)"/, html) |> Enum.map(&List.last/1)
+    assert ranked == ["beam01", "beam00"]
+    assert html =~ "not sat"
   end
 end

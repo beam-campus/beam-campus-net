@@ -236,20 +236,47 @@ defmodule Dronex.WatchBouts.Board do
   def sample_every_ms, do: @sample_every_ms
 
   @doc """
-  The frozen exam as a percentage, from a vitals fact.
+  An exam as a percentage, from a vitals fact.
 
   ⚠ ONE PLACE, because the leaderboard and the history chart must not be able to
   disagree about what an island scored. They are the same number drawn twice.
+
+  ⚠⚠ AND IT SUMS A PROFILE THE ISLAND REFUSES TO SUM. `benchmark.erl` will not
+  produce a total, on the grounds that one needs weights and weights are a
+  judgement about which rung matters smuggled into a measurement. That objection
+  is right and this is not a refutation of it: a leaderboard needs one number by
+  definition, so the weights here are EQUAL and that choice is stated rather than
+  hidden. The profile is drawn beside it precisely so a reader can see what the
+  total flattened.
   """
   @spec exam_score(map()) :: non_neg_integer()
-  def exam_score(vitals) when is_map(vitals) do
-    rungs = length(Map.get(vitals, "benchmark_rungs", []))
-    starts = Map.get(vitals, "benchmark_starts", 0)
-    wins = Map.get(vitals, "benchmark_wins", [])
+  def exam_score(vitals), do: exam_score(vitals, "benchmark")
+
+  @doc """
+  The same percentage for either exam: `"benchmark"` or `"trials"`.
+
+  ⚠ ZERO WHEN THE EXAM IS ABSENT, AND A CALLER MUST NOT READ THAT AS A FAILURE.
+  An island on a build older than fact version 5 publishes no held-out exam at
+  all, and `has_exam?/2` is how a caller tells "has not sat it" from "sat it and
+  lost everything". `REGISTER I.22` for why there are two exams.
+  """
+  @spec exam_score(map(), String.t()) :: non_neg_integer()
+  def exam_score(vitals, prefix) when is_map(vitals) do
+    rungs = length(Map.get(vitals, prefix <> "_rungs", []))
+    starts = Map.get(vitals, prefix <> "_starts", 0)
+    wins = Map.get(vitals, prefix <> "_wins", [])
     scored(is_list(wins) && Enum.sum(wins), rungs * starts)
   end
 
-  def exam_score(_absent), do: 0
+  def exam_score(_absent, _prefix), do: 0
+
+  @doc "Whether this island published that exam at all."
+  @spec has_exam?(map(), String.t()) :: boolean()
+  def has_exam?(vitals, prefix) when is_map(vitals) do
+    Map.get(vitals, prefix <> "_rungs", []) != [] and Map.get(vitals, prefix <> "_starts", 0) > 0
+  end
+
+  def has_exam?(_absent, _prefix), do: false
 
   defp scored(_wins, 0), do: 0
   defp scored(false, _n), do: 0
