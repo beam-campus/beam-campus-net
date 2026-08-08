@@ -74,105 +74,88 @@ export function barsOption({spec, colour, text, fill, surface}) {
 export function matrixOption({spec, fill, text, height, surface}) {
   if (!Array.isArray(spec.cells) || !spec.rows) return null
 
-  const px = height || 288
-  const left = 20, top = 14
-  const w = (100 - left) / spec.cols.length
-  const h = (100 - top) / spec.rows.length
-
-  const at = (r, c) => [left + (c + 0.5) * w, top + (r + 0.5) * h]
-
-  // ⚠ ONE SIZE FOR EVERY CELL. Area used to carry the raid count, and
-  // it cost more than it bought: the eye compares PROPORTIONS across a
-  // grid, and it cannot do that when every disc is a different size. It
-  // also made the smallest routes almost invisible. The count is a
-  // number in the middle of the ring now, which is legible at a glance
-  // and needs no judging of areas.
+  // ⚠ A GRID OF CELLS, NOT A GRID OF PIES. Pies were the third encoding tried
+  // here and the third to be wrong. A slice asks the eye to judge an ANGLE,
+  // which is the least accurate comparison there is, and asks it twenty times
+  // over. A filled cell asks it to compare two colours, which is the most
+  // accurate, and the count sits on top as a number rather than as an area.
   //
-  // Sized off the real cell height in pixels, not off a percentage, so
-  // a ring can never be drawn larger than the row it lives in.
-  const rowPx = (px * (100 - top) / 100) / spec.rows.length
-  const R = Math.max(8, Math.min(18, rowPx * 0.34))
-  const inner = R * 0.55
+  // ⚠⚠ HUE IS DIRECTION, OPACITY IS CONFIDENCE, TEXT IS THE COUNT. Three facts,
+  // three channels, none of them fighting: blue where the island holds, red
+  // where the raider prevails, grey in the middle, faded where too few raids
+  // have been decided to mean anything, and the raid count printed on every one.
+  //
+  // The first attempt at direction-as-colour was a 48% wash over a dark surface
+  // and could not be seen. This is a full-strength fill, and `charts_check.mjs`
+  // asserts the colours are actually painted.
+  const decided = (c) => c.a + c.d
+  const share = (c) => (decided(c) === 0 ? 50 : Math.round((c.a * 100) / decided(c)))
 
-  const series = spec.cells.filter((c) => c.n > 0).map((cell) => {
-    const [cx, cy] = at(cell.r, cell.c)
-    return {
-      type: "pie",
-      name: cell.of,
-      center: [`${cx}%`, `${cy}%`],
-      radius: [inner, R],
-      label: {show: false},
-      labelLine: {show: false},
-      emphasis: {scale: true, scaleSize: 2},
-      data: [
-        {value: cell.a, name: "raider won", itemStyle: {color: fill.attacker}},
-        {value: cell.x, name: "drawn", itemStyle: {color: fill.draw}},
-        {value: cell.d, name: "island held", itemStyle: {color: fill.defender}}
-      ].filter((s) => s.value > 0)
-    }
-  })
-
-  // How many raids, as a number, in the hole of the ring.
-  const counts = spec.cells.filter((c) => c.n > 0).map((c) => {
-    const [cx, cy] = at(c.r, c.c)
-    return {
-      type: "text",
-      left: `${cx}%`,
-      top: `${cy}%`,
-      style: {
-        text: String(c.n), fill: text, opacity: 0.75,
-        font: "10px monospace", align: "center", verticalAlign: "middle"
-      }
-    }
-  })
-
-  // ⚠⚠ A RAID STILL OUT, AND THE FIRST VERSION OF THIS WAS ENORMOUS.
-  // It set a 6px radius and then scaled it by a number computed from
-  // PERCENTAGES, so a marker meant to sit inside one cell was drawn
-  // across four rows. Pixels here, no scale transform, and it sits just
-  // outside the ring so it reads as an annotation on the cell rather
-  // than as a shape of its own.
-  const flying = spec.cells.filter((c) => c.f > 0).map((c) => {
-    const [cx, cy] = at(c.r, c.c)
-    return {
-      type: "circle",
-      left: `${cx}%`,
-      top: `${cy}%`,
-      shape: {cx: 0, cy: 0, r: R + 3},
-      style: {fill: "none", stroke: fill.draw, lineDash: [3, 3], lineWidth: 1},
-      z: 10
-    }
-  })
-
-  const labels = [
-    ...spec.rows.map((name, r) => ({
-      type: "text",
-      left: `${left - 1.5}%`,
-      top: `${at(r, 0)[1]}%`,
-      style: {text: name, fill: text, opacity: 0.6, font: "11px monospace", align: "right", verticalAlign: "middle"}
-    })),
-    ...spec.cols.map((name, c) => ({
-      type: "text",
-      left: `${at(0, c)[0]}%`,
-      top: `${top - 8}%`,
-      style: {text: name, fill: text, opacity: 0.5, font: "11px monospace", align: "center"}
-    }))
-  ]
+  // Below this a cell states its numbers and does not shout a direction: one
+  // raid won is 100%, and at full strength it would be the loudest thing here.
+  const SURE = 3
 
   return {
+    animationDuration: 420,
+    animationEasing: "cubicOut",
+    grid: {left: 96, right: 16, top: 28, bottom: 8},
     tooltip: {
       trigger: "item",
       formatter: (p) => {
-        const c = p.data && p.data.tip ? p.data.tip : (p.seriesModel || {})
-        const t = spec.cells.find((x) => x.of === p.seriesName) || {}
-        const out = t.f > 0 ? `, ${t.f} still out` : ""
-        return `${p.seriesName}: ${t.n} raids, ${t.a} won, ${t.d} held${out}`
+        const c = spec.cells[p.dataIndex]
+        const out = c.f > 0 ? `, ${c.f} still out` : ""
+        return `${c.of}: ${c.n} raids, ${c.a} won, ${c.d} held${out}`
       }
     },
-    graphic: [...labels, ...counts, ...flying],
-    series
+    xAxis: {
+      type: "category",
+      position: "top",
+      data: spec.cols,
+      axisLabel: {color: text, opacity: 0.55, fontSize: 10},
+      axisLine: {show: false},
+      axisTick: {show: false},
+      splitArea: {show: false}
+    },
+    yAxis: {
+      type: "category",
+      data: spec.rows,
+      axisLabel: {color: text, opacity: 0.55, fontSize: 10},
+      axisLine: {show: false},
+      axisTick: {show: false},
+      splitArea: {show: false}
+    },
+    visualMap: {
+      show: false,
+      min: 0,
+      max: 100,
+      // ⚠ TWO HUES AND A NEUTRAL MIDPOINT, which is what a diverging scale is.
+      // Never a rainbow, and never a hue in the middle: the middle means
+      // "neither side", and grey is the only honest colour for that.
+      inRange: {color: [fill.defender, fill.draw, fill.attacker]}
+    },
+    series: [
+      {
+        type: "heatmap",
+        data: spec.cells.map((c) => ({
+          value: [c.c, c.r, share(c)],
+          itemStyle: {
+            opacity: decided(c) >= SURE ? 1 : 0.28,
+            borderColor: surface,
+            borderWidth: 2,
+            borderRadius: 3
+          }
+        })),
+        label: {
+          show: true,
+          color: text,
+          fontFamily: "monospace",
+          fontSize: 11,
+          formatter: (p) => String(spec.cells[p.dataIndex].n)
+        },
+        emphasis: {itemStyle: {borderColor: text, borderWidth: 2}}
+      }
+    ]
   }
-
 }
 
 // ⚠ THE D.15 INSTRUMENT. One column per sample, one row per rung, fill is the

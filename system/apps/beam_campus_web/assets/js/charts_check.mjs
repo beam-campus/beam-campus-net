@@ -39,6 +39,15 @@ const check = (name, ok, detail) => {
   }
 }
 
+// ⚠ A COLOUR IS NOT A STRING. ECharts normalises `#e2556e` to
+// `rgb(226,85,110)` on the way to SVG, so matching the hex finds nothing even
+// when the mark is painted exactly right. This caught the checker out the first
+// time it was pointed at a heatmap.
+const paints = (svg, hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  return svg.includes(hex) || svg.includes(`rgb(${r},${g},${b})`)
+}
+
 const render = (option) => {
   const chart = echarts.init(null, null, {renderer: "svg", ssr: true, width: W, height: H})
   chart.setOption({animation: false, ...option})
@@ -68,33 +77,38 @@ console.log("matrix")
 const matrix = matrixOption({spec: matrixSpec, fill: SIDES, text: INK, height: H})
 const msvg = render(matrix)
 
-// ⚠ THE GEOMETRY, NOT THE INTENT. Read the radii ECharts actually drew.
-const radii = matrix.series.map((s) => s.radius[1])
-check("every ring is the same size", new Set(radii).size === 1, `radii ${[...new Set(radii)].join(",")}`)
+// ⚠ THE CELLS, NOT THE INTENT. Read what ECharts was actually handed.
+const cells = matrix.series[0].data
+check("one cell per fought or in-flight route", cells.length === matrixSpec.cells.length)
 
-const rowPx = (H * (100 - 14) / 100) / matrixSpec.rows.length
-const outer = radii[0]
-check("a ring fits inside its row", outer * 2 <= rowPx, `ring ${(outer * 2).toFixed(1)}px in a ${rowPx.toFixed(1)}px row`)
+// Hue is direction: a route won outright must land at an end of the scale.
+const wonAll = cells[matrixSpec.cells.findIndex((c) => c.of === "msi00 → beam03")]
+const lostAll = cells[matrixSpec.cells.findIndex((c) => c.of === "beam01 → beam00")]
+check("a route won outright sits at the raider end", wonAll.value[2] === 100, `${wonAll.value[2]}`)
+check("a route lost outright sits at the island end", lostAll.value[2] === 0, `${lostAll.value[2]}`)
 
-// The failure that produced the four-row striped circle.
-const rings = (matrix.graphic || []).filter((g) => g.type === "circle")
-check("an in-flight marker exists for every cell that has one", rings.length === 2, `${rings.length} rings`)
-check(
-  "an in-flight marker fits inside its row",
-  rings.every((g) => g.shape.r * 2 <= rowPx),
-  rings.map((g) => (g.shape.r * 2).toFixed(1) + "px").join(", ")
-)
-check("no marker is scaled by a unitless factor", rings.every((g) => !("scaleX" in g)))
+// ⚠ OPACITY IS CONFIDENCE. One raid won is 100% and must not shout.
+const thin = cells[matrixSpec.cells.findIndex((c) => c.of === "beam00 → beam01")]
+check("a one-raid route is faded, not shouting", thin.itemStyle.opacity < 0.5, `${thin.itemStyle.opacity}`)
+check("a well-fought route is at full strength",
+  cells[matrixSpec.cells.findIndex((c) => c.of === "beam00 → beam02")].itemStyle.opacity === 1)
 
-// The failure that produced the invisible tint: a mark must actually be painted.
-check("slices are painted in the side colours", msvg.includes(SIDES.attacker) && msvg.includes(SIDES.defender))
-check("a route won outright still draws", msvg.split(SIDES.attacker).length - 1 >= 2)
+// ⚠⚠ THE MIDPOINT IS NEUTRAL. A hue in the middle would claim a lean that is not
+// there; grey is the only honest colour for "neither side".
+check("the scale is two hues around a neutral middle",
+  matrix.visualMap.inRange.color.length === 3 &&
+    matrix.visualMap.inRange.color[1] === SIDES.draw,
+  matrix.visualMap.inRange.color.join(","))
+
+// The failure that produced the invisible tint: the fill must actually be painted.
+check("cells are painted in the side colours", paints(msvg, SIDES.attacker) && paints(msvg, SIDES.defender))
 check("nothing rendered at NaN", !/NaN/.test(msvg))
 check("the grid drew something", msvg.length > 2000, `${msvg.length} bytes`)
 
-// Every cell that has raids must produce a visible ring, and the count beside it.
-const counts = (matrix.graphic || []).filter((g) => g.type === "text" && /^\d+$/.test(g.style.text))
-check("every fought route shows its raid count", counts.length === 5, `${counts.length} counts`)
+// The count is a number on the cell, never an area to judge.
+check("every route shows its raid count", matrix.series[0].label.show === true)
+check("no circles are drawn at all",
+  !JSON.stringify(matrix).includes('"pie"') && !(matrix.graphic || []).some((g) => g.type === "circle"))
 
 console.log("bars")
 const barsSpec = {
@@ -112,7 +126,7 @@ const bsvg = render(bars)
 check("a series with a role takes the convention, not the palette",
   bars.series[0].itemStyle.color === SIDES.attacker && bars.series[1].itemStyle.color === SIDES.defender,
   bars.series.map((s) => s.itemStyle.color).join(","))
-check("bars are painted", bsvg.includes(SIDES.attacker) && bsvg.includes(SIDES.defender))
+check("bars are painted", paints(bsvg, SIDES.attacker) && paints(bsvg, SIDES.defender))
 check("bars rendered without NaN", !/NaN/.test(bsvg))
 
 // A spec this build does not understand must draw nothing rather than throw.
@@ -134,7 +148,7 @@ check("every sample gets a column", exam.series[0].data.length === 24, `${exam.s
 check("the scale is a magnitude, 0 to 100", exam.visualMap.min === 0 && exam.visualMap.max === 100)
 // ⚠ A DRILL HAS NO RAIDER AND NO ISLAND. Lending it a side hue would say it did.
 check("the exam never uses a side colour",
-  !esvg.includes(SIDES.attacker) && !esvg.includes(SIDES.defender))
+  !paints(esvg, SIDES.attacker) && !paints(esvg, SIDES.defender))
 check("the heatmap drew cells", !/NaN/.test(esvg) && esvg.length > 2000, `${esvg.length} bytes`)
 check("an island with no vector draws nothing",
   examOption({spec: {rungs: 0, cells: [], columns: [], sat: 0}, ramp: RAMP, text: INK}) === null)
@@ -156,7 +170,7 @@ check("zero is drawn", abl.series.every((s) => s.markLine.data[0].yAxis === 0))
 // ⚠ STEPS, NOT SLOPES. The wire republishes one exercise until the next is run.
 check("readings are steps, not interpolated slopes", abl.series.every((s) => s.step === "end"))
 check("the ablation never uses a side colour",
-  !asvg.includes(SIDES.attacker) && !asvg.includes(SIDES.defender))
+  !paints(asvg, SIDES.attacker) && !paints(asvg, SIDES.defender))
 check("lines rendered without NaN", !/NaN/.test(asvg))
 check("no readings draws nothing", ablationOption({spec: {at: [], series: []}, colour: [], text: INK}) === null)
 
@@ -181,7 +195,7 @@ check("the ladder keeps its difficulty order",
 check("one series per island", prof.series.length === 3)
 // An island is an identity, not a side.
 check("the profile never uses a side colour",
-  !psvg.includes(SIDES.attacker) && !psvg.includes(SIDES.defender))
+  !paints(psvg, SIDES.attacker) && !paints(psvg, SIDES.defender))
 check("bars rendered without NaN", !/NaN/.test(psvg))
 check("nobody having sat it draws nothing",
   examProfileOption({spec: {drills: [], series: []}, colour: [], text: INK}) === null)

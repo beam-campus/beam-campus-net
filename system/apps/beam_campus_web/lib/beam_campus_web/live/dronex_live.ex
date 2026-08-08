@@ -1642,11 +1642,12 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each ring is the row island raiding the column island: <strong>red is the raider winning</strong>, blue is the island holding,
-        grey is a draw. The number inside is <strong>how many raids</strong>
-        have been fought there, so every ring is the same size and only the
-        proportions differ. A dashed outline is a raid still out. Hover a slice for
-        the numbers, or open the table below. A raid
+        Each cell is the row island raiding the column island. <strong>Red where the raider prevails</strong>, blue where the island
+        holds, grey where it is even, and the number on it is how many raids have
+        been fought there. A <strong>faded</strong>
+        cell has fewer than three decided raids and is not claiming a direction,
+        because one raid won is 100%. Hover for the full numbers, or open the
+        table below. A raid
         still out: both sides commit on acceptance and the defender publishes the
         recording when it ends, so a pair with commitments and no recording is
         either in flight or one whose defender went dark, which look the same from
