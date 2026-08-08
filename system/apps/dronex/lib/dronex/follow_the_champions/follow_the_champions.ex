@@ -86,6 +86,29 @@ defmodule Dronex.FollowTheChampions do
     _unreachable -> []
   end
 
+  @doc """
+  How many distinct controllers have crossed, over EVERY reign on disk.
+
+  ⚠ **NOT COUNTED WITHIN THE RANKED TOP TEN, WHICH IS WHERE IT WAS COUNTED AND
+  WHY IT ALWAYS SAID ZERO.** `ranked/1` orders on islands held, then tenure, and
+  a controller that has just crossed has by definition just arrived: it holds one
+  island and has held it for seconds. So the one event this panel exists to
+  report was ranked last and then cut off by the limit, and the headline read
+  "0 of 10 crossed the mesh" while two crossings sat in the table it was counting
+  over. `REGISTER I.25` is why there were none before that; this is why they were
+  invisible afterwards.
+  """
+  @spec crossed() :: non_neg_integer()
+  def crossed do
+    Reign
+    |> Repo.all()
+    |> Enum.group_by(& &1.genome_id)
+    |> Enum.map(&counted/1)
+    |> Enum.count(& &1.crossed?)
+  rescue
+    _unreachable -> 0
+  end
+
   @doc "How many reigns are on disk. Nil when the database cannot be reached."
   @spec counted() :: non_neg_integer() | nil
   def counted do

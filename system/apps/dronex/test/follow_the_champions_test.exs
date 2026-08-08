@@ -125,4 +125,36 @@ defmodule Dronex.FollowTheChampionsTest do
     assert FollowTheChampions.ranked() == []
     assert FollowTheChampions.crossings() == []
   end
+
+  # ⚠⚠⚠ A CROSSING IS ALWAYS THE NEWEST THING AND THE RANKING ALWAYS BURIES IT.
+  # `ranked/1` orders on islands held, then tenure, so a controller that has just
+  # crossed — one island, held for seconds — sorts last. The headline counted
+  # crossings INSIDE that ranked top ten, so it read "0 of 10 crossed the mesh"
+  # while crossings sat in the very table it was counting over. Measured on the
+  # live site on 2026-08-09: two reigns carried an origin, and the page said zero.
+  test "a crossing is counted even when it ranks last and falls off the limit" do
+    # ⚠ MORE LOCALS THAN THE LIMIT, AND THEY MUST OUT-HOLD THE TRAVELLER, or the
+    # newcomer lands inside the top ten by luck and the test passes against the
+    # broken counting too. That is what the first version of this test did.
+    for i <- 1..12 do
+      island("local#{i}", "beam#{i}", %{"champion_id" => "home#{i}"})
+    end
+
+    FollowTheChampions.remember()
+    Process.sleep(5)
+    FollowTheChampions.remember()
+
+    # The foreigner arrives now, so its tenure is zero and it sorts last.
+    island("far", "beamX", %{"champion_id" => "traveller", "champion_from" => "elsewhere"})
+    FollowTheChampions.remember()
+
+    top = FollowTheChampions.ranked(10)
+    assert length(top) == 10
+    refute Enum.any?(top, &(&1.genome_id == "traveller"))
+    assert Enum.all?(top, &(&1.crossed? == false))
+
+    # It is invisible in the ranking and must be counted anyway.
+    assert FollowTheChampions.crossed() == 1
+    assert [%{genome_id: "traveller", taken_from: "elsewhere"}] = FollowTheChampions.crossings()
+  end
 end

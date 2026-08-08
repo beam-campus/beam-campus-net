@@ -533,15 +533,53 @@ defmodule BeamCampusWeb.DronexLive do
 
   def champions(assigns) do
     ranked = Dronex.FollowTheChampions.ranked(10)
-    assigns = assign(assigns, ranked: ranked, crossed: Enum.count(ranked, & &1.crossed?))
+
+    assigns =
+      assign(assigns,
+        ranked: ranked,
+        # ⚠ OVER EVERY REIGN, NOT OVER THE TEN SHOWN. Counting inside the ranked
+        # list made this permanently zero: the ranking is islands held, then
+        # tenure, and a controller that has just crossed holds one island and has
+        # held it for seconds, so it sorts last and falls off the limit. The
+        # headline said "0 of 10 crossed the mesh" while two crossings sat in the
+        # table it was counting over.
+        crossed: Dronex.FollowTheChampions.crossed(),
+        seen: Dronex.FollowTheChampions.counted() || 0,
+        crossings: Dronex.FollowTheChampions.crossings(8)
+      )
 
     ~H"""
     <section :if={@ranked != []} class="settle mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="instrument-lede text-base font-semibold">Which controllers have held an island</h2>
         <span class="font-mono text-xs opacity-40">
-          {@crossed} of {length(@ranked)} crossed the mesh
+          {@crossed} of {@seen} crossed the mesh
         </span>
+      </div>
+
+      <%!-- ⚠⚠ THE CROSSINGS GET THEIR OWN LIST, BECAUSE THE RANKING BURIES THEM
+            AND ALWAYS WILL. This is the archipelago's one idea in its most
+            literal form — a controller bred on one machine, now holding another
+            — and until this section existed the page could only report it as a
+            count that was structurally zero. `Dronex.FollowTheChampions.crossings/1`
+            has returned exactly these rows the whole time and nothing called it. --%>
+      <div :if={@crossings != []} class="instrument mt-2 p-3">
+        <h3 class="text-sm font-semibold opacity-70">Controllers that crossed</h3>
+        <ul class="mt-2 grid gap-1">
+          <li :for={r <- @crossings} class="font-mono text-xs">
+            <span class="opacity-70">{String.slice(r.genome_id, 0, 8)}</span>
+            <span class="opacity-40">bred on</span>
+            {Dronex.TellIslandsApart.spoken_id(r.taken_from)}
+            <span class="opacity-40">· now holding</span>
+            {r.island}
+            <span class="opacity-40">· {held_for(r.last_seen - r.first_seen)}</span>
+          </li>
+        </ul>
+        <p class="mt-2 text-xs opacity-40">
+          Taken in a raid and then good enough, here, to become this island's
+          champion. A controller is the sha256 of its packed genome, so this is
+          the same controller and not a resemblance.
+        </p>
       </div>
 
       <div class="instrument mt-2 overflow-x-auto p-3">
