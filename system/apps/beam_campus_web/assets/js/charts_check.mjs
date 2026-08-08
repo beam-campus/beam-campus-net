@@ -19,7 +19,7 @@
 //
 // Run: node apps/beam_campus_web/assets/js/charts_check.mjs
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption, examOption, ablationOption, examProfileOption} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, tokens} from "./dronex_charts.js"
 
 const W = 900
 const H = 288
@@ -199,6 +199,34 @@ check("the profile never uses a side colour",
 check("bars rendered without NaN", !/NaN/.test(psvg))
 check("nobody having sat it draws nothing",
   examProfileOption({spec: {drills: [], series: []}, colour: [], text: INK}) === null)
+
+console.log("tokens")
+// ⚠ THE HOOK USED TO READ ITS TOKENS THROUGH FOUR SEPARATE CLOSURES, two of
+// which were deleted by an edit aimed at a third. esbuild leaves an undefined
+// global alone, the browser threw a ReferenceError at call time, and the hook's
+// own guard turned that into a blank box on every chart. Now one function, and
+// the checker exercises it.
+const stylesheet = {
+  "--color-base-content": "#e7e5e4",
+  "--chart-cat-1": "#2a6fb0", "--chart-cat-2": "#d55e00", "--chart-cat-3": "#009e73",
+  "--chart-cat-4": "#a06a00", "--chart-cat-5": "#cc79a7", "--chart-cat-6": "#56b4e9",
+  "--chart-seq-1": "#8ab8dc", "--chart-seq-5": "#0f3d61",
+  "--side-attacker": "#e2556e", "--side-defender": "#4c8dff", "--side-draw": "#8a8a86"
+}
+const t = tokens((n) => stylesheet[n])
+
+check("every categorical hue is read", t.palette.length === 6, `${t.palette.length}`)
+check("both ends of the sequential ramp are read", t.ramp.length === 2 && t.ramp[0] !== t.ramp[1])
+check("all three sides are read",
+  t.sides.attacker === SIDES.attacker && t.sides.defender === SIDES.defender && t.sides.draw === SIDES.draw)
+check("ink is read", t.ink === INK)
+
+// A stylesheet that fails to load must degrade to the picture that shipped, not
+// to an exception or to black on black.
+const bare = tokens(() => "")
+check("missing tokens fall back rather than throwing",
+  bare.sides.attacker === SIDES.attacker && bare.ink === "#666" && bare.ramp.length === 2)
+check("a missing categorical ramp is empty, not a list of blanks", bare.palette.length === 0)
 
 console.log("skew")
 check("an unknown spec returns nothing", barsOption({spec: {kind: "something-new"}, colour: [], text: INK, fill: SIDES}) === null)

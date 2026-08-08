@@ -311,3 +311,29 @@ export function examProfileOption({spec, colour, text}) {
     }))
   }
 }
+
+// ⚠ EVERY TOKEN THE CHARTS NEED, READ ONCE, IN ONE PLACE.
+//
+// This exists because the hook grew four separate token-reading closures and two
+// of them were silently deleted by an edit meant to remove a third. esbuild does
+// not error on an undefined global — it leaves `sides()` as a free identifier
+// and the browser throws a ReferenceError at call time, which the hook's own
+// error guard then swallowed into a blank box. Every chart on the page was empty
+// and the server logs were clean.
+//
+// One function, taking a reader, so there is one thing to delete by accident and
+// the checker can exercise it without a DOM.
+export function tokens(read) {
+  const get = (name, fallback) => (read(name) || "").trim() || fallback
+
+  return {
+    ink: get("--color-base-content", "#666"),
+    palette: [1, 2, 3, 4, 5, 6].map((n) => get(`--chart-cat-${n}`, "")).filter(Boolean),
+    ramp: [get("--chart-seq-1", "#8ab8dc"), get("--chart-seq-5", "#0f3d61")],
+    sides: {
+      attacker: get("--side-attacker", "#e2556e"),
+      defender: get("--side-defender", "#4c8dff"),
+      draw: get("--side-draw", "#8a8a86")
+    }
+  }
+}

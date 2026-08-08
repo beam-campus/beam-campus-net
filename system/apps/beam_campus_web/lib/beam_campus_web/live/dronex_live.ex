@@ -438,23 +438,16 @@ defmodule BeamCampusWeb.DronexLive do
         // resolves against that directory and not against assets/. The esbuild args
         // carry `--alias:@=.' with the assets dir as cwd, which is the way in.
         import * as echarts from "@/vendor/echarts.esm.js"
-        import {barsOption, matrixOption, examOption, ablationOption, examProfileOption} from "@/js/dronex_charts.js"
+        import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, tokens} from "@/js/dronex_charts.js"
 
         // Six, in the order the stylesheet declares them, because that order is
         // what the colour-blindness check was run against. Taking them in any
         // other sequence puts pink beside green and fails a check that passed.
-        const palette = () => {
-          const css = getComputedStyle(document.documentElement)
-          return [1, 2, 3, 4, 5, 6]
-            .map((n) => css.getPropertyValue(`--chart-cat-${n}`).trim())
-            .filter(Boolean)
-        }
-
-        const ink = () => {
-          const css = getComputedStyle(document.documentElement)
-          return css.getPropertyValue("--color-base-content").trim() || "#666"
-        }
-
+        // ⚠ ONE READER, NOT FOUR CLOSURES. Four of these lived here, two were
+        // deleted by an edit aimed at a third, esbuild left them as undefined
+        // globals, and every chart went blank while the server logs stayed clean.
+        const read = () =>
+          tokens((name) => getComputedStyle(document.documentElement).getPropertyValue(name))
         export default {
           // ⚠ NOTHING IN HERE MAY TAKE THE PAGE WITH IT. A hook callback throwing
           // during `applyJoinPatch' aborts the join, and the visitor gets
@@ -503,21 +496,22 @@ defmodule BeamCampusWeb.DronexLive do
           // properties and hand over the element's real height.
           draw() {
             const spec = JSON.parse(this.el.dataset.spec)
-            const text = ink()
+            const t = read()
+            const text = t.ink
             // The panel behind the chart, so a mark can be separated from its
             // neighbour by a gap in the surface rather than by a line of its own.
             const surface = getComputedStyle(this.el.parentElement).backgroundColor
 
             const option =
               spec.kind === "matrix"
-                ? matrixOption({spec, fill: sides(), text, surface, height: this.el.clientHeight || 288})
+                ? matrixOption({spec, fill: t.sides, text, surface, height: this.el.clientHeight || 288})
                 : spec.kind === "exam_profile"
-                  ? examProfileOption({spec, colour: palette(), text})
+                  ? examProfileOption({spec, colour: t.palette, text})
                 : spec.kind === "exam"
-                  ? examOption({spec, ramp: ramp(), text, surface})
+                  ? examOption({spec, ramp: t.ramp, text, surface})
                   : spec.kind === "ablation"
-                    ? ablationOption({spec, colour: palette(), text})
-                    : barsOption({spec, colour: palette(), text, fill: sides(), surface})
+                    ? ablationOption({spec, colour: t.palette, text})
+                    : barsOption({spec, colour: t.palette, text, fill: t.sides, surface})
 
             if (!option) {
               console.warn("[dronex] chart spec not understood, not drawing:", spec.kind)
