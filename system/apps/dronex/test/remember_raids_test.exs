@@ -37,12 +37,12 @@ defmodule Dronex.RememberRaidsTest do
     %{losses: %{quantised: 75, unquantised: 12}, coverage: %{frames: 40, held: 9}}
   end
 
-  defp store(id) do
+  defp store(id, stamp \\ nil) do
     {1, _} =
       Repo.insert_all(
         Raid,
         [
-          Raid.from_fact(id, fact(id), readings())
+          Raid.from_fact(id, fact(id), readings(), stamp)
           |> Map.fetch!(:changes)
           |> Map.put(:inserted_at, NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second))
           |> Map.put(:updated_at, NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second))
@@ -111,6 +111,59 @@ defmodule Dronex.RememberRaidsTest do
 
     assert [%{parts: %{raid: [got]}}] = Dronex.raids()
     assert got["ticks"] == 999
+  end
+
+  # ⚠⚠⚠ THE RAIDER'S STAMP LIVES ONLY IN ITS OWN COMMITMENT, and storing the
+  # recording alone silently gutted the experience plot: 61 of 64 raids came back
+  # unstamped after a deploy and the panel fell from about sixty points to one.
+  # The recording is published by the DEFENDER and carries the defender's rounds.
+  test "the raider's breeding stamp survives a restart" do
+    store("r1", %{"role" => "attacker", "rounds" => 8100, "generation" => 40})
+
+    assert RememberRaids.recall() == 1
+
+    assert [%{parts: %{committed: [c]}}] = Dronex.raids()
+    assert c["role"] == "attacker"
+    assert c["rounds"] == 8100
+  end
+
+  test "a restored raid is plotted by the experience panel again" do
+    store("r1", %{"role" => "attacker", "rounds" => 9500})
+    RememberRaids.recall()
+
+    r = Dronex.WeighTheExperience.gaps(Dronex.raids())
+
+    assert [%{gap: 500}] = r.points
+    assert r.excluded.unstamped == 0
+  end
+
+  # A raid seen only as a recording never had a commitment here, and a missing
+  # stamp is excluded rather than read as a zero.
+  test "a raid with no commitment stored comes back with none, not a fake one" do
+    store("r1")
+
+    RememberRaids.recall()
+
+    assert [%{parts: parts}] = Dronex.raids()
+    refute Map.has_key?(parts, :committed)
+  end
+
+  test "the stamp is written from the commitment on the board" do
+    Board.put_raid("r1", :raid, fact("r1"))
+    Board.put_raid("r1", :committed, %{
+      "raid_id" => "r1",
+      "role" => "attacker",
+      "island_id" => "aaa",
+      "opponent_id" => "bbb",
+      "rounds" => 7777
+    })
+
+    assert RememberRaids.remember() == 1
+
+    for t <- [:dronex_board], do: :ets.delete_all_objects(t)
+    RememberRaids.recall()
+
+    assert [%{parts: %{committed: [%{"rounds" => 7777}]}}] = Dronex.raids()
   end
 
   test "nothing stored is an empty board rather than a crash" do

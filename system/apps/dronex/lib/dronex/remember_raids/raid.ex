@@ -39,6 +39,8 @@ defmodule Dronex.RememberRaids.Raid do
     :raiders_home,
     :defenders,
     :defenders_home,
+    :attacker_rounds,
+    :attacker_generation,
     :readings
   ]
 
@@ -54,21 +56,34 @@ defmodule Dronex.RememberRaids.Raid do
     field :raiders_home, :integer
     field :defenders, :integer
     field :defenders_home, :integer
+    # ⚠ THE RAIDER'S HALF, WHICH LIVES ONLY IN ITS COMMITMENT. The recording is
+    # the defender's and carries the defender's stamp; without these two the
+    # experience plot loses every restored raid.
+    field :attacker_rounds, :integer
+    field :attacker_generation, :integer
     field :readings, :map
 
     timestamps()
   end
 
-  @doc "A row from a raid recording, plus the readings taken when its frames arrived."
-  @spec from_fact(binary(), map(), map()) :: Ecto.Changeset.t()
-  def from_fact(raid_id, fact, readings) do
+  @doc """
+  A row from a raid recording, its readings, and the attacker's own commitment.
+
+  The commitment may be absent: the board evicts, and a raid seen only as a
+  recording never had one here. Then the raider's stamp is NULL and the
+  experience plot excludes that raid, which is the truth about it.
+  """
+  @spec from_fact(binary(), map(), map(), map() | nil) :: Ecto.Changeset.t()
+  def from_fact(raid_id, fact, readings, commitment \\ nil) do
     %__MODULE__{}
-    |> cast(attributes(raid_id, fact, readings), @fields)
+    |> cast(attributes(raid_id, fact, readings, commitment), @fields)
     |> validate_required([:raid_id])
     |> unique_constraint(:raid_id)
   end
 
-  defp attributes(raid_id, fact, readings) do
+  defp attributes(raid_id, fact, readings, commitment) do
+    stamp = commitment || %{}
+
     %{
       raid_id: raid_id,
       attacker_id: fact["attacker_id"],
@@ -81,6 +96,8 @@ defmodule Dronex.RememberRaids.Raid do
       raiders_home: fact["raiders_home"],
       defenders: fact["defenders"],
       defenders_home: fact["defenders_home"],
+      attacker_rounds: stamp["rounds"],
+      attacker_generation: stamp["generation"],
       readings: readings
     }
   end
@@ -93,7 +110,7 @@ defmodule Dronex.RememberRaids.Raid do
   them should learn that a database exists. Rehydrating into the board rather
   than teaching every instrument a second source is what keeps them pure.
   """
-  @spec to_fact(t()) :: {binary(), map(), map()}
+  @spec to_fact(t()) :: {binary(), map(), map(), [map()]}
   def to_fact(%__MODULE__{} = row) do
     fact =
       %{
@@ -112,7 +129,24 @@ defmodule Dronex.RememberRaids.Raid do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
 
-    {row.raid_id, fact, atomised(row.readings)}
+    {row.raid_id, fact, atomised(row.readings), commitments(row)}
+  end
+
+  # ⚠ REBUILT AS A COMMITMENT, NOT BOLTED ONTO THE RECORDING. `WeighTheExperience`
+  # reads the raider's rounds from `parts.committed` and is pure and tested; it
+  # should not learn that a database exists in order to keep working.
+  defp commitments(%__MODULE__{attacker_rounds: nil}), do: []
+
+  defp commitments(%__MODULE__{} = row) do
+    [
+      %{
+        "role" => "attacker",
+        "island_id" => row.attacker_id,
+        "opponent_id" => row.island_id,
+        "rounds" => row.attacker_rounds,
+        "generation" => row.attacker_generation
+      }
+    ]
   end
 
   # Readings go to jsonb as atom keys and come back as strings, and every reader

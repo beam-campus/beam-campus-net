@@ -148,22 +148,30 @@ defmodule Dronex.RememberRaids do
   # the worst outcome of a missing Repo is that history stops being kept, which
   # is exactly where this started, and it is still better than a crash loop.
   defp restore(row) do
-    {raid_id, fact, readings} = Raid.to_fact(row)
-    Board.put_remembered(raid_id, fact, readings)
+    {raid_id, fact, readings, commitments} = Raid.to_fact(row)
+    Board.put_remembered(raid_id, fact, readings, commitments)
   end
 
   # A raid with no recording is still out. It has no outcome to record and
   # writing one would mean a row that has to be corrected later.
-  defp settled(%{id: id, parts: %{raid: [fact | _]}} = row),
-    do: [{id, fact, Map.get(row, :readings, %{})}]
+  defp settled(%{id: id, parts: %{raid: [fact | _]} = parts} = row),
+    do: [{id, fact, Map.get(row, :readings, %{}), raiders_stamp(parts)}]
 
   defp settled(_unsettled), do: []
 
-  defp insert({raid_id, fact, readings}) do
+  # ⚠ THE RAIDER'S STAMP LIVES ONLY IN ITS OWN COMMITMENT. The recording is
+  # published by the DEFENDER and carries the defender's rounds. Storing the
+  # recording alone is what left 61 of 64 raids unstamped after a deploy.
+  defp raiders_stamp(%{committed: commitments}),
+    do: Enum.find(commitments, &(Map.get(&1, "role") == "attacker"))
+
+  defp raiders_stamp(_none), do: nil
+
+  defp insert({raid_id, fact, readings, stamp}) do
     {count, _} =
       Repo.insert_all(
         Raid,
-        [row_for(raid_id, fact, readings)],
+        [row_for(raid_id, fact, readings, stamp)],
         on_conflict: :nothing,
         conflict_target: :raid_id
       )
@@ -173,11 +181,11 @@ defmodule Dronex.RememberRaids do
 
   # `insert_all` skips changesets, so the cast happens here and the values are
   # taken from it. That keeps one definition of what a row is.
-  defp row_for(raid_id, fact, readings) do
+  defp row_for(raid_id, fact, readings, stamp) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     raid_id
-    |> Raid.from_fact(fact, readings)
+    |> Raid.from_fact(fact, readings, stamp)
     |> Map.fetch!(:changes)
     |> Map.put(:inserted_at, now)
     |> Map.put(:updated_at, now)

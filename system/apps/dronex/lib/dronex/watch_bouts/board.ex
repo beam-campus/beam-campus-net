@@ -397,19 +397,23 @@ defmodule Dronex.WatchBouts.Board do
   ⚠⚠ AND IT NEVER OVERWRITES WHAT IS LIVE. A raid the mesh has already delivered
   since boot is fresher than the row on disk and may carry frames this does not.
   """
-  @spec put_remembered(binary(), map(), map()) :: :ok | :held
-  def put_remembered(raid_id, fact, readings) when is_binary(raid_id) and is_map(fact) do
+  @spec put_remembered(binary(), map(), map(), [map()]) :: :ok | :held
+  def put_remembered(raid_id, fact, readings, commitments \\ [])
+      when is_binary(raid_id) and is_map(fact) and is_list(commitments) do
     key = {:raid, raid_id}
-    remembered(existing(key), key, raid_id, fact, readings)
+    remembered(existing(key), key, raid_id, fact, readings, commitments)
   end
 
-  defp remembered(nil, key, raid_id, fact, readings) do
+  defp remembered(nil, key, raid_id, fact, readings, commitments) do
     :ets.insert(
       @table,
       {key,
        %{
          id: raid_id,
-         parts: %{raid: [fact]},
+         # ⚠ THE COMMITMENT COMES BACK TOO. It is where the raider's breeding
+         # stamp lives, and restoring the recording alone left the experience
+         # plot excluding every raid it had ever been given.
+         parts: parts_of(fact, commitments),
          readings: readings,
          last_seen: System.system_time(:millisecond)
        }}
@@ -418,7 +422,10 @@ defmodule Dronex.WatchBouts.Board do
     :ok
   end
 
-  defp remembered(_live, _key, _raid_id, _fact, _readings), do: :held
+  defp remembered(_live, _key, _raid_id, _fact, _readings, _commitments), do: :held
+
+  defp parts_of(fact, []), do: %{raid: [fact]}
+  defp parts_of(fact, commitments), do: %{raid: [fact], committed: commitments}
 
   # ⚠ ONCE, AT INGEST, AND NEVER AGAIN. Walking 120 frames of 24 drones is cheap
   # once per raid and wasteful per render, and the frames will not survive to be
