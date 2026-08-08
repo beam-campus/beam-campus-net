@@ -61,7 +61,7 @@ defmodule Dronex.FollowTheChampions.Reign do
         last_seen: at,
         generation: Map.get(vitals, "champion_generation"),
         sorties: Map.get(vitals, "champion_sorties"),
-        taken_from: Map.get(vitals, "champion_from"),
+        taken_from: came_from(Map.get(vitals, "champion_from")),
         score: Dronex.WatchBouts.Board.exam_score(vitals)
       },
       @fields
@@ -69,6 +69,19 @@ defmodule Dronex.FollowTheChampions.Reign do
     |> validate_required([:genome_id, :island_id, :first_seen, :last_seen])
     |> unique_constraint([:genome_id, :island_id])
   end
+
+  # ⚠ AN ATOM IS A VALUE, NOT AN ABSENCE, AND THIS COST THE PANEL ITS MEANING.
+  # The islands published `champion_from => undefined` for a controller they bred
+  # themselves. It crossed the wire as something non-nil, `taken_from != nil` was
+  # true for every reign, and all five recorded champions were flagged as having
+  # crossed the mesh while every island reported `sitter=bred`.
+  #
+  # Fixed at the source — the key is now simply absent — and normalised here as
+  # well, because an island still running the older build publishes the atom and
+  # a reader should not believe it.
+  defp came_from(from) when from in [nil, "", "undefined", :undefined, "none"], do: nil
+  defp came_from(from) when is_binary(from), do: from
+  defp came_from(_other), do: nil
 
   @type t :: %__MODULE__{}
 end

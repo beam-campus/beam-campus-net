@@ -102,6 +102,25 @@ defmodule Dronex.FollowTheChampionsTest do
     assert [%{genome_id: "wide"}, %{genome_id: "deep"}] = FollowTheChampions.ranked()
   end
 
+  # ⚠ AN ATOM IS A VALUE, NOT AN ABSENCE. The islands published
+  # `champion_from => undefined` for a controller they bred, it crossed the wire
+  # as something non-nil, and every locally bred champion was recorded as having
+  # crossed the mesh — on the one panel whose purpose is to say which travelled.
+  test "a champion bred here has not crossed, however the wire spells nothing" do
+    for {id, name, spelling} <- [
+          {"aaa", "beam00", "undefined"},
+          {"bbb", "beam01", ""},
+          {"ccc", "beam02", "none"}
+        ] do
+      island(id, name, %{"champion_id" => "g-" <> id, "champion_from" => spelling})
+    end
+
+    FollowTheChampions.remember()
+
+    assert Enum.all?(FollowTheChampions.ranked(), &(&1.crossed? == false))
+    assert FollowTheChampions.crossings() == []
+  end
+
   test "nothing recorded is an empty list rather than a crash" do
     assert FollowTheChampions.ranked() == []
     assert FollowTheChampions.crossings() == []
