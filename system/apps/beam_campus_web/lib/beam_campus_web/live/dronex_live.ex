@@ -1154,78 +1154,52 @@ defmodule BeamCampusWeb.DronexLive do
   attr :islands, :list, required: true
 
   def captures(assigns) do
-    series =
-      assigns.islands
-      |> Enum.map(fn row -> {row, Dronex.history(row.id)} end)
-      |> Enum.filter(fn {_row, h} -> length(h) >= 2 end)
-
-    ceiling =
-      series
-      |> Enum.flat_map(fn {_row, h} -> Enum.map(h, & &1.captures) end)
-      |> Enum.max(fn -> 0 end)
-
-    assigns = assign(assigns, series: series, ceiling: max(ceiling, 1))
+    spec = Dronex.CountTheCaptures.rate(assigns.islands)
+    assigns = assign(assigns, spec: spec)
 
     ~H"""
     <div class="mt-6">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="text-sm font-semibold opacity-70">Genomes captured, over time</h3>
-        <span :if={@series != []} class="font-mono text-xs opacity-40">
+        <h3 class="text-sm font-semibold opacity-70">Genomes taken, per ten minutes</h3>
+        <span :if={@spec.bins != []} class="font-mono text-xs opacity-40">
           same scale on every island
         </span>
       </div>
 
-      <p :if={@series == []} class="instrument mt-2 p-3 text-xs opacity-50">
-        Nothing plotted yet. The board samples every {div(Dronex.sample_every_ms(), 1000)}s and needs two points to draw a
-        line. It holds them in memory rather than a database, so this begins again
-        after every deploy.
+      <p :if={@spec.bins == []} class="instrument mt-2 p-3 text-xs opacity-50">
+        Nothing plotted yet. The board samples every {div(Dronex.sample_every_ms(), 1000)}s and needs two points in
+        different ten-minute bins before a rate exists. Samples are written down,
+        so this resumes after a deploy rather than starting again.
       </p>
 
-      <div :if={@series != []} class="instrument mt-2 grid gap-4 p-3 sm:grid-cols-2 lg:grid-cols-3">
-        <figure :for={{row, samples} <- @series}>
-          <figcaption class="flex items-baseline justify-between gap-2">
-            <.island_name row={row} />
-            <span class="font-mono text-sm tabular-nums">{List.last(samples).captures}</span>
-          </figcaption>
-
-          <svg
-            viewBox="0 0 200 44"
-            class="mt-1 h-auto w-full"
-            role="img"
-            aria-label={"#{Dronex.TellIslandsApart.spoken(row)} has captured #{List.last(samples).captures} genomes, against a fleet high of #{@ceiling}"}
-          >
-            <polyline
-              points={sparkline(samples, @ceiling)}
-              fill="none"
-              stroke="var(--chart-1)"
-              stroke-width="2"
-              stroke-linejoin="round"
-              stroke-linecap="round"
-            />
-          </svg>
-        </figure>
+      <div :if={@spec.bins != []} class="instrument mt-2 p-3">
+        <div
+          id="captures-rate"
+          phx-hook=".Chart"
+          phx-update="ignore"
+          class="h-56 w-full"
+          role="img"
+          aria-label={"genomes taken per ten minutes, #{length(@spec.series)} islands over #{length(@spec.bins)} bins"}
+          data-spec={Jason.encode!(Map.merge(@spec, %{kind: "rates", label: "taken"}))}
+        >
+        </div>
       </div>
 
-      <p :if={@series != []} class="mt-2 text-xs opacity-40">
-        Cumulative genomes taken from a defeated raiding party and kept. Every
-        island is drawn against the fleet's largest count, not its own, so the
-        heights compare.
+      <p class="mt-2 max-w-3xl text-xs opacity-50">
+        Genomes taken from a defeated raiding party and kept, counted <strong>per ten minutes</strong>
+        rather than as a running total. A cumulative count over a window this
+        short is a flat line whatever the fleet does, which is what this panel
+        drew until now: five islands between 6,656 and 7,585 on an axis anchored
+        at zero differ by about four pixels.
+        <span class="mt-1 block">
+          A run of empty bins is an island that has stopped taking anything, which
+          is the most useful thing this feed can say and the one a running total
+          renders identically to a healthy island. A gap is a bin with no samples,
+          not a bin in which nothing was taken.
+        </span>
       </p>
     </div>
     """
-  end
-
-  # 2 to 198 across and 40 down to 4, so a 2px stroke never clips at either end.
-  defp sparkline(samples, ceiling) do
-    last = length(samples) - 1
-
-    samples
-    |> Enum.with_index()
-    |> Enum.map_join(" ", fn {p, i} ->
-      x = 2 + i * 196 / max(last, 1)
-      y = 40 - min(p.captures, ceiling) * 36 / ceiling
-      "#{Float.round(x * 1.0, 1)},#{Float.round(y * 1.0, 1)}"
-    end)
   end
 
   @doc """

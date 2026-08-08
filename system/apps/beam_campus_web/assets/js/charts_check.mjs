@@ -19,7 +19,7 @@
 //
 // Run: node apps/beam_campus_web/assets/js/charts_check.mjs
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, tokens} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, ratesOption, tokens} from "./dronex_charts.js"
 
 const W = 900
 const H = 288
@@ -205,6 +205,27 @@ check("the profile never uses a side colour",
 check("bars rendered without NaN", !/NaN/.test(psvg))
 check("nobody having sat it draws nothing",
   examProfileOption({spec: {drills: [], series: []}, colour: [], text: INK}) === null)
+
+console.log("rates")
+const ratesSpec = {
+  bins: [0, 600000, 1200000],
+  series: [
+    {island: "beam00 8ddd", data: [4, 0, 7]},
+    {island: "beam01 a6b1", data: [2, null, 3]}
+  ]
+}
+const rates = ratesOption({spec: ratesSpec, colour: ["#2a6fb0", "#d55e00"], text: INK, label: "taken"})
+const rsvg = render(rates)
+
+check("one series per island", rates.series.length === 2)
+// ⚠ A GAP IS NOT A ZERO. A bin with no samples must draw blank; a bar of height
+// nought claims a measurement nobody made.
+check("a missing bin stays null rather than becoming a zero",
+  rates.series[1].data[1] === null)
+check("a real zero is still drawn", rates.series[0].data[1] === 0)
+check("bars are grouped, not stacked", rates.series.every((s) => !s.stack))
+check("rates rendered without NaN", !/NaN/.test(rsvg))
+check("no bins draws nothing", ratesOption({spec: {bins: [], series: []}, colour: [], text: INK}) === null)
 
 console.log("tokens")
 // ⚠ THE HOOK USED TO READ ITS TOKENS THROUGH FOUR SEPARATE CLOSURES, two of

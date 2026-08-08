@@ -345,3 +345,47 @@ export function tokens(read) {
     }
   }
 }
+
+// ⚠ A RATE, WHERE A CUMULATIVE TOTAL SAID NOTHING. Grouped bars, one series per
+// island, so the question "who is taking genomes right now" is answered by
+// comparing heights in the same bin rather than by reading five flat lines.
+//
+// ⚠⚠ A GAP IS NOT A ZERO. A bin an island has no samples for arrives as null and
+// ECharts leaves it blank; a zero would draw a bar of height nought and claim a
+// measurement that was never made.
+export function ratesOption({spec, colour, text, label}) {
+  if (!spec || !Array.isArray(spec.series) || spec.series.length === 0) return null
+  if (!Array.isArray(spec.bins) || spec.bins.length === 0) return null
+
+  return {
+    color: colour,
+    textStyle: {color: text, fontFamily: "inherit"},
+    animationDuration: 480,
+    animationEasing: "cubicOut",
+    grid: {left: 44, right: 12, top: 30, bottom: 26},
+    tooltip: {trigger: "axis", axisPointer: {type: "shadow"}},
+    legend: {show: true, top: 0, textStyle: {color: text}},
+    xAxis: {
+      type: "category",
+      data: spec.bins.map((_, i) => i),
+      show: false
+    },
+    yAxis: {
+      type: "value",
+      name: label,
+      minInterval: 1,
+      axisLabel: {color: text, opacity: 0.6},
+      axisLine: {show: false},
+      axisTick: {show: false},
+      splitLine: {lineStyle: {opacity: 0.12}}
+    },
+    series: spec.series.map((s) => ({
+      name: s.island,
+      type: "bar",
+      barMaxWidth: 12,
+      emphasis: {focus: "series"},
+      itemStyle: {borderRadius: [3, 3, 0, 0]},
+      data: s.data
+    }))
+  }
+}
