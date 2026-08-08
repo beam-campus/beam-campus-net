@@ -44,7 +44,6 @@ defmodule BeamCampusWeb.DronexLive do
 
   use BeamCampusWeb, :live_view
 
-  import BeamCampusWeb.DronexFight, only: [fight: 1]
   import BeamCampusWeb.DronexChrome, only: [island_name: 1, dronex_state: 1, nav: 1]
 
   @redraw_ms 500
@@ -58,17 +57,218 @@ defmodule BeamCampusWeb.DronexLive do
      # Without this the tab, the history entry and every shared link read as the
      # site's generic title, so four different workbench pages are one bookmark.
      |> assign(page_title: "DroneX")
-     |> assign(dirty?: false, watching: nil, focus: nil)
-     |> assign(fight: nil, payload: nil, frame_count: 0)
-     |> assign(panel: :fights)
+     |> assign(dirty?: false, focus: nil, panel: :exam)
      |> load()}
   end
 
-  # ⚠ THE SELECTION AND THE PANEL LIVE IN THE URL, so a link carries what you
-  # were looking at. This page already sets `page_title' for exactly that reason
-  # — without it "four different workbench pages are one bookmark" — and putting
-  # navigation behind tabs while leaving the address bar unchanged would make it
-  # less shareable than the version that had no tabs at all.
+  # ⚠ THE PANEL IS `:exam' OR `:vitals' AND THERE IS NO `:fights' ANY MORE. The
+  # player has its own route, so a tab that used to open it now sends you there.
+  # An old link carrying `?panel=fights' lands on the exam, which is the closest
+  # true thing this page can show it.
+  defp panel_of("vitals"), do: :vitals
+  defp panel_of(_exam), do: :exam
+
+  defp dronex_path(island, panel), do: ~p"/research/workbench/dronex?#{query(island, panel)}"
+
+  defp query(nil, panel), do: [panel: panel]
+  defp query(island, panel), do: [island: island, panel: panel]
+
+  @impl true
+  def handle_event("focus_island", %{"id" => id}, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: dronex_path(toggled(socket.assigns.focus, id), socket.assigns.panel)
+     )}
+  end
+
+  def handle_event("show_panel", %{"panel" => panel}, socket) do
+    {:noreply, push_patch(socket, to: dronex_path(socket.assigns.focus, panel_of(panel)))}
+  end
+
+  # ⚠ ISLANDS, RAIDS AND THE STANDINGS. No watchable list, no 1.2 MB recording,
+  # no fleet readings: all three belong to the fights route now, and this page
+  # pulled every one of them on every redraw whichever tab was open.
+  defp load(socket) do
+    islands = Dronex.islands()
+    focus = socket.assigns[:focus]
+
+    assign(socket,
+      islands: islands,
+      raids: Dronex.raids(),
+      focused: Enum.find(islands, &(&1.id == focus)),
+      ranked: ranked(),
+      state: Dronex.state(),
+      refused: Dronex.refused()
+    )
+  end
+
+  # The island whose per-island panel is shown when nothing is selected. First
+  # come, first shown: with no fight to prefer, any choice is arbitrary and the
+  # panel says out loud which one it picked.
+  defp showing(islands, focus) do
+    Enum.find(islands, fn i -> i.id == focus end) || List.first(islands)
+  end
+
+  @impl true
+  def render(assigns) do
+    assigns = assign(assigns, shown: showing(assigns.islands, assigns.focus))
+
+    ~H"""
+    <Layouts.app flash={@flash}>
+      <%!-- ⚠ WIDER THAN THE REST OF THE SITE, ON PURPOSE. `max-w-5xl' is right
+           for prose and wrong for this: a workbench whose main content is a data
+           table earns the extra 256px. --%>
+      <div class="workbench mx-auto max-w-7xl px-4 py-10">
+        <.header>
+          DroneX
+          <:subtitle>
+            <strong>Islands breeding drone controllers, and how well they actually fly.</strong>
+            A drone is a quadcopter with a battery, a forward sensor that cannot
+            see behind it, one unguided weapon effective inside about fifteen
+            metres and four guided interceptors. None of how it flies is written
+            down: the controller is a neural network, and an island breeds them
+            continuously against a set of scripted drills.
+          </:subtitle>
+        </.header>
+
+        <.nav current={:archipelago} focus={@focus} />
+
+        <.dronex_state state={@state} refused={@refused} />
+
+        <div class="settle" style="animation-delay: 40ms">
+          <.one_world
+            :if={@islands != []}
+            islands={@islands}
+            raids={@raids}
+            standings={@ranked}
+            focus={@focus}
+            focused={@focused}
+          />
+        </div>
+
+        <div class="settle" style="animation-delay: 120ms">
+          <.island_panel :if={@shown} row={@shown} panel={@panel} selected?={@focus != nil} />
+        </div>
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  @doc """
+  Everything about the fleet as a whole, which is what this page is for.
+
+  ⚠ **THE DRILL MATRIX IS ON THE LANDING VIEW AND MUST STAY THERE.** It sat on
+  the per-island Exam tab once, so the most informative diagram on the page was
+  two clicks behind a video player and a visitor landed on a canvas and one
+  small bar. Moving it to a fourth route would be the same mistake by a
+  different mechanism, so the split left it here and moved the fights, the raids
+  and the radio away from it instead.
+  """
+  attr :islands, :list, required: true
+  attr :raids, :list, required: true
+  attr :standings, :list, required: true
+  attr :focus, :string, default: nil
+  attr :focused, :any, default: nil
+
+  def one_world(assigns) do
+    assigns = assign(assigns, rungs: rungs_of(assigns.islands))
+
+    ~H"""
+    <section class="mt-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-sm font-semibold opacity-80">One world</h2>
+
+        <%!-- ⚠ THE SELECTION SAID IN WORDS. A filter you cannot see is a page
+              that looks broken to whoever forgot it was on, and nothing else
+              here tells you how to clear it. --%>
+        <button
+          :if={@focused}
+          phx-click="focus_island"
+          phx-value-id={@focus}
+          class="badge badge-primary badge-sm gap-1"
+          aria-label={"showing #{Dronex.TellIslandsApart.spoken(@focused)} only. Activate to show every island."}
+        >
+          showing <.island_name row={@focused} class="" /> <span aria-hidden="true">✕</span>
+        </button>
+
+        <span :if={!@focused} class="text-xs opacity-40">
+          every island · pick one in the table
+        </span>
+      </div>
+
+      <.at_a_glance islands={@islands} raids={@raids} />
+
+      <.exam_profiles islands={@islands} />
+      <.champions standings={@standings} />
+      <.leaderboard standings={@standings} focus={@focus} />
+
+      <.ladder :if={@rungs != []} islands={@islands} focus={@focus} rungs={@rungs} />
+    </section>
+    """
+  end
+
+  # The ladder's column headings come from whichever island has sat the exam;
+  # they are the same rungs for everyone, and an island that has not sat it
+  # publishes none.
+  defp rungs_of(islands) do
+    Enum.find_value(islands, [], fn row ->
+      case Map.get(Dronex.fact(row, :vitals) || %{}, "benchmark_rungs", []) do
+        [] -> nil
+        rungs -> rungs
+      end
+    end)
+  end
+
+  @doc """
+  One island's own numbers and their trajectories.
+
+  ⚠ **NO "HISTORY" TAB, AND NO "FIGHTS" TAB EITHER.** A chart of the roster
+  belongs beside the roster and a chart of the exam beside the exam, not in a
+  third place that makes you hold a number in your head while you go and look at
+  its trajectory. The fights tab held a player that is now a route of its own,
+  for the same reason in the opposite direction: it was the heaviest thing on
+  the page and everybody paid for it whether or not they were watching.
+  """
+  attr :row, :map, required: true
+  attr :panel, :atom, default: :exam
+  attr :selected?, :boolean, default: false
+
+  def island_panel(assigns) do
+    ~H"""
+    <section class="mt-8">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <%!-- ⚠ A STABLE HOOK, because a test that finds this heading by its CLASS
+             finds whichever section was added most recently instead. That has
+             happened twice in one day. --%>
+        <h2 data-panel-heading class="text-base font-semibold">
+          <.island_name row={@row} class="" />
+        </h2>
+
+        <span :if={!@selected?} class="text-xs opacity-40">
+          shown because nothing is selected
+        </span>
+      </div>
+
+      <div role="tablist" class="tabs tabs-bordered mt-2">
+        <button
+          :for={{id, label} <- panels()}
+          role="tab"
+          aria-selected={to_string(@panel == id)}
+          phx-click="show_panel"
+          phx-value-panel={id}
+          class={["tab", @panel == id && "tab-active"]}
+        >
+          {label}
+        </button>
+      </div>
+
+      <.vitals row={@row} panel={@panel} />
+    </section>
+    """
+  end
+
+  defp panels, do: [{:exam, "Exam"}, {:vitals, "Vitals"}]
+
   @impl true
   def handle_params(params, _uri, socket) do
     {:noreply,
@@ -76,12 +276,6 @@ defmodule BeamCampusWeb.DronexLive do
      |> assign(focus: params["island"], panel: panel_of(params["panel"]))
      |> load()}
   end
-
-  defp panel_of("vitals"), do: :vitals
-  defp panel_of("exam"), do: :exam
-  # A link to the tab that briefly existed lands on the numbers it charted.
-  defp panel_of("history"), do: :vitals
-  defp panel_of(_fights), do: :fights
 
   @impl true
   def handle_info({:dronex_changed, _kind}, socket), do: {:noreply, mark_dirty(socket)}
@@ -97,61 +291,8 @@ defmodule BeamCampusWeb.DronexLive do
     assign(socket, dirty?: true)
   end
 
-  @impl true
-  # ⚠ THE PICKED FIGHT SURVIVES A REDRAW, which is the whole point of holding it
-  # in the socket rather than recomputing "the best one" every second. Facts
-  # arrive continuously from four islands; a visitor who clicked a fight and had
-  # it swapped out from under them two seconds later would conclude the page was
-  # broken, and would be right.
-  def handle_event("watch", %{"key" => key}, socket),
-    do: {:noreply, socket |> assign(watching: key) |> load()}
-
-  # ⚠ CLICKING THE FOCUSED ISLAND CLEARS IT, and clicking open sea clears it too.
-  # A filter you can enter and cannot leave is a trap, and on a canvas there is
-  # no obvious "off" — so both the mark and the water are the way out.
-  def handle_event("focus_island", %{"id" => id}, socket) do
-    {:noreply,
-     socket
-     |> assign(watching: nil)
-     |> push_patch(to: dronex_path(toggled(socket.assigns.focus, id), socket.assigns.panel))}
-  end
-
-  def handle_event("show_panel", %{"panel" => panel}, socket) do
-    {:noreply, push_patch(socket, to: dronex_path(socket.assigns.focus, panel_of(panel)))}
-  end
-
-  # ⚠ NOT `path/2'. `Phoenix.VerifiedRoutes' imports one, and defining a private
-  # function of that name shadows nothing — it makes the ~p macro try to expand
-  # your arguments as a route and fail at compile time with a message about
-  # compile-time path strings, which reads as a problem with the sigil.
-  defp dronex_path(island, panel), do: ~p"/research/workbench/dronex?#{query(island, panel)}"
-
-  defp query(nil, :fights), do: []
-  defp query(nil, panel), do: [panel: panel]
-  defp query(island, :fights), do: [island: island]
-  defp query(island, panel), do: [island: island, panel: panel]
-
   defp toggled(same, same), do: nil
   defp toggled(_was, id), do: id
-
-  defp load(socket) do
-    islands = Dronex.islands()
-    focus = socket.assigns[:focus]
-    watchable = Dronex.watchable(focus)
-
-    socket
-    |> assign(
-      islands: islands,
-      raids: Dronex.raids(),
-      watchable: watchable,
-      focused: Enum.find(islands, &(&1.id == focus)),
-      ranked: ranked(),
-      state: Dronex.state(),
-      refused: Dronex.refused(),
-      readings: Dronex.fleet_readings()
-    )
-    |> put_fight(watching(watchable, socket.assigns[:watching]))
-  end
 
   # ⚠ RANKED OVER EVERY ISLAND, AND NUMBERED HERE. The table below may be
   # filtered to whatever the map is showing, and a rank that renumbered under
@@ -160,311 +301,6 @@ defmodule BeamCampusWeb.DronexLive do
     Dronex.leaderboard()
     |> Enum.with_index(1)
     |> Enum.map(fn {standing, place} -> Map.put(standing, :rank, place) end)
-  end
-
-  # ⚠ THE RECORDING IS FETCHED AND ENCODED WHEN THE FIGHT CHANGES, NOT ON EVERY
-  # REDRAW. This page redraws twice a second while four islands publish, and a
-  # recording is about 1.2 MB: pulling it and running it through `Jason` each
-  # time burnt several megabytes a second of garbage to produce a byte-identical
-  # string that LiveView then diffed to nothing.
-  #
-  # The comparison is on the fact and not just the key, because a raid's
-  # commitments arrive before its recording does — same key, and the second
-  # arrival is the one worth drawing.
-  defp put_fight(socket, nil),
-    do: assign(socket, fight: nil, payload: nil, frame_count: 0)
-
-  defp put_fight(%{assigns: %{fight: %{key: k, fact: f}}} = socket, %{key: k, fact: f}),
-    do: socket
-
-  defp put_fight(socket, entry) do
-    frames = drawable(Dronex.recording(entry.key))
-
-    assign(socket,
-      fight: entry,
-      payload: encode(entry.fact, frames),
-      frame_count: length(frames)
-    )
-  end
-
-  # A dropped recording draws nothing, and the player says which of the two it
-  # is. See `Dronex.recording/1` — `:gone` is a real state, not a failure.
-  defp drawable({:ok, frames}), do: frames
-  defp drawable(:gone), do: []
-
-  defp encode(fact, frames) do
-    Jason.encode!(%{
-      arena: Map.get(fact, "arena", [1000, 1000, 300]),
-      frames: frames,
-      # ⚠ WHERE THE DEFENDER'S TOWERS STOOD, AND EMPTY WHEN THERE WERE NONE. A
-      # raider fights over somebody else's ground with no stations of its own,
-      # and that asymmetry is what makes attacking cost something. An older
-      # island publishes neither key and simply draws no towers, which is the
-      # correct picture of a fight that predates them.
-      ground: Map.get(fact, "ground", []),
-      ground_range: Map.get(fact, "ground_range", 0),
-      stride: 7,
-      mstride: 5
-    })
-  end
-
-  # Whichever fight was clicked, else the best one the ranking offers, else
-  # whatever `Dronex.latest_fight/0` can still find. The last fallback matters:
-  # an island that has published vitals and nothing else has no watchable fight
-  # at all, and an empty canvas explains nothing.
-  defp watching(watchable, key) do
-    picked(Enum.find(watchable, &(tag(&1.key) == key)) || List.first(watchable))
-  end
-
-  # Both arms are ranking entries now: `latest_fight/0` answers the same shape
-  # `watchable/0` elements have, so there is no longer a second shape for "a
-  # fight" and no unwrapping for the caller to get wrong.
-  defp picked(nil), do: Dronex.latest_fight()
-  defp picked(entry), do: entry
-
-  # ⚠ THE ONE NUMBER PAIR THAT ACTUALLY DIFFERS BETWEEN ROWS. A raid sends
-  # twelve a side; how many of each came back is the whole outcome, and it is the
-  # only part of the ranking's own description that is not the same string on
-  # most rows. A training bout has no two sides, so it says so instead.
-  # ⚠ TWO SIDES, AND IT READ AS ONE NUMBER PAIR. "8–3" here is raiders home
-  # against defenders home; "5–2" in the ledger is one island's wins against its
-  # losses. Identical shapes, opposite meanings, and nothing told them apart.
-  defp survivors(%{kind: :raid, fact: f}) do
-    assigns = %{home: num(f, "raiders_home"), held: num(f, "defenders_home")}
-
-    ~H"""
-    <span style="color: var(--side-attacker)">{@home}</span><span class="opacity-40">–</span><span style="color: var(--side-defender)">{@held}</span>
-    """
-  end
-
-  defp survivors(_bout), do: "drill"
-
-  defp ticks_of(%{fact: f}), do: "#{num(f, "ticks")}t"
-
-  # `{:raid, "abc"}` is not something a DOM attribute can carry back.
-  defp tag({kind, id}), do: "#{kind}:#{id}"
-
-  # ⚠ ONE SELECTED ISLAND, NOT TWO. This page had `chosen' for the vitals tabs
-  # and `focus' for the fights filter — two independent selections of the same
-  # kind of thing, so a visitor could be reading beam03's vitals while watching
-  # beam01's fights, with two rows of controls and no hint they were unrelated.
-  # There is now one selection, set from the map or a leaderboard row, and it
-  # scopes both.
-  #
-  # Unselected still shows something: the first island that has actually
-  # published a bout, else the first at all, because an empty panel explains
-  # nothing.
-  defp showing(islands, focus) do
-    Enum.find(islands, fn i -> i.id == focus end) ||
-      Enum.find(islands, &Dronex.fact(&1, :bout)) ||
-      List.first(islands)
-  end
-
-  @impl true
-  def render(assigns) do
-    shown = showing(assigns.islands, assigns.focus)
-
-    assigns = assign(assigns, shown: shown, bout: shown && Dronex.fact(shown, :bout))
-
-    ~H"""
-    <Layouts.app flash={@flash}>
-      <%!-- ⚠ WIDER THAN THE REST OF THE SITE, ON PURPOSE. `max-w-5xl' is right
-           for prose and wrong for this: it left the player 640px and the ranked
-           table seven columns in a third of that, on screens with 1900px going
-           spare. A workbench whose main content is a canvas and a data table
-           earns the extra 256px. --%>
-      <div class="workbench mx-auto max-w-7xl px-4 py-10">
-        <.header>
-          DroneX
-          <:subtitle>
-            <strong>Islands breeding drone controllers, and the last fight each one ran.</strong>
-            A drone is a quadcopter with a battery, a forward sensor that cannot
-            see behind it, one unguided weapon effective inside about fifteen
-            metres and four guided interceptors. None of how it flies is written
-            down: the controller is a neural network, and an island breeds them
-            continuously against its own drills.
-            <span class="mt-2 block">
-              Each island also sits a <strong>frozen exam</strong>
-              it never trains against, because a score measured against opponents
-              that keep changing rises for reasons nobody can name.
-            </span>
-          </:subtitle>
-        </.header>
-
-        <.nav current={:archipelago} focus={@focus} />
-
-        <.dronex_state state={@state} refused={@refused} />
-
-        <%!-- ⚠ THE FIGHT STILL COMES BEFORE THE DETAIL, and the band above it is
-             NAVIGATION rather than content. What anybody opening this page wants
-             is drones fighting drones; for a while the fight was a small canvas
-             below a picture of two circles, and that is the mistake this
-             ordering exists to avoid. The map and the table sit above it because
-             they are how you CHOOSE what to watch, not because they are more
-             interesting than it.
-             ⚠⚠ AND THEY ARE ONE CONTROL, NOT TWO. Both drive `@focus'; the map
-             is the spatial view of the selection and the table is the legible
-             one. The table was below the fight and the map was unlabelled above
-             it, so the page's primary navigation was the only thing on it
-             without a title, and the two halves of one control were separated by
-             the thing they control. --%>
-        <div class="settle" style="animation-delay: 40ms">
-          <.one_world
-            :if={@islands != []}
-            islands={@islands}
-            raids={@raids}
-            standings={@ranked}
-            focus={@focus}
-            focused={@focused}
-            readings={@readings}
-          />
-        </div>
-
-        <%!-- ⚠ THE PANEL ENGAGES AT `lg' AND NOWHERE BELOW IT. The container is
-              max-w-5xl, so at a 768px viewport this split would cramp both
-              halves. Below `lg' everything stacks.
-              ⚠⚠ A THIRD RATHER THAN A QUARTER, because this column stopped being
-              a list of buttons. It now carries the stat tiles and the exam
-              profile too, and 184px could hold neither. --%>
-        <%!-- ⚠ THE TABS OWN EVERYTHING UNDER THEM, INCLUDING THE PLAYER.
-              They used to scope only a side column while the fight stayed
-              visible beside them — so a tab labelled "Fights" sat next to a
-              permanently playing fight, and switching to Vitals left it there.
-              Either the label was wrong or the scope was, and the label is
-              right.
-
-              The earlier argument for keeping the player outside was that a
-              raid belongs to TWO islands and must not be filed under one. That
-              is still true and is not what this does: the tab set is a set of
-              VIEWS, the Fights view holds the player and its chooser, and the
-              player still shows a fight between two islands that the selection
-              merely filters. Vitals and Exam also get the full width, which
-              they wanted — a rung profile in a third of a column was cramped
-              before any history chart was added to it. --%>
-        <div class="settle" style="animation-delay: 120ms">
-          <.island_panel
-            :if={@shown}
-            row={@shown}
-            panel={@panel}
-            selected?={@focus != nil}
-            fight={@fight}
-            payload={@payload}
-            frame_count={@frame_count}
-            watchable={@watchable}
-            watching={@watching}
-            focused={@focused}
-            islands={@islands}
-          />
-        </div>
-
-        <p class="mt-10 text-sm opacity-60">
-          A bout arrives as a recording: every frame, already computed by the
-          island that ran it, in one fact. This page animates it and holds no
-          engine of its own, so what you are watching is what was counted rather
-          than a re-enactment.
-        </p>
-      </div>
-    </Layouts.app>
-    """
-  end
-
-  # ── How long a fight lasts ──────────────────────────────────────
-
-  @doc """
-  The distribution of raid durations, and whether a clock is cutting it off.
-
-  ⚠ **THE PILE ON THE LONGEST BAR IS THE HEADLINE, not the shape.** A raid that
-  ended because a cap was reached did not take that long, it took at least that
-  long, and every average over a censored quantity is biased. So the caption
-  leads with how many raids share the longest value seen, which is the cap
-  revealing itself as a measurement rather than as an assumption. The island does
-  not publish `max_ticks`, and hardcoding it here would put a world constant in a
-  second repository on a different release cadence.
-
-  Duration is NOT a measure of genome quality and the split by outcome is there
-  to stop it being read as one. A short raid is a crushing attacker or a suicidal
-  one; a long raid is a stout defence or two swarms that never met.
-  """
-  attr :raids, :list, required: true
-
-  def how_long_fights_last(assigns) do
-    assigns = assign(assigns, d: Dronex.TimeTheFights.distribution(assigns.raids))
-
-    ~H"""
-    <section :if={@d.n > 0} class="settle mt-8">
-      <h2 class="instrument-lede text-base font-semibold">How long a fight lasts</h2>
-
-      <p class="mt-1 max-w-2xl text-sm opacity-70">
-        {@d.n} settled {(@d.n == 1 && "raid") || "raids"}, in ticks, because the island
-        publishes its clock in ticks and not its rate.
-        <%!-- One raid at the maximum is not a ceiling, it is the maximum, and there is
-             always exactly one of those. A ceiling is a PILE. --%>
-        <strong :if={@d.ceiling}>
-          {@d.at_longest} of them end on exactly {@d.ceiling}, which is a ceiling
-          rather than a duration: those fights were stopped, not finished.
-        </strong>
-        <span :if={is_nil(@d.ceiling)}>
-          The longest ran {@d.longest} and nothing else stopped there, so no clock
-          is cutting these off.
-        </span>
-      </p>
-
-      <div class="instrument mt-2 p-3">
-        <div
-          id="fight-durations"
-          phx-hook="DronexChart"
-          phx-update="ignore"
-          class="h-64 w-full"
-          role="img"
-          aria-label={bars_spoken(@d)}
-          data-spec={histogram_spec(@d)}
-        >
-        </div>
-      </div>
-
-      <table class="mt-3 text-xs">
-        <thead>
-          <tr class="opacity-50">
-            <th class="pr-3 text-left font-normal">outcome</th>
-            <th class="pr-3 text-right font-normal">n</th>
-            <th class="pr-3 text-right font-normal">median</th>
-            <th :if={@d.ceiling} class="text-right font-normal">at the ceiling</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={o <- @d.by_outcome}>
-            <td class="pr-3">{o.outcome}</td>
-            <td class="pr-3 text-right font-mono tabular-nums">{o.n}</td>
-            <td class="pr-3 text-right font-mono tabular-nums">{o.median}</td>
-            <td :if={@d.ceiling} class="text-right font-mono tabular-nums">{o.at_ceiling}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p class="mt-2 max-w-2xl text-xs opacity-50">
-        Duration is not a measure of quality. A short raid is a crushing attacker or
-        a suicidal one, and a long one is a stout defence or two swarms that never
-        met, which is why it is never shown without who won.
-      </p>
-    </section>
-    """
-  end
-
-  # ⚠ SHAPE AND DATA ONLY, NEVER COLOUR. The browser reads the palette off the
-  # stylesheet so a theme switch does not need a round trip and the brand lives
-  # in exactly one place.
-  defp histogram_spec(d) do
-    Jason.encode!(%{
-      x_name: "ticks",
-      y_name: "raids",
-      categories: Enum.map(d.bins, & &1.from),
-      series: d.series
-    })
-  end
-
-  defp bars_spoken(d) do
-    "#{d.n} raids by duration in bins of #{d.bin} ticks, longest #{d.longest}, " <>
-      "#{d.at_longest} of them ending on exactly that value"
   end
 
   @doc """
@@ -1173,295 +1009,6 @@ defmodule BeamCampusWeb.DronexLive do
     </div>
     """
   end
-
-  # ── Choosing what to watch, and the standings ───────────────────
-
-  @doc """
-  Pick a fight to watch.
-
-  ⚠ WITH FOUR ISLANDS THERE ARE TWELVE DIRECTED PAIRS AND "THE NEWEST ONE" IS A
-  POOR ANSWER. The newest fight is very often a rout, and a visitor who arrives
-  during one concludes the whole exhibit is a rout. Worse, three islands can now
-  raid a fourth at the same moment — that is the point of the fourth island —
-  and a page that shows one fight would silently drop the other two.
-  """
-  attr :watchable, :list, required: true
-  attr :watching, :any, default: nil
-  attr :focused, :any, default: nil
-
-  def chooser(assigns) do
-    ~H"""
-    <div class="mt-2">
-      <div class="flex flex-wrap items-baseline justify-between gap-3">
-        <span class="text-xs opacity-40">
-          {length(@watchable)} held
-          <%!-- ⚠ A FILTER YOU CANNOT LEAVE IS A TRAP, and clicking open sea is
-                not discoverable. This is the visible way out. --%>
-          <button
-            :if={@focused}
-            phx-click="focus_island"
-            phx-value-id={@focused.id}
-            class="btn btn-ghost btn-xs"
-          >
-            show all
-          </button>
-        </span>
-      </div>
-
-      <%!-- An island can be selected before it has fought anything, and an empty
-            list with no explanation reads as a broken page. --%>
-      <p :if={@watchable == []} class="mt-2 text-xs opacity-50">
-        Nothing to watch at this island yet. It has published no fight — a raid it
-        flew, or one it hosted — since this page started listening.
-      </p>
-
-      <%!-- Two columns while it is a full-width block below `lg', ONE while it
-            is the rail beside the player. The rail holds about eight buttons at
-            the canvas's height, which is exactly the cap, and it scrolls rather
-            than stretching the row. --%>
-      <ul class="mt-2 grid gap-1 sm:grid-cols-2 lg:max-h-[34rem] lg:grid-cols-1 lg:overflow-y-auto">
-        <li :for={f <- Enum.take(@watchable, 8)}>
-          <button
-            phx-click="watch"
-            phx-value-key={"#{elem(f.key, 0)}:#{elem(f.key, 1)}"}
-            data-watch={"#{elem(f.key, 0)}:#{elem(f.key, 1)}"}
-            class={[
-              "w-full rounded border p-2 text-left transition",
-              (@watching == "#{elem(f.key, 0)}:#{elem(f.key, 1)}" && "border-primary") ||
-                "border-base-300 hover:border-base-content/30"
-            ]}
-          >
-            <%!-- ⚠ THE SCORELINE LEADS, AND THE SENTENCE FOLLOWS IT SMALL.
-                  Eight rows read "close: 1 home against 0 still up" five times
-                  over, because the ranking's reasons collapse when almost every
-                  engagement ends in mutual annihilation. The prose was doing no
-                  work a reader could use to choose. The SURVIVOR COUNTS differ
-                  even when the verdict does not, so they go first and in a size
-                  you can scan down. --%>
-            <div class="flex items-baseline justify-between gap-2">
-              <span class="font-mono text-xs">{f.title}</span>
-              <span class="shrink-0 font-mono text-sm tabular-nums">
-                {survivors(f)}
-              </span>
-            </div>
-            <div class="mt-0.5 flex items-baseline justify-between gap-2">
-              <span class="truncate text-[11px] opacity-40">{f.why}</span>
-              <span class="shrink-0 text-[11px] opacity-30">{ticks_of(f)}</span>
-            </div>
-          </button>
-        </li>
-      </ul>
-
-      <%!-- ⚠ SAID OUT LOUD BUT NOT IN THE WAY. A ranking that will not explain
-            itself is asking to be trusted, and five lines of it under an
-            eight-row list is most of the column. Folded, not dropped. --%>
-      <details class="mt-2">
-        <summary class="cursor-pointer text-xs opacity-40">How this list is ordered</summary>
-        <p class="mt-2 text-xs opacity-40">
-          Ordered by how interesting the fight is likely to be, not by how recent:
-          a raid over a training bout, both sides losing airframes over a rout, a
-          close finish, and a raider winning away from home over a defender
-          holding. The line under each is the strongest reason it is on this list.
-          It is a way of sorting a list and it measures nothing.
-        </p>
-      </details>
-    </div>
-    """
-  end
-
-  @doc """
-  The map and the ranked table, as one control over one selection.
-
-  ## The table lists what the MAP IS SHOWING, and the rank is global anyway
-
-  The map pans and zooms because a world that grows without limit stays readable
-  only if the viewer moves. Once it does that, a table beside it that ignores
-  where the viewer is looking is a second, unrelated list. So the rows follow the
-  viewport.
-
-  ⚠ **BUT THE RANK IS COMPUTED OVER EVERY ISLAND, NOT OVER THE VISIBLE ONES.**
-  A ranking that renumbers when you pan is not a ranking, and the first island is
-  not "the best one here", it is "the best one you happen to be looking at". Each
-  row carries its place in the whole archipelago, so filtering the list never
-  changes what a number means.
-
-  ⚠⚠ **AND THE DEFAULT FIT SHOWS EVERYTHING**, which is what makes this safe: a
-  visitor who never touches the map sees the full ranking, and so does anyone on
-  a keyboard, who cannot pan a canvas at all. The filter only bites after a
-  deliberate zoom, and the line above the table says so with a count.
-  """
-  attr :islands, :list, required: true
-  attr :raids, :list, required: true
-  attr :standings, :list, required: true
-  attr :focus, :string, default: nil
-  attr :focused, :any, default: nil
-  attr :readings, :map, required: true
-
-  def one_world(assigns) do
-    assigns =
-      assign(assigns,
-        shown: assigns.standings,
-        rungs: rungs_of(assigns.islands),
-        ordered_islands: Enum.sort_by(assigns.islands, &Dronex.label/1)
-      )
-
-    ~H"""
-    <section class="mt-6">
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-sm font-semibold opacity-80">One world</h2>
-
-        <%!-- ⚠ THE SELECTION SAID IN WORDS, because it was a white ellipse drawn
-              inside a canvas and nothing else. A ring cannot be read by a screen
-              reader, it is not visible once you have scrolled past the map, and
-              nothing on the page told you how to clear it — that was a comment
-              in the source. A filter you cannot see is a page that looks broken
-              to whoever forgot it was on. --%>
-        <button
-          :if={@focused}
-          phx-click="focus_island"
-          phx-value-id={@focus}
-          class="badge badge-primary badge-sm gap-1"
-          aria-label={"showing #{Dronex.TellIslandsApart.spoken(@focused)} only. Activate to show every island."}
-        >
-          showing <.island_name row={@focused} class="" /> <span aria-hidden="true">✕</span>
-        </button>
-
-        <span :if={!@focused} class="text-xs opacity-40">
-          every island · pick one on the map or in the table
-        </span>
-      </div>
-
-      <.at_a_glance islands={@islands} raids={@raids} />
-      <.how_long_fights_last raids={@raids} />
-
-      <.exam_profiles islands={@islands} />
-      <.champions standings={@shown} />
-      <.leaderboard standings={@shown} focus={@focus} />
-
-      <%!-- ⚠ FLEET-SCOPED, SO IT LIVES WITH THE FLEET. This sat on the per-island
-            Exam tab, which was wrong twice: it is every island against every
-            drill, so a per-island panel is the wrong home for it, and burying the
-            most informative thing on the page two clicks behind a video player
-            meant a visitor landed on a canvas and one small bar. --%>
-      <.ladder :if={@rungs != []} islands={@islands} focus={@focus} rungs={@rungs} />
-
-      <%!-- ⚠ FLEET-WIDE, WHICH IS WHY THEY MOVED HERE. Both of these described
-            whichever fight was selected, so both were n=1. Measured at ingest
-            and accumulated they describe every raid the board has seen, and the
-            `n` is printed on them because the raids are a rolling window rather
-            than a sample anybody chose. --%>
-      <BeamCampusWeb.DronexFight.losses :if={@readings.damage} readings={@readings} />
-      <BeamCampusWeb.DronexFight.coverage :if={@readings.coverage} readings={@readings} />
-    </section>
-    """
-  end
-
-  # The ladder's column headings come from whichever island has sat the exam;
-  # they are the same six drills for everyone, and an island that has not sat it
-  # publishes none.
-  defp rungs_of(islands) do
-    Enum.find_value(islands, [], fn row ->
-      case Map.get(Dronex.fact(row, :vitals) || %{}, "benchmark_rungs", []) do
-        [] -> nil
-        rungs -> rungs
-      end
-    end)
-  end
-
-  @doc """
-  Everything one selection scopes, in one place, beside the fight.
-
-  ## ⚠ THE FIGHT IS NOT A TAB HERE. A LIST OF FIGHTS IS.
-
-  The distinction is the data model rather than taste, and it is worth keeping
-  because the two look alike. A RAID belongs to two islands — the board keys
-  raids by `raid_id` precisely because "filed under the publisher, the
-  attacker's half of the story would have no home" — so a tab claiming to hold
-  *beam03's last fight* would be a filing error the storage layer refuses to
-  make. "beam03's last fight" is not well formed when beam03 raided msi00 and
-  msi00 raided beam03 in the same minute.
-
-  A list of fights **involving** an island is a different claim and a true one.
-  It is participation, not ownership, and it is as much a view of one island as
-  its roster is. So the fight stays on the canvas and the CHOOSER for it sits
-  here, first, because choosing is what this column is for.
-
-  ## And these are not the tab row that was removed
-
-  That one was four buttons that chose an ISLAND, duplicating the table and the
-  map: three controls for one piece of state, two of them wired to a stale copy.
-  These choose a VIEW. The island selection still has exactly one home.
-  """
-  attr :row, :map, required: true
-  attr :panel, :atom, default: :fights
-  attr :selected?, :boolean, default: false
-  attr :fight, :any, default: nil
-  attr :payload, :any, default: nil
-  attr :frame_count, :integer, default: 0
-  attr :watchable, :list, required: true
-  attr :watching, :any, default: nil
-  attr :focused, :any, default: nil
-  attr :islands, :list, default: []
-
-  def island_panel(assigns) do
-    ~H"""
-    <section class="mt-8">
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <%!-- ⚠ A STABLE HOOK, because a test that finds this heading by its CLASS finds
-             whichever section was added most recently instead. That has now happened
-             twice in one day: once when the name grew a span and once when a second
-             `h2' with the same classes appeared above it. --%>
-        <h2 data-panel-heading class="text-base font-semibold">
-          <.island_name :if={@focused} row={@focused} class="" />
-          <span :if={!@focused}>Every island</span>
-        </h2>
-
-        <span :if={@panel != :fights and !@selected?} class="text-xs opacity-40">
-          <.island_name row={@row} class="" />, shown because nothing is selected
-        </span>
-      </div>
-
-      <div role="tablist" class="tabs tabs-bordered mt-2">
-        <button
-          :for={{id, label} <- panels()}
-          role="tab"
-          aria-selected={to_string(@panel == id)}
-          phx-click="show_panel"
-          phx-value-panel={id}
-          class={["tab", @panel == id && "tab-active"]}
-        >
-          {label}
-        </button>
-      </div>
-
-      <%!-- THE FIGHT AND ITS CHOOSER, side by side, because a list you pick from
-            belongs next to the thing it changes. --%>
-      <div :if={@panel == :fights} class="mt-2 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
-        <div class="lg:col-span-2">
-          <.fight
-            :if={@fight}
-            fight={@fight}
-            payload={@payload}
-            frame_count={@frame_count}
-          />
-        </div>
-
-        <div class="lg:col-span-1">
-          <.chooser watchable={@watchable} watching={@watching} focused={@focused} />
-        </div>
-      </div>
-
-      <.vitals :if={@panel in [:vitals, :exam]} row={@row} panel={@panel} islands={@islands} />
-    </section>
-    """
-  end
-
-  # ⚠ NO "HISTORY" TAB. A chart of the roster belongs beside the roster, and a
-  # chart of the exam beside the exam — not in a third place that makes you hold
-  # a number in your head while you go and look at its trajectory. The tabs it
-  # would have sat next to are six tiles and nine rungs; there was never a space
-  # problem, only a filing one.
-  defp panels, do: [{:fights, "Fights"}, {:vitals, "Vitals"}, {:exam, "Exam"}]
 
   @doc """
   The islands, ranked on the one number they all earn on identical terms.
