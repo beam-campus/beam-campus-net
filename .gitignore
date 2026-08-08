@@ -12,3 +12,9 @@
 .elixir-tools/
 erl_crash.dump
 node_modules/
+
+# Left by scripts/look_at_the_page.sh, which installs playwright on demand.
+# The version is pinned in the script itself, so this adds nothing but noise.
+package.json
+package-lock.json
+node_modules/

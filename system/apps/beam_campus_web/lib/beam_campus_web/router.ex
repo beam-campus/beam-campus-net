@@ -36,6 +36,7 @@ defmodule BeamCampusWeb.Router do
     # island selection rides as `?island=` across all four, because a selection
     # is a filter and not a page.
     live "/research/workbench/dronex", DronexLive, :index
+    live "/research/workbench/dronex/raids", DronexRaidsLive, :index
     live "/research/workbench/dronex/radio", DronexRadioLive, :index
     live "/research/workbench/biotope", BiotopeLive, :index
     live "/research/workbench/biotope/join", BiotopeJoinLive, :index

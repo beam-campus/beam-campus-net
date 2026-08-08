@@ -31,6 +31,7 @@ defmodule BeamCampusWeb.DronexChrome do
   # site for as long as the refactor takes.
   @views [
     {:archipelago, "Exams", "/research/workbench/dronex"},
+    {:raids, "Raids", "/research/workbench/dronex/raids"},
     {:radio, "Radio", "/research/workbench/dronex/radio"}
   ]
 
