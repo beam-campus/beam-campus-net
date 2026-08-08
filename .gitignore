@@ -11,3 +11,4 @@
 # Editor language server, not source.
 .elixir-tools/
 erl_crash.dump
+node_modules/

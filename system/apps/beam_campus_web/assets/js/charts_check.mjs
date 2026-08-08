@@ -107,6 +107,12 @@ check("the grid drew something", msvg.length > 2000, `${msvg.length} bytes`)
 
 // The count is a number on the cell, never an area to judge.
 check("every route shows its raid count", matrix.series[0].label.show === true)
+// ⚠ ROW `i' MUST BE COLUMN `i'. A category axis counts up from the bottom, so
+// without inversion the self-raid blanks land on the anti-diagonal and every
+// reading of the grid is transposed. Found by looking at a screenshot, which is
+// why `scripts/look_at_the_page.sh` now exists.
+check("the rows read top-down, so the diagonal is the diagonal", matrix.yAxis.inverse === true)
+check("a faded cell still shows its number", matrix.series[0].label.opacity === 1)
 check("no circles are drawn at all",
   !JSON.stringify(matrix).includes('"pie"') && !(matrix.graphic || []).some((g) => g.type === "circle"))
 

@@ -119,6 +119,11 @@ export function matrixOption({spec, fill, text, height, surface}) {
     yAxis: {
       type: "category",
       data: spec.rows,
+      // ⚠ INVERTED, BECAUSE A CATEGORY AXIS COUNTS UP FROM THE BOTTOM. Without
+      // this the rows run msi00 to beam00 while the columns run beam00 to msi00,
+      // so the blank self-raid cells fall on the ANTI-diagonal and row `i' is not
+      // column `i'. Every reading of the grid is then transposed by eye.
+      inverse: true,
       axisLabel: {color: text, opacity: 0.55, fontSize: 10},
       axisLine: {show: false},
       axisTick: {show: false},
@@ -139,7 +144,7 @@ export function matrixOption({spec, fill, text, height, surface}) {
         data: spec.cells.map((c) => ({
           value: [c.c, c.r, share(c)],
           itemStyle: {
-            opacity: decided(c) >= SURE ? 1 : 0.28,
+            opacity: decided(c) >= SURE ? 1 : 0.42,
             borderColor: surface,
             borderWidth: 2,
             borderRadius: 3
@@ -147,6 +152,9 @@ export function matrixOption({spec, fill, text, height, surface}) {
         })),
         label: {
           show: true,
+          // Full strength even on a faded cell: the fill carries the confidence
+          // and the number must stay readable regardless.
+          opacity: 1,
           color: text,
           fontFamily: "monospace",
           fontSize: 11,
