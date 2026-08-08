@@ -833,8 +833,12 @@ defmodule BeamCampusWeb.DronexLiveTest do
     # and not the shapes. Asserting on `<path>` here would only ever pass by
     # accident. What must be true server-side is that the cell reached the spec
     # with its counts intact, and that the hook is attached to draw it.
-    # A colocated hook renders fully qualified, not as the `.Chart` shorthand.
-    assert html =~ ~s(phx-hook="BeamCampusWeb.DronexLive.Chart")
+    # ⚠ A NAMED HOOK, NOT A COLOCATED ONE. It read
+    # `BeamCampusWeb.DronexLive.Chart` while the hook was declared inside this
+    # module and rendered fully qualified. /dronex is four LiveViews now and a
+    # colocated hook belongs to whichever one declares it, so the hook moved to
+    # assets/js/dronex_chart_hook.js and is registered by name in app.js.
+    assert html =~ ~s(phx-hook="DronexChart")
     assert html =~ "who-raids-whom"
     assert html =~ "beam00 → beam01"
   end

@@ -34,9 +34,16 @@ ssh -n -i "$KEY" -o ConnectTimeout=10 -o BatchMode=yes "root@${BOX}" "
           \"champion_id=\",
           String.pad_trailing(String.slice(to_string(Map.get(v, \"champion_id\", \"-\")), 0, 12), 14),
           \"champion_from \",
-          (if Map.has_key?(v, \"champion_from\"),
-             do: \"PRESENT \" <> inspect(Map.get(v, \"champion_from\")),
-             else: \"absent\")
+          String.pad_trailing(
+            (if Map.has_key?(v, \"champion_from\"),
+               do: \"PRESENT \" <> inspect(Map.get(v, \"champion_from\")),
+               else: \"absent\"),
+            10
+          ),
+          \"  roster=\", String.pad_trailing(to_string(Map.get(v, \"roster\")), 6),
+          \"cap=\", String.pad_trailing(to_string(Map.get(v, \"capacity\")), 6),
+          \"rounds=\", String.pad_trailing(to_string(Map.get(v, \"rounds\")), 9),
+          \"gen=\", to_string(Map.get(v, \"generation\"))
         ]
         |> Enum.join()
       )
