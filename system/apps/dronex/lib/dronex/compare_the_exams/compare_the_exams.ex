@@ -41,23 +41,36 @@ defmodule Dronex.CompareTheExams do
 
   @doc """
   `%{drills: [name], series: [%{island, id, rates}]}`, empty until somebody sits it.
+
+  ## ⚠ TWO EXAMS NOW, AND ONLY ONE OF THEM MAY BE CALLED IMPROVEMENT
+
+  `"benchmark"` is the CURRICULUM: six of the opponents the trainer breeds
+  against, so what it reports is performance against the training set.
+  `REGISTER I.22` has the arithmetic — between about 11% and 28% of breeding
+  rounds per island draw one of these six as an opponent — and it was promised
+  as held-out in four separate documents while being enforced in none.
+
+  `"trials"` is the HELD-OUT exam: six opponents that shoot AND close, which
+  nothing trains against and which a test in the island repository keeps that
+  way. It arrived at fact version 5, so an island on an older build publishes
+  none and is simply absent from the comparison rather than drawn at zero.
   """
-  @spec profiles([map()]) :: map()
-  def profiles(rows) when is_list(rows) do
+  @spec profiles([map()], String.t()) :: map()
+  def profiles(rows, prefix \\ "benchmark") when is_list(rows) do
     rows
-    |> Enum.map(&sat/1)
+    |> Enum.map(&sat(&1, prefix))
     |> Enum.reject(&is_nil/1)
     |> aligned()
   end
 
-  defp sat(row) do
+  defp sat(row, prefix) do
     vitals = Dronex.fact(row, :vitals) || %{}
 
     entry(
       row,
-      Map.get(vitals, "benchmark_rungs", []),
-      counts(Map.get(vitals, "benchmark_wins")),
-      Map.get(vitals, "benchmark_starts", 0)
+      Map.get(vitals, prefix <> "_rungs", []),
+      counts(Map.get(vitals, prefix <> "_wins")),
+      Map.get(vitals, prefix <> "_starts", 0)
     )
   end
 

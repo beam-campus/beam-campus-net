@@ -171,7 +171,11 @@ defmodule BeamCampusWeb.DronexLive do
   attr :focused, :any, default: nil
 
   def one_world(assigns) do
-    assigns = assign(assigns, rungs: rungs_of(assigns.islands))
+    assigns =
+      assign(assigns,
+        rungs: rungs_of(assigns.islands, :curriculum),
+        held_out_rungs: rungs_of(assigns.islands, :held_out)
+      )
 
     ~H"""
     <section class="mt-6">
@@ -198,10 +202,27 @@ defmodule BeamCampusWeb.DronexLive do
 
       <.at_a_glance islands={@islands} raids={@raids} />
 
-      <.exam_profiles islands={@islands} />
+      <%!-- ⚠ THE HELD-OUT EXAM COMES FIRST, AND THE ORDER IS THE ARGUMENT. The
+            curriculum ladder is saturated — four of five islands at 47 or 48 of
+            48 on every rung — and it is also inside the training set, so it is
+            the weaker of the two on both counts. Drawing it first would make the
+            flat one the headline and the informative one the footnote.
+            ⚠⚠ AND BOTH ARE DRAWN, NEVER ONE. An island on a build older than
+            fact version 5 publishes no held-out profile at all, so a page that
+            showed only the new one would go blank for half a fleet mid-deploy. --%>
+      <.exam_profiles islands={@islands} exam={:held_out} />
+      <.ladder
+        :if={@held_out_rungs != []}
+        islands={@islands}
+        focus={@focus}
+        rungs={@held_out_rungs}
+        exam={:held_out}
+      />
+
       <.champions standings={@standings} />
       <.leaderboard standings={@standings} focus={@focus} />
 
+      <.exam_profiles islands={@islands} exam={:curriculum} />
       <.ladder :if={@rungs != []} islands={@islands} focus={@focus} rungs={@rungs} />
     </section>
     """
@@ -210,9 +231,11 @@ defmodule BeamCampusWeb.DronexLive do
   # The ladder's column headings come from whichever island has sat the exam;
   # they are the same rungs for everyone, and an island that has not sat it
   # publishes none.
-  defp rungs_of(islands) do
+  defp rungs_of(islands, exam) do
+    key = prefix(exam) <> "_rungs"
+
     Enum.find_value(islands, [], fn row ->
-      case Map.get(Dronex.fact(row, :vitals) || %{}, "benchmark_rungs", []) do
+      case Map.get(Dronex.fact(row, :vitals) || %{}, key, []) do
         [] -> nil
         rungs -> rungs
       end
@@ -430,16 +453,23 @@ defmodule BeamCampusWeb.DronexLive do
   so WHERE an island fails is a sentence rather than a score.
   """
   attr :islands, :list, required: true
+  attr :exam, :atom, default: :curriculum
 
   def exam_profiles(assigns) do
-    spec = Dronex.CompareTheExams.profiles(assigns.islands)
-    assigns = assign(assigns, spec: spec)
+    spec = Dronex.CompareTheExams.profiles(assigns.islands, prefix(assigns.exam))
+    assigns = assign(assigns, spec: spec, held_out?: assigns.exam == :held_out)
 
     ~H"""
     <section :if={@spec.drills != []} class="settle mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="instrument-lede text-base font-semibold">What each island can actually do</h2>
-        <span class="font-mono text-xs opacity-40">the drills, easiest first</span>
+        <h2 class="instrument-lede text-base font-semibold">
+          {(@held_out? && "What each island can actually do") ||
+            "What each island can do against its own curriculum"}
+        </h2>
+        <span class="font-mono text-xs opacity-40">
+          {(@held_out? && "held out · the rungs, easiest first") ||
+            "trained against · the drills, easiest first"}
+        </span>
       </div>
 
       <div class="instrument mt-2 p-3">
@@ -456,10 +486,20 @@ defmodule BeamCampusWeb.DronexLive do
       </div>
 
       <p class="mt-2 max-w-3xl text-xs opacity-50">
-        The frozen exam is the only <strong>absolute</strong>
-        measure here: six fixed opponents no island ever trains against, each sat
-        the same number of times. Raids cannot do this job, because every island
-        can improve at once and the win rate stays near a coin flip.
+        <span :if={@held_out?}>
+          This is the only <strong>absolute</strong>
+          measure here: six fixed opponents <strong>nothing trains against</strong>, each sat the same
+          number of times. Raids cannot do this job, because every island can
+          improve at once and the win rate stays near a coin flip.
+        </span>
+        <span :if={!@held_out?}>
+          ⚠ These six are also six of the opponents each island <strong>breeds against</strong>, so this is performance against the
+          curriculum and not improvement. It was described as held out for months
+          and was never enforced as such; between about 11% and 28% of breeding
+          rounds draw one of these as an opponent. It is kept because a number
+          withdrawn leaves a hole in a history and a number labelled leaves a
+          record.
+        </span>
         <span class="mt-1 block">
           The drills run easiest to hardest. The first three are unarmed, so they
           ask only whether a swarm can kill. The last three shoot back, and two of
@@ -897,11 +937,32 @@ defmodule BeamCampusWeb.DronexLive do
   attr :islands, :list, required: true
   attr :rungs, :list, required: true
   attr :focus, :any, default: nil
+  attr :exam, :atom, default: :curriculum
 
   def ladder(assigns) do
+    assigns = assign(assigns, held_out?: assigns.exam == :held_out)
+
     ~H"""
     <div class="mt-6">
-      <h3 class="text-sm font-semibold opacity-70">Every island, every drill</h3>
+      <h3 class="text-sm font-semibold opacity-70">
+        {(@held_out? && "Every island, every held-out rung") || "Every island, every drill"}
+      </h3>
+
+      <%!-- ⚠ WHICH EXAM, SAID ON THE DIAGRAM. Two matrices of the same shape sit
+            one above the other and they mean opposite things: the one below is
+            performance against opponents the island breeds against, and the one
+            above is the only measure here that may be called improvement. --%>
+      <p class="mt-1 text-xs opacity-50">
+        <span :if={@held_out?}>
+          Nothing trains against these. Every rung shoots <strong>and</strong>
+          closes, which is where the fleet's deficit survived once the curriculum
+          saturated.
+        </span>
+        <span :if={!@held_out?}>
+          ⚠ Six of the opponents each island breeds against, so a high score here
+          is familiarity as much as skill. <code>REGISTER I.22</code>.
+        </span>
+      </p>
 
       <div class="instrument mt-2 overflow-x-auto p-3">
         <table class="text-xs">
@@ -928,7 +989,7 @@ defmodule BeamCampusWeb.DronexLive do
                   captured
                 </span>
               </td>
-              <td :for={{wins, starts, lost, drew} <- rung_cells(row)} class="p-0.5">
+              <td :for={{wins, starts, lost, drew} <- rung_cells(row, @exam)} class="p-0.5">
                 <div
                   class={[
                     "flex h-7 w-14 items-center justify-center rounded-sm border",
@@ -980,13 +1041,22 @@ defmodule BeamCampusWeb.DronexLive do
   # ⚠ WINS ALONE MADE "LOST IT" AND "DREW IT" THE SAME CELL. On a graded ladder
   # those are different findings: a drone that draws the sniper held station and
   # could not finish; one that lost it was killed.
-  defp rung_cells(row) do
-    v = Dronex.fact(row, :vitals) || %{}
-    starts = num(v, "benchmark_starts")
-    losses = Map.get(v, "benchmark_losses", [])
-    draws = Map.get(v, "benchmark_draws", [])
+  # ⚠ ONE WORD SEPARATES THE TWO EXAMS ON THE WIRE, and everything that reads
+  # either of them goes through here rather than spelling a key inline. The
+  # curriculum is `benchmark_*` and the held-out ladder is `trials_*`; a panel
+  # that reached for the wrong one would draw a real number under the wrong
+  # heading, which is the only failure mode here a reader cannot catch.
+  defp prefix(:held_out), do: "trials"
+  defp prefix(_curriculum), do: "benchmark"
 
-    Map.get(v, "benchmark_wins", [])
+  defp rung_cells(row, exam) do
+    v = Dronex.fact(row, :vitals) || %{}
+    p = prefix(exam)
+    starts = num(v, p <> "_starts")
+    losses = Map.get(v, p <> "_losses", [])
+    draws = Map.get(v, p <> "_draws", [])
+
+    Map.get(v, p <> "_wins", [])
     |> Enum.with_index()
     |> Enum.map(fn {wins, i} ->
       {wins, starts, Enum.at(losses, i, 0), Enum.at(draws, i, 0)}

@@ -43,8 +43,6 @@ defmodule BeamCampusWeb.DronexFightsLiveTest do
     }
   end
 
-  defp squashed(text), do: text |> String.replace(~r|\s+|, " ") |> String.trim()
-
   defp unescape(s) do
     s
     |> String.replace("&quot;", "\"")

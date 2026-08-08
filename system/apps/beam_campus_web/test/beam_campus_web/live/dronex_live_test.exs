@@ -497,10 +497,6 @@ defmodule BeamCampusWeb.DronexLiveTest do
     assert render_click(view, "focus_island", %{"id" => "aaa"}) =~ "every island"
   end
 
-  defp watch_keys(html) do
-    ~r/data-watch="raid:([^"]*)"/ |> Regex.scan(html) |> Enum.map(&List.last/1)
-  end
-
   defp raid(attacker, island) do
     %{
       "island" => island,
@@ -531,12 +527,56 @@ defmodule BeamCampusWeb.DronexLiveTest do
     }
   end
 
-  defp unescape(s) do
-    s
-    |> String.replace("&quot;", "\"")
-    |> String.replace("&amp;", "&")
-    |> String.replace("&lt;", "<")
-    |> String.replace("&gt;", ">")
-    |> String.replace("&#39;", "'")
+  # ── The held-out exam ───────────────────────────────────────────
+
+  # ⚠⚠ TWO MATRICES OF THE SAME SHAPE THAT MEAN OPPOSITE THINGS. `REGISTER I.22`:
+  # the `benchmark_*` rungs are six of the opponents each island BREEDS against,
+  # so a high score there is familiarity as much as skill. The `trials_*` rungs
+  # are held out and nothing trains on them. A page that drew both without saying
+  # which was which would be worse than a page that drew neither.
+  test "both exams are drawn, and each says which one it is", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam00",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["hoverer", "sniper"],
+      "benchmark_wins" => [48, 48],
+      "benchmark_starts" => 48,
+      "trials_rungs" => ["circler", "leader"],
+      "trials_wins" => [48, 26],
+      "trials_starts" => 48
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    # Both ladders reached the page, under their own rung names.
+    assert html =~ "hoverer"
+    assert html =~ "circler"
+    assert html =~ "Every island, every held-out rung"
+    assert html =~ "Every island, every drill"
+
+    # And the contaminated one is labelled as such rather than left to be read
+    # as an achievement.
+    assert html =~ "breeds against"
+    assert html =~ "Nothing trains against these"
+  end
+
+  # ⚠ AN ISLAND ON AN OLDER BUILD PUBLISHES NO HELD-OUT PROFILE AT ALL, and
+  # islands roll one at a time. A page that required the new fields would go
+  # blank for half a fleet mid-deploy, which is the failure this whole track
+  # keeps paying for in one costume or another.
+  test "an island that publishes no held-out exam still draws its curriculum one", %{conn: conn} do
+    Board.put("aaa", :vitals, %{
+      "island" => "beam00",
+      "island_id" => "aaa",
+      "benchmark_rungs" => ["hoverer", "sniper"],
+      "benchmark_wins" => [40, 9],
+      "benchmark_starts" => 48
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/research/workbench/dronex")
+
+    assert html =~ "Every island, every drill"
+    assert html =~ "hoverer"
+    refute html =~ "Every island, every held-out rung"
   end
 end

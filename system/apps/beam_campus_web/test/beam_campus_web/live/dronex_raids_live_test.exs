@@ -38,10 +38,6 @@ defmodule BeamCampusWeb.DronexRaidsLiveTest do
     }
   end
 
-  defp watch_keys(html) do
-    ~r/data-watch="raid:([^"]*)"/ |> Regex.scan(html) |> Enum.map(&List.last/1)
-  end
-
   # ⚠ A CHART THAT SILENTLY DREW WHAT IT HAD WOULD ANSWER A DIFFERENT QUESTION
   # CONVINCINGLY. The stamp shipped after these islands had been fighting for
   # days, so a fleet mid-roll carries raids with one side stamped and not the
