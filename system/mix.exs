@@ -85,10 +85,15 @@ defmodule BeamCampus.Umbrella.MixProject do
       # ⚠ A FUNCTION, NOT `cmd'. `mix cmd' in an umbrella runs the command once
       # per child app, from inside each one, so the path resolves in neither.
       "charts.check": &charts_check/1,
+      # ⚠ `credo --strict' IS IN CI AND WAS NOT IN HERE, so a commit could pass
+      # every local gate and fail the branch. It did, on the vitals read model:
+      # eleven `|| 0' fallbacks in one function, cyclomatic complexity 12. Local
+      # and CI must run the same checks or the local ones are decoration.
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
+        "credo --strict",
         "charts.check",
         "test"
       ]

@@ -83,24 +83,34 @@ defmodule Dronex.RememberVitals.Sample do
     })
   end
 
-  @doc "A stored row as the point shape the board and every instrument already read."
+  # Every counter the board keeps, which is every field that is a plain number.
+  @counters [
+    :score,
+    :roster,
+    :generation,
+    :rounds,
+    :captures,
+    :air,
+    :ground,
+    :all,
+    :volume,
+    :entropy,
+    :starts
+  ]
+
+  @doc """
+  A stored row as the point shape the board and every instrument already read.
+
+  ⚠ ONE RULE, NOT ELEVEN COPIES OF IT. This was written as a literal map with
+  `|| 0` after every field, which credo counted at a cyclomatic complexity of 12
+  and which is eleven chances to forget one. A NULL column is a field the island
+  did not publish, and the board's readers all expect a number.
+  """
   @spec to_point(t()) :: map()
   def to_point(%__MODULE__{} = r) do
-    %{
-      at: r.at,
-      score: r.score || 0,
-      roster: r.roster || 0,
-      generation: r.generation || 0,
-      rounds: r.rounds || 0,
-      captures: r.captures || 0,
-      air: r.air || 0,
-      ground: r.ground || 0,
-      all: r.all || 0,
-      volume: r.volume || 0,
-      entropy: r.entropy || 0,
-      rungs: wins(r.rungs),
-      starts: r.starts || 0
-    }
+    @counters
+    |> Map.new(&{&1, Map.get(r, &1) || 0})
+    |> Map.merge(%{at: r.at, rungs: wins(r.rungs)})
   end
 
   # ⚠ INTEGERS ONLY. This came off a network before it went to a disk, and a
