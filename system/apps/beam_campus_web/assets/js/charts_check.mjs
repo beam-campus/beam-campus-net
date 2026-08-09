@@ -18,8 +18,9 @@
 // of eyes would have made.
 //
 // Run: node apps/beam_campus_web/assets/js/charts_check.mjs
+import {readFileSync} from "node:fs"
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, ratesOption, tokens} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, ratesOption, masterOption, tokens} from "./dronex_charts.js"
 
 const W = 900
 const H = 288
@@ -291,6 +292,174 @@ check("bars are grouped, not stacked", rates.series.every((s) => !s.stack))
 check("rates rendered without NaN", !/NaN/.test(rsvg))
 check("no bins draws nothing", ratesOption({spec: {bins: [], series: []}, colour: [], text: INK}) === null)
 
+// ⚠ THE MASTER PROFILE, WHERE THE ONLY READING IS A SHAPE. A level profile is
+// progress and a profile falling away to the right is a treadmill, so the ONE
+// thing this chart must never do is make those two look alike. Every assertion
+// below reads a NUMBER back out of `renderItem`, never a colour: the matrix
+// section above records what happened when a check asked whether both hues were
+// painted, and stayed green against a chart with one segment at zero width.
+console.log("master")
+const CAT = ["#2a6fb0", "#d55e00", "#009e73", "#a06a00", "#cc79a7", "#56b4e9"]
+const BANDS = [
+  {top: "under", bottom: "4 min", span: "under 4 minutes"},
+  {top: "4 to 34", bottom: "min", span: "4 to 34 minutes"},
+  {top: "34 min", bottom: "to 5 h", span: "34 minutes to 5 hours"},
+  {top: "5 to 36", bottom: "hours", span: "5 to 36 hours"},
+  {top: "over", bottom: "36 hours", span: "over 36 hours"}
+]
+
+const masterSpec = (won, n) => ({
+  kind: "master",
+  bands: BANDS,
+  won,
+  n,
+  cells: won.map((v, i) => (v === null ? null : {w: 1, d: 0, l: 1, n: n[i]}))
+})
+
+const master = (spec) => masterOption({spec, colour: CAT, ink: INK, text: INK})
+
+// ⚠ A LINEAR COORDINATE FAKE, NOT THE CONSTANT ONE THE MATRIX USES. The matrix
+// only needed widths, so one point was enough. Here the whole reading is VERTICAL
+// POSITION, so the fake has to map a percentage to a pixel the way an axis does:
+// 0% at y=240, 100% at y=40, one band 100px wide and 200px tall.
+const coordFake = (i, won, n) => ({
+  coord: ([x, y]) => [40 + x * 100, 240 - y * 2],
+  size: () => [100, 200],
+  value: (k) => [i, won, n][k]
+})
+
+const geom = (spec, i) => {
+  const drawn = master(spec)
+    .series[0].renderItem({}, coordFake(i, spec.won[i], spec.n[i]))
+  const kids = drawn.children
+  const bars = kids.filter((k) => k.type === "rect")
+  const [body, rule] = bars
+
+  return {
+    kids: kids.length,
+    rects: bars.length,
+    bodyH: body && body.shape.height,
+    ruleY: rule && rule.shape.y,
+    ruleH: rule && rule.shape.height,
+    ruleW: rule && rule.shape.width,
+    ruleOpacity: rule && rule.style.opacity
+  }
+}
+
+const spread = (spec) => {
+  const ys = spec.won
+    .map((v, i) => (v === null ? null : geom(spec, i).ruleY))
+    .filter((y) => y !== null)
+  return Math.max(...ys) - Math.min(...ys)
+}
+
+// ⚠⚠ THE DISCRIMINATOR, AND THE ONLY CHECK ON THIS PAGE THAT TESTS A CLAIM
+// ABOUT MEANING. The two shapes the panel exists to separate must separate by
+// more than a third of the canvas.
+const flat = masterSpec([62, 62, 62, 62, 62], [18, 12, 9, 8, 7])
+const falling = masterSpec([90, 72, 54, 36, 18], [18, 12, 9, 8, 7])
+check("a level profile draws level", spread(flat) < 0.5, `${spread(flat)}px apart`)
+check("a treadmill falls away by more than a hundred pixels",
+  spread(falling) > 100, `${spread(falling)}px`)
+
+const flatOpt = master(flat)
+const fsvg = render(flatOpt)
+const fallSvg = render(master(falling))
+
+// An axis fitted to the data would turn 88-to-94 into a cliff, which is the
+// treadmill's own picture drawn from six points of noise.
+check("the axis is the real ceiling, not the data range",
+  flatOpt.yAxis.min === 0 && flatOpt.yAxis.max === 100, `${flatOpt.yAxis.min}..${flatOpt.yAxis.max}`)
+check("a higher rate is drawn higher, so the chart is not upside down",
+  geom(falling, 0).ruleY < geom(falling, 4).ruleY,
+  `90% at ${geom(falling, 0).ruleY}, 18% at ${geom(falling, 4).ruleY}`)
+
+// ⚠ A RULE SPANS ITS BAND, because a band is an INTERVAL of ages and a point
+// mark would claim a measurement at one age that nothing took.
+check("a rule spans its whole band, less the surface gap",
+  geom(flat, 0).ruleW === 96, `${geom(flat, 0).ruleW}px of 100`)
+
+// ⚠⚠ A MEASURED ZERO IS A RULE ON THE BASELINE AT FULL STRENGTH. "We flew it and
+// lost every one" and "we drew nothing from this age" are the two states this
+// whole panel keeps having to tell apart, and a zero-height column is what they
+// look like when it fails.
+const zeroed = masterSpec([0, 58, 41, 30, 19], [8, 12, 9, 8, 7])
+const zero = geom(zeroed, 0)
+check("a measured zero still draws a rule, sitting on the baseline",
+  zero.rects === 2 && zero.ruleH >= 3 && zero.ruleY <= 240 - 3,
+  `${zero.rects} rects, ${zero.ruleH}px tall, at y=${zero.ruleY}`)
+
+// ⚠⚠⚠ AND A GAP DRAWS NOTHING AT ALL. Not a zero, not a bridge to its
+// neighbours.
+const gapped = masterSpec([62, 58, null, 41, 19], [18, 12, null, 8, 4])
+const painted = gapped.won.reduce((n, _v, i) => n + geom(gapped, i).rects, 0)
+check("an age nothing was drawn from renders nothing", geom(gapped, 2).kids === 0)
+check("every measured band draws exactly two marks and no band draws three",
+  painted === 2 * 4, `${painted} rects for 4 measured bands`)
+
+// ⚠ ALL FIVE BANDS, WHATEVER THE DATA HOLDS. An empty right-hand column is the
+// finding "we hold nothing that old"; a column fitted away says nothing.
+const lone = masterSpec([62, null, null, null, null], [18, null, null, null, null])
+check("all five age bands are drawn even when one is measured",
+  master(lone).xAxis.data.length === 5, `${master(lone).xAxis.data.length} bands`)
+check("an unmeasured band prints no denominator",
+  master(lone).xAxis.data[1].endsWith("·") && master(lone).xAxis.data[0].endsWith("n=18"))
+
+// Opacity is confidence, and it is not the only channel: the denominator is
+// printed under every tick because a faded mark is not a number.
+const thinBand = masterSpec([50, 50, 50, 50, 50], [2, 12, 9, 8, 7])
+check("a band decided by two fights is drawn faintly",
+  geom(thinBand, 0).ruleOpacity === 0.42, `${geom(thinBand, 0).ruleOpacity}`)
+check("a band decided by eight is drawn at full strength",
+  geom(thinBand, 3).ruleOpacity === 1, `${geom(thinBand, 3).ruleOpacity}`)
+check("a thin band is fainter than a sure one",
+  geom(thinBand, 0).ruleOpacity < geom(thinBand, 3).ruleOpacity)
+
+// ⚠⚠ TWO MARKS PER BAND, AND A THIRD WOULD BE A CONSTANT. A faint hairline for
+// "won or drew" was drawn here until 2026-08-09 and was measured out: draws are
+// zero in every published cell but one, across both exams and all five islands,
+// so it sat exactly on top of the rule it was meant to differ from. A visual
+// channel is spent only on something that varies, and this exhibit has now shed
+// three encodings of constants in one day.
+//
+// The count is not lost. It rides in `cells` for the tooltip and the table.
+const anyBand = masterSpec([50, 50, 50, 50, 50], [6, 6, 6, 6, 6])
+check("a band draws a body and a rule, and nothing for the draws",
+  geom(anyBand, 0).rects === 2, `${geom(anyBand, 0).rects} rects`)
+check("the draws are still carried in the data for the tooltip",
+  anyBand.cells[0].d === 0 && "d" in anyBand.cells[0])
+
+// ⚠ A THIN OR LONE BAND DOES NOT GET TO RULE THE CHART. With one band measured
+// there is nothing to be level WITH, so the reading is withdrawn rather than
+// drawn against itself.
+check("the newest sure band rules the chart",
+  flatOpt.series[0].markLine.data[0].yAxis === 62)
+check("a newest band decided by two fights rules nothing",
+  master(thinBand).series[0].markLine === undefined)
+check("one measured band rules nothing",
+  master(lone).series[0].markLine === undefined)
+
+// ⚠⚠ THE SEAT COLOURS ARE THE GOOD-FAITH MISTAKE HERE. Our drone genuinely sits
+// in the attacker's seat and the invader defends, so somebody will reach for
+// them. This is a RATE, not two sides of one mark, and red on a page that
+// teaches "red is what is coming at us" would say the archipelago is the threat.
+check("the master profile never uses a seat colour",
+  !paints(fsvg, SIDES.attacker) && !paints(fsvg, SIDES.defender) && !paints(fsvg, SIDES.draw))
+// One entity, one hue. There is nothing here to tell apart, so a categorical
+// cycle would be five colours encoding nothing.
+check("one hue only, never a categorical cycle",
+  rects(fsvg, CAT[1]) === 0 && rects(fsvg, CAT[2]) === 0,
+  `${rects(fsvg, CAT[1])} in slot 2, ${rects(fsvg, CAT[2])} in slot 3`)
+check("the profile is painted in the first categorical hue", rects(fsvg, CAT[0]) > 0)
+check("rules rendered without NaN", !/NaN/.test(fsvg) && !/NaN/.test(fallSvg))
+check("no mark is drawn at negative width", !/width="-/.test(fsvg))
+
+// The deploy-skew contract: a fleet on an older build draws no frame at all.
+check("a fleet that has sat nothing draws nothing",
+  master(masterSpec([null, null, null, null, null], [null, null, null, null, null])) === null)
+check("no bands at all draws nothing",
+  masterOption({spec: {kind: "master", bands: [], won: [], ceiling: [], n: []}, colour: CAT, ink: INK, text: INK}) === null)
+
 console.log("tokens")
 // ⚠ THE HOOK USED TO READ ITS TOKENS THROUGH FOUR SEPARATE CLOSURES, two of
 // which were deleted by an edit aimed at a third. esbuild leaves an undefined
@@ -322,6 +491,33 @@ check("a missing categorical ramp is empty, not a list of blanks", bare.palette.
 console.log("skew")
 check("an unknown spec returns nothing", barsOption({spec: {kind: "something-new"}, colour: [], text: INK, fill: SIDES}) === null)
 check("a matrix without cells returns nothing", matrixOption({spec: {kind: "matrix"}, fill: SIDES, text: INK, height: H}) === null)
+
+// ⚠ EVERYTHING ABOVE RENDERS A BUILDER THE BROWSER MIGHT NEVER CALL, AND ONE OF
+// THEM DID NOT CALL IT FOR WEEKS. `ratesOption` was exported here, checked here,
+// and missing from the hook's import line and its dispatch chain, so
+// `dronex_raids_live.ex` published `kind: "rates"`, fell through to `barsOption`,
+// and shipped stacked bars with a blank legend — while the check above asserted
+// "grouped, not stacked" against a function that never ran in a browser. Every
+// check was green and the picture was wrong.
+//
+// So this reads the two files as TEXT. A builder must be named at least twice in
+// the hook: once to import it and once to call it.
+console.log("dispatch")
+const source = (f) => readFileSync(new URL(f, import.meta.url), "utf8")
+// ⚠ COMMENTS STRIPPED, AND WITHOUT THIS THE CHECK BELOW DOES NOT BITE. It
+// counts a builder's name anywhere in the file, so a comment naming
+// `ratesOption` in prose scored 2 on its own. Proven by deleting the
+// `rates:` line from the dispatch table, which is the exact bug that
+// shipped stacked bars on /dronex/raids for weeks: all 43 checks stayed
+// green.
+const hookSource = source("./dronex_chart_hook.js").replace(/^\s*\/\/.*$/gm, "")
+const builders = [...source("./dronex_charts.js").matchAll(/export function (\w+Option)\b/g)].map((m) => m[1])
+
+check("every builder in the file is exercised here", builders.length === 7, `${builders.length} builders`)
+for (const name of builders) {
+  const uses = (hookSource.match(new RegExp(name, "g")) || []).length
+  check(`the hook imports and calls ${name}`, uses >= 2, `named ${uses} time(s)`)
+}
 
 console.log(failures === 0 ? "\nall chart checks passed" : `\n${failures} chart check(s) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -278,6 +278,24 @@ defmodule Dronex.WatchBouts.Board do
 
   def has_exam?(_absent, _prefix), do: false
 
+  @doc """
+  Whether this island published a master tournament at all.
+
+  ⚠ `has_exam?(vitals, "master")` IS FALSE FOR EVERY ISLAND FOR EVER, which is
+  why this is a separate question rather than a fourth prefix. That function
+  reads `<prefix>_rungs` and `<prefix>_starts`, and the master tournament
+  publishes neither: its ladder is a list of eras and its denominator is per
+  era. Reaching for the generic one would report a silent fleet.
+
+  ⚠⚠ THE PROBE IS THE KEY'S PRESENCE, NOT ITS VALUE. `master_flown` is 0 on an
+  island that is on the new build and has not flown a sitting yet, and absent on
+  an island still on fact version 6. Those are different states and the page
+  says different things about them.
+  """
+  @spec has_master?(map()) :: boolean()
+  def has_master?(vitals) when is_map(vitals), do: Map.has_key?(vitals, "master_flown")
+  def has_master?(_absent), do: false
+
   defp scored(_wins, 0), do: 0
   defp scored(false, _n), do: 0
   defp scored(wins, n), do: div(wins * 100, n)

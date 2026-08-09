@@ -353,6 +353,197 @@ export function examProfileOption({spec, colour, text}) {
   }
 }
 
+// ⚠ THE MASTER TOURNAMENT: ONE POOLED PROFILE ACROSS FIVE FIXED AGE BANDS, DRAWN
+// AS LEVEL RULES. The whole panel exists to make ONE distinction unmissable:
+// a level profile is genuine progress (the archipelago still beats what beat it
+// long ago), and a profile falling away to the right is a TREADMILL (a population
+// cycling, beating what it fights now and losing to what it used to beat, while
+// every local number rises).
+//
+// Level rules are the only form where "flat" is a single alignment judgement
+// rather than a trend inferred across gaps. Position on a common scale is
+// pre-attentive; a slope between bands that are factors of two apart in age is a
+// claim of continuity nobody measured.
+//
+// ⚠⚠ NEWEST LEFT, ANCIENT RIGHT, so a treadmill falls away to the right in
+// reading order. Reversed, a treadmill would draw as a RISING line.
+//
+// ⚠⚠⚠ ONE HUE, ONE ENTITY, AND NEVER `--side-*`. Our drone genuinely sits in the
+// attacker's seat and the invader defends, so reaching for the seat colours is
+// the good-faith mistake here. This is a rate, not two sides of one mark, and
+// painting the archipelago red on a page that teaches "red is what is coming at
+// us" inverts the site's own convention. The checker refuses all three.
+//
+// `type: "custom"` because renderItem is the only shape whose pixel geometry can
+// be read back by a pure function — which is how the checker catches the bug
+// class every colour assertion misses.
+// `ink` is the hue of a MARK the data did not put there (the guide rule); `text`
+// is the hue of a LABEL. They resolve to the same token today and are named
+// apart because only one of them is allowed to draw a line across the plot.
+export function masterOption({spec, colour, ink, text}) {
+  if (!spec || !Array.isArray(spec.bands) || spec.bands.length === 0) return null
+  if (!Array.isArray(spec.won)) return null
+
+  const drawn = (v) => v !== null && v !== undefined
+  const measured = spec.won.reduce((n, v, i) => (drawn(v) ? n.concat(i) : n), [])
+  if (measured.length === 0) return null
+
+  const hue = (colour && colour[0]) || ink
+  const first = measured[0]
+  const last = measured[measured.length - 1]
+
+  // ⚠ THE GUIDE RULE IS DERIVED HERE AND NOWHERE ELSE. A thin band does not get
+  // to rule the chart, and with one band measured there is nothing to be level
+  // WITH, so the reading is withdrawn rather than drawn against itself.
+  const SURE = 6
+  const guide = measured.length >= 2 && spec.n[first] >= SURE ? spec.won[first] : null
+
+  const GAP = 2
+  const RULE = 3
+
+  return {
+    textStyle: {color: text, fontFamily: "inherit"},
+    grid: {left: 46, right: 16, top: 24, bottom: 62},
+    tooltip: {
+      trigger: "item",
+      formatter: (p) => {
+        const i = p.dataIndex
+        const c = spec.cells[i]
+        if (!c) return `${spec.bands[i].span}: nothing drawn from this band`
+        return (
+          `${spec.bands[i].span} · ${c.n} fights: ` +
+          `${c.w} won, ${c.d} drawn, ${c.l} lost · ${spec.won[i]}% won`
+        )
+      }
+    },
+    xAxis: {
+      type: "category",
+      // ⚠ ALL FIVE BANDS, ALWAYS, whatever the data holds. The bands are
+      // contiguous and exhaustive by construction, so an empty right-hand column
+      // says "we hold nothing that old" — which is a finding. A column fitted
+      // away says nothing at all.
+      data: spec.bands.map((b, i) => [b.top, b.bottom, tick(spec.n[i])].join("\n")),
+      name: "how long ago it attacked us · island uptime",
+      nameLocation: "middle",
+      nameGap: 46,
+      axisLabel: {color: text, opacity: 0.7, fontSize: 10, lineHeight: 13},
+      axisTick: {show: false},
+      axisLine: {lineStyle: {opacity: 0.2}}
+    },
+    yAxis: {
+      type: "value",
+      // ⚠ ALWAYS 0 TO 100, NEVER FITTED. The reading is "is it level", and an
+      // axis fitted to an 88-to-94 range manufactures a cliff out of six points.
+      min: 0,
+      max: 100,
+      axisLabel: {color: text, opacity: 0.6, formatter: "{value}%"},
+      axisLine: {show: false},
+      axisTick: {show: false},
+      splitLine: {lineStyle: {opacity: 0.12}}
+    },
+    animationDuration: 480,
+    animationEasing: "cubicOut",
+    series: [
+      {
+        type: "custom",
+        // ⚠ THE DRAWS HAIRLINE WAS REMOVED ON 2026-08-09, MEASURED OUT RATHER
+        // THAN DESIGNED OUT. A second faint rule encoded the share won OR drew,
+        // and the gap between the two was meant to be the draws. Live vitals,
+        // all five islands: `trials_draws` and `benchmark_draws` are zero in
+        // every cell but one, and master flies through the same
+        // `engagement:run`. So the hairline sat exactly on top of the rule it
+        // was supposed to differ from, in every band, on every island, and cost
+        // a legend entry and a caption clause to say nothing.
+        //
+        // The count is not lost: w/d/l ride in `cells` and appear in the
+        // tooltip and the table. A visual channel is spent only on something
+        // that varies.
+        data: spec.bands.map((_b, i) => [i, spec.won[i], spec.n[i]]),
+        markLine: markLine(guide, ink),
+        renderItem: (params, api) => {
+          const won = api.value(1)
+          // A gap draws NOTHING. Not a zero, not a bridge to its neighbours.
+          if (!drawn(won) || isNaN(won)) return {type: "group", children: []}
+
+          const i = api.value(0)
+          const n = api.value(2)
+          const size = api.size([1, 100])
+          const w = size[0] - GAP * 2
+          const at = api.coord([i, won])
+          const base = api.coord([i, 0])
+          const x = at[0] - w / 2
+
+          // ⚠ THE RULE NEVER CROSSES THE BASELINE. A measured zero is a rule
+          // SITTING ON the axis at full strength, never a zero-height column
+          // that reads as a gap. Those are the two states this exhibit keeps
+          // having to tell apart.
+          const ruleY = Math.min(at[1] - RULE / 2, base[1] - RULE)
+          const sure = n >= SURE
+          const children = [
+            {
+              type: "rect",
+              shape: {x, y: at[1], width: w, height: Math.max(0, base[1] - at[1])},
+              style: {fill: hue, opacity: sure ? 0.1 : 0.05}
+            },
+            {
+              // The edge you read.
+              type: "rect",
+              shape: {x, y: ruleY, width: w, height: RULE, r: [1.5, 1.5, 1.5, 1.5]},
+              style: {fill: hue, opacity: sure ? 1 : 0.42}
+            }
+          ]
+
+          // Only the two ends carry a number, because those two are what the
+          // reading compares. A label on every band is five numbers to read
+          // where the shape already said it.
+          if (measured.length >= 2 && (i === first || i === last)) {
+            children.push({
+              type: "text",
+              style: {
+                x: at[0],
+                y: ruleY - 5,
+                text: `${won}% · n=${n}`,
+                textAlign: "center",
+                textVerticalAlign: "bottom",
+                fill: text,
+                fontFamily: "monospace",
+                fontSize: 11,
+                opacity: 0.75
+              }
+            })
+          }
+
+          return {type: "group", children}
+        }
+      }
+    ]
+  }
+}
+
+// The denominator under the tick, because opacity alone is not a number and a
+// band decided by two fights must not read as solidly as one decided by twenty.
+function tick(n) {
+  return n === null || n === undefined ? "·" : `n=${n}`
+}
+
+function markLine(guide, ink) {
+  if (guide === null) return undefined
+
+  return {
+    silent: true,
+    symbol: "none",
+    lineStyle: {color: ink, opacity: 0.25, width: 1, type: "solid"},
+    label: {
+      position: "end",
+      formatter: "as good as the newest band",
+      color: ink,
+      opacity: 0.5,
+      fontSize: 10
+    },
+    data: [{yAxis: guide}]
+  }
+}
+
 // ⚠ EVERY TOKEN THE CHARTS NEED, READ ONCE, IN ONE PLACE.
 //
 // This exists because the hook grew four separate token-reading closures and two

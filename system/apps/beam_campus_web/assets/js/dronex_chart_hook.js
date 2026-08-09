@@ -27,7 +27,7 @@
 // the `--alias:@=.' escape hatch was the way in. This file actually lives in
 // assets/js now, so the ordinary path is the truthful one.
 import * as echarts from "../vendor/echarts.esm.js"
-import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, tokens} from "./dronex_charts.js"
+import {barsOption, matrixOption, examOption, ablationOption, examProfileOption, ratesOption, masterOption, tokens} from "./dronex_charts.js"
 // Six, in the order the stylesheet declares them, because that order is
 // what the colour-blindness check was run against. Taking them in any
 // other sequence puts pink beside green and fails a check that passed.
@@ -84,16 +84,24 @@ export default {
     // The panel behind the chart, so a mark can be separated from its
     // neighbour by a gap in the surface rather than by a line of its own.
     const surface = getComputedStyle(this.el.parentElement).backgroundColor
-    const option =
-      spec.kind === "matrix"
-        ? matrixOption({spec, fill: t.sides, text, surface, height: this.el.clientHeight || 288})
-        : spec.kind === "exam_profile"
-          ? examProfileOption({spec, colour: t.palette, text})
-        : spec.kind === "exam"
-          ? examOption({spec, ramp: t.ramp, text, surface})
-          : spec.kind === "ablation"
-            ? ablationOption({spec, colour: t.palette, text})
-            : barsOption({spec, colour: t.palette, text, fill: t.sides, surface})
+    // ⚠ A TABLE, NOT A TERNARY, AND THAT IS NOT A TIDY-UP. `ratesOption` was
+    // exported, fully checked, and MISSING FROM THE IMPORT LINE AND THE CHAIN, so
+    // the captures-rate panel fell through to `barsOption` and shipped stacked
+    // bars with a blank legend while the checker asserted "grouped, not stacked"
+    // against a function the browser never called. A checker that renders
+    // builders cannot see a dispatch chain, so the chain is now a list of names
+    // it CAN read: `charts_check.mjs` asserts every exported builder appears
+    // here. See the parity check at the end of that file.
+    const builders = {
+      matrix: () => matrixOption({spec, fill: t.sides, text, surface, height: this.el.clientHeight || 288}),
+      exam_profile: () => examProfileOption({spec, colour: t.palette, text}),
+      exam: () => examOption({spec, ramp: t.ramp, text, surface}),
+      ablation: () => ablationOption({spec, colour: t.palette, text}),
+      rates: () => ratesOption({spec, colour: t.palette, text, label: spec.label}),
+      master: () => masterOption({spec, colour: t.palette, ink: t.ink, text})
+    }
+    const build = builders[spec.kind] || (() => barsOption({spec, colour: t.palette, text, fill: t.sides, surface}))
+    const option = build()
     if (!option) {
       console.warn("[dronex] chart spec not understood, not drawing:", spec.kind)
       return

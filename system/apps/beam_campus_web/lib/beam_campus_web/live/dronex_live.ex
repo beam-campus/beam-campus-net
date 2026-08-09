@@ -45,6 +45,7 @@ defmodule BeamCampusWeb.DronexLive do
   use BeamCampusWeb, :live_view
 
   import BeamCampusWeb.DronexChrome, only: [island_name: 1, dronex_state: 1, nav: 1]
+  import BeamCampusWeb.DronexMasterProfile, only: [master_profile: 1]
 
   @redraw_ms 500
 
@@ -210,6 +211,15 @@ defmodule BeamCampusWeb.DronexLive do
             ⚠⚠ AND BOTH ARE DRAWN, NEVER ONE. An island on a build older than
             fact version 5 publishes no held-out profile at all, so a page that
             showed only the new one would go blank for half a fleet mid-deploy. --%>
+      <%!-- ⚠ AND THE MASTER TOURNAMENT COMES BEFORE BOTH OF THEM, ON THE SAME
+            ARGUMENT. Both scripted ladders are FLOOR tests the fleet has
+            cleared: one is saturated and the other is a fixed six. This is the
+            one measure here that cannot saturate, because its opponents are the
+            invaders that actually raided the island and they keep arriving. It
+            is also the only panel that can distinguish progress from a
+            treadmill, which is the question the whole archipelago is asking. --%>
+      <.master_profile islands={@islands} />
+
       <.exam_profiles islands={@islands} exam={:held_out} />
       <.ladder
         :if={@held_out_rungs != []}
@@ -472,9 +482,16 @@ defmodule BeamCampusWeb.DronexLive do
         </span>
       </div>
 
+      <%!-- ⚠ THE EXAM IS IN THE ID, because `one_world/1` renders this component
+            TWICE, held-out and curriculum, and a hardcoded id put two elements
+            carrying the same phx-hook on every page where both exams had data.
+            LiveView keys its DOM on id, and the browser resolves
+            `getElementById` to whichever came first. `exam_ladder/1` two hundred
+            lines up already interpolates its row id and was the model this
+            should have copied. --%>
       <div class="instrument mt-2 p-3">
         <div
-          id="exam-profiles"
+          id={"exam-profiles-#{@exam}"}
           phx-hook="DronexChart"
           phx-update="ignore"
           class="h-64 w-full"
