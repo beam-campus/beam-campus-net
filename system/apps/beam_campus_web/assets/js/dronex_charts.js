@@ -74,26 +74,34 @@ export function barsOption({spec, colour, text, fill, surface}) {
 export function matrixOption({spec, fill, text, height, surface}) {
   if (!Array.isArray(spec.cells) || !spec.rows) return null
 
-  // ⚠ A GRID OF CELLS, NOT A GRID OF PIES. Pies were the third encoding tried
-  // here and the third to be wrong. A slice asks the eye to judge an ANGLE,
-  // which is the least accurate comparison there is, and asks it twenty times
-  // over. A filled cell asks it to compare two colours, which is the most
-  // accurate, and the count sits on top as a number rather than as an area.
+  // ⚠ EACH CELL IS SPLIT, NOT TINTED, AND THE TINT WAS THE THIRD WRONG ANSWER.
+  // Pies were first: a slice asks the eye to judge an ANGLE, the least accurate
+  // comparison there is. A diverging tint was second, and the comment defending
+  // it claimed comparing two colours is "the most accurate" judgement. That is
+  // backwards. Position and length are the accurate channels; colour is near the
+  // bottom for magnitude. A 60/40 route and a 55/45 route are two tints nobody
+  // can tell apart, and a route at 50 lands on the same grey as a route with too
+  // few raids to say.
   //
-  // ⚠⚠ HUE IS DIRECTION, OPACITY IS CONFIDENCE, TEXT IS THE COUNT. Three facts,
-  // three channels, none of them fighting: blue where the island holds, red
-  // where the raider prevails, grey in the middle, faded where too few raids
-  // have been decided to mean anything, and the raid count printed on every one.
+  // So the cell is a stacked proportion: blue for the share the island held, red
+  // for the share the raider took, side by side. The reader compares two LENGTHS
+  // against a shared cell width, which is the judgement they are actually good
+  // at, and the two hues stay pure instead of being interpolated through grey.
   //
-  // The first attempt at direction-as-colour was a 48% wash over a dark surface
-  // and could not be seen. This is a full-strength fill, and `charts_check.mjs`
-  // asserts the colours are actually painted.
+  // ⚠⚠ A 2px SURFACE GAP BETWEEN THE SEGMENTS, NEVER A BORDER AROUND THEM. A
+  // stroke drawn to separate marks adds a line the data does not contain; a gap
+  // in the surface colour separates them with nothing.
+  //
+  // ⚠⚠⚠ AND THE COUNT IS CENTRED ON THE WHOLE CELL, NOT INSIDE A SEGMENT. A
+  // lopsided route has one segment a few pixels wide, and a label placed in it
+  // would be clipped exactly where the split is most worth reading.
   const decided = (c) => c.a + c.d
-  const share = (c) => (decided(c) === 0 ? 50 : Math.round((c.a * 100) / decided(c)))
+  const share = (c) => (decided(c) === 0 ? 0.5 : c.a / decided(c))
 
   // Below this a cell states its numbers and does not shout a direction: one
   // raid won is 100%, and at full strength it would be the loudest thing here.
   const SURE = 3
+  const GAP = 2
 
   return {
     animationDuration: 420,
@@ -129,42 +137,67 @@ export function matrixOption({spec, fill, text, height, surface}) {
       axisTick: {show: false},
       splitArea: {show: false}
     },
-    visualMap: {
-      show: false,
-      min: 0,
-      max: 100,
-      // ⚠ TWO HUES AND A NEUTRAL MIDPOINT, which is what a diverging scale is.
-      // Never a rainbow, and never a hue in the middle: the middle means
-      // "neither side", and grey is the only honest colour for that.
-      inRange: {color: [fill.defender, fill.draw, fill.attacker]}
-    },
     series: [
       {
-        type: "heatmap",
-        data: spec.cells.map((c) => ({
-          value: [c.c, c.r, share(c)],
-          itemStyle: {
-            opacity: decided(c) >= SURE ? 1 : 0.42,
-            borderColor: surface,
-            borderWidth: 2,
-            borderRadius: 3
+        type: "custom",
+        data: spec.cells.map((c) => [c.c, c.r, share(c), c.n, decided(c)]),
+        encode: {tooltip: [0, 1]},
+        renderItem: (params, api) => {
+          const at = api.coord([api.value(0), api.value(1)])
+          const size = api.size([1, 1])
+          const w = size[0] - GAP * 2
+          const h = size[1] - GAP * 2
+          const x = at[0] - w / 2
+          const y = at[1] - h / 2
+
+          const taken = api.value(2)
+          const count = api.value(3)
+          const sure = api.value(4) >= SURE
+          const opacity = sure ? 1 : 0.42
+
+          // The island's share on the left, the raider's on the right, with the
+          // gap between them coming out of the middle so the pair still spans
+          // the cell.
+          const held = Math.max(0, (w - GAP) * (1 - taken))
+          const won = Math.max(0, w - GAP - held)
+
+          return {
+            type: "group",
+            children: [
+              {
+                type: "rect",
+                shape: {x, y, width: held, height: h, r: [3, 0, 0, 3]},
+                style: {fill: fill.defender, opacity}
+              },
+              {
+                type: "rect",
+                shape: {x: x + held + GAP, y, width: won, height: h, r: [0, 3, 3, 0]},
+                style: {fill: fill.attacker, opacity}
+              },
+              {
+                type: "text",
+                style: {
+                  x: at[0],
+                  y: at[1],
+                  text: String(count),
+                  textAlign: "center",
+                  textVerticalAlign: "middle",
+                  fill: text,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  // Full strength even on a faded cell: the fill carries the
+                  // confidence and the number must stay readable regardless.
+                  opacity: 1
+                }
+              }
+            ]
           }
-        })),
-        label: {
-          show: true,
-          // Full strength even on a faded cell: the fill carries the confidence
-          // and the number must stay readable regardless.
-          opacity: 1,
-          color: text,
-          fontFamily: "monospace",
-          fontSize: 11,
-          formatter: (p) => String(spec.cells[p.dataIndex].n)
-        },
-        emphasis: {itemStyle: {borderColor: text, borderWidth: 2}}
+        }
       }
     ]
   }
 }
+
 
 // ⚠ THE D.15 INSTRUMENT. One column per sample, one row per rung, fill is the
 // win rate on that drill. A vertical stripe is every rung moving together, which

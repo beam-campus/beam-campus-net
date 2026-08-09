@@ -81,38 +81,102 @@ const msvg = render(matrix)
 const cells = matrix.series[0].data
 check("one cell per fought or in-flight route", cells.length === matrixSpec.cells.length)
 
-// Hue is direction: a route won outright must land at an end of the scale.
-const wonAll = cells[matrixSpec.cells.findIndex((c) => c.of === "msi00 → beam03")]
-const lostAll = cells[matrixSpec.cells.findIndex((c) => c.of === "beam01 → beam00")]
-check("a route won outright sits at the raider end", wonAll.value[2] === 100, `${wonAll.value[2]}`)
-check("a route lost outright sits at the island end", lostAll.value[2] === 0, `${lostAll.value[2]}`)
+// ⚠⚠ A SPLIT, NOT A TINT, AND THE SPLIT IS WHAT THESE NOW MEASURE. The cell used
+// to be one rectangle whose HUE encoded the balance, so a 60/40 route and a
+// 55/45 route were two tints nobody could tell apart and a 50/50 route was the
+// same grey as a route with too few raids to say. Each cell is now two segments
+// whose LENGTHS carry the balance, which is the judgement a reader is good at.
+const at = (of) => cells[matrixSpec.cells.findIndex((c) => c.of === of)]
+const wonAll = at("msi00 → beam03")
+const lostAll = at("beam01 → beam00")
+check("a route won outright is all raider", wonAll[2] === 1, `${wonAll[2]}`)
+check("a route lost outright is all island", lostAll[2] === 0, `${lostAll[2]}`)
 
-// ⚠ OPACITY IS CONFIDENCE. One raid won is 100% and must not shout.
-const thin = cells[matrixSpec.cells.findIndex((c) => c.of === "beam00 → beam01")]
-check("a one-raid route is faded, not shouting", thin.itemStyle.opacity < 0.5, `${thin.itemStyle.opacity}`)
-check("a well-fought route is at full strength",
-  cells[matrixSpec.cells.findIndex((c) => c.of === "beam00 → beam02")].itemStyle.opacity === 1)
+// ⚠ OPACITY IS CONFIDENCE. One raid won is 100% and must not shout. It is
+// applied inside renderItem now, so it is read off the rendered SVG rather than
+// off an itemStyle the option no longer carries.
+const thin = at("beam00 → beam01")
+check("a one-raid route is drawn but not decided", thin[4] < 3, `${thin[4]} decided`)
+check("a well-fought route is decided", at("beam00 → beam02")[4] >= 3)
+check("the faded opacity reaches the svg", /opacity="0\.42"/.test(msvg))
 
-// ⚠⚠ THE MIDPOINT IS NEUTRAL. A hue in the middle would claim a lean that is not
-// there; grey is the only honest colour for "neither side".
-check("the scale is two hues around a neutral middle",
-  matrix.visualMap.inRange.color.length === 3 &&
-    matrix.visualMap.inRange.color[1] === SIDES.draw,
-  matrix.visualMap.inRange.color.join(","))
+// ⚠⚠ TWO SEGMENTS PER CELL, WHICH IS THE WHOLE CHANGE. Every route that has been
+// fought draws an island part and a raider part, so the count of painted rects
+// is at least two per cell rather than one.
+// ⚠ BOTH NOTATIONS, BECAUSE A COLOUR IS NOT A STRING. ECharts may emit either
+// the hex it was handed or the `rgb(r,g,b)` it normalised to, depending on the
+// path a fill takes through the renderer. Counting only one form reported zero
+// segments on a chart that was painting them correctly, which is the same trap
+// `paints` above already carries a warning about.
+const rects = (svg, hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const forms = [hex, `rgb(${r},${g},${b})`]
+  return forms.reduce(
+    (n, form) => n + (svg.split(`fill="${form}"`).length - 1),
+    0
+  )
+}
+check("every cell draws an island segment and a raider segment",
+  rects(msvg, SIDES.defender) >= cells.length && rects(msvg, SIDES.attacker) >= cells.length,
+  `${rects(msvg, SIDES.defender)} island, ${rects(msvg, SIDES.attacker)} raider, ${cells.length} cells`)
 
-// The failure that produced the invisible tint: the fill must actually be painted.
-check("cells are painted in the side colours", paints(msvg, SIDES.attacker) && paints(msvg, SIDES.defender))
+// ⚠⚠⚠⚠ THE WIDTHS, NOT THE PRESENCE OF A COLOUR, AND THE FIRST VERSION OF THIS
+// CHECK MEASURED THE WRONG ONE. Collapsing the split so a single segment spans
+// the whole cell still emits both fills — the second one merely has zero width —
+// so every colour assertion above stayed green against a chart with no split in
+// it at all. `renderItem` is a pure function of its api, so it can be called
+// with a known cell and the two widths read off the shapes it returns.
+const geometry = (share, decided) => {
+  const api = {
+    coord: () => [100, 50],
+    size: () => [80, 40],
+    value: (i) => [0, 0, share, 9, decided][i]
+  }
+  const [held, won] = matrix.series[0].renderItem({}, api).children
+  return {held: held.shape.width, won: won.shape.width, opacity: held.style.opacity}
+}
+
+const balanced = geometry(0.5, 10)
+check("a balanced route splits its cell in half",
+  Math.abs(balanced.held - balanced.won) < 1,
+  `island ${balanced.held}, raider ${balanced.won}`)
+
+const swept = geometry(1, 10)
+check("a route won outright gives the raider the whole cell",
+  swept.held === 0 && swept.won > 70,
+  `island ${swept.held}, raider ${swept.won}`)
+
+const denied = geometry(0, 10)
+check("a route lost outright gives the island the whole cell",
+  denied.won === 0 && denied.held > 70,
+  `island ${denied.held}, raider ${denied.won}`)
+
+const lean = geometry(0.6, 10)
+check("a 60/40 route is visibly lopsided, which a tint could never show",
+  lean.won - lean.held > 10, `island ${lean.held}, raider ${lean.won}`)
+
+check("an undecided route is faded", geometry(0.5, 1).opacity < 0.5)
+
+// ⚠⚠⚠ AND NO HUE IS INTERPOLATED BETWEEN THEM ANY MORE. The old encoding ran a
+// diverging scale through a neutral midpoint, so a balanced route and an
+// undecided one shared a colour. There are exactly two fills now.
+check("the two sides keep their own hues, never a blend",
+  paints(msvg, SIDES.attacker) && paints(msvg, SIDES.defender) && !paints(msvg, SIDES.draw))
 check("nothing rendered at NaN", !/NaN/.test(msvg))
+check("no segment is drawn at negative width", !/width="-/.test(msvg))
 check("the grid drew something", msvg.length > 2000, `${msvg.length} bytes`)
 
-// The count is a number on the cell, never an area to judge.
-check("every route shows its raid count", matrix.series[0].label.show === true)
+// The count is a number on the cell, never an area to judge, and it sits on the
+// whole cell rather than inside a segment: a lopsided route has one segment a
+// few pixels wide and a label placed in it would be clipped exactly where the
+// split is most worth reading.
+check("every route shows its raid count", (msvg.match(/<text/g) || []).length >= cells.length)
+
 // ⚠ ROW `i' MUST BE COLUMN `i'. A category axis counts up from the bottom, so
 // without inversion the self-raid blanks land on the anti-diagonal and every
 // reading of the grid is transposed. Found by looking at a screenshot, which is
 // why `scripts/look_at_the_page.sh` now exists.
 check("the rows read top-down, so the diagonal is the diagonal", matrix.yAxis.inverse === true)
-check("a faded cell still shows its number", matrix.series[0].label.opacity === 1)
 check("no circles are drawn at all",
   !JSON.stringify(matrix).includes('"pie"') && !(matrix.graphic || []).some((g) => g.type === "circle"))
 

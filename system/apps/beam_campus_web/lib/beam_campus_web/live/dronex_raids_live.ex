@@ -194,9 +194,9 @@ defmodule BeamCampusWeb.DronexRaidsLive do
       </div>
 
       <p class="mt-2 text-xs opacity-40">
-        Each cell is the row island raiding the column island. <strong>Red where the raider prevails</strong>, blue where the island
-        holds, grey where it is even, and the number on it is how many raids have
-        been fought there. A <strong>faded</strong>
+        Each cell is the row island raiding the column island, <strong>split by how the raids went</strong>: blue for the share the
+        island held, red for the share the raider took, and the number on it is
+        how many raids have been fought there. A <strong>faded</strong>
         cell has fewer than three decided raids and is not claiming a direction,
         because one raid won is 100%. Hover for the full numbers, or open the
         table below. A raid
