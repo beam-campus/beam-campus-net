@@ -129,8 +129,8 @@ defmodule BeamCampusWeb.DronexFightsLive do
             <strong>Drones fighting drones, as the island that ran it counted them.</strong>
             A drone is a quadcopter with a battery, a forward sensor that cannot
             see behind it, one unguided weapon effective inside about fifteen
-            metres and four guided interceptors. None of how it flies is written
-            down: the controller is a neural network.
+            metres and two guided interceptors that reach about sixty. None of how
+            it flies is written down: the controller is a neural network.
           </:subtitle>
         </.header>
 
