@@ -517,120 +517,91 @@ defmodule BeamCampusWeb.DronexLive do
   end
 
   @doc """
-  Which controllers have held which islands, and which of them crossed the mesh.
+  Which controllers crossed the mesh.
 
-  ⚠ THE CLAIM THIS EXHIBIT IS FOR, SHOWN AT LAST. `CHARTER.md` makes a raid the
-  way opponent diversity crosses the mesh, and until the islands began naming
-  their champion the page could only draw captures as a number going up. A genome
-  id is the sha256 of its packed form, so the same id holding two islands IS the
-  crossing.
+  ⚠ THE CLAIM THIS EXHIBIT IS FOR. `CHARTER.md` makes a raid the way opponent
+  diversity crosses the mesh, and for most of this track's life the page could
+  only draw captures as a number going up. A genome id is the sha256 of its
+  packed form, so a controller named here on an island that did not breed it is
+  the same controller and not a resemblance.
 
-  ⚠⚠ RANKED ON STRUCTURE, NEVER ON THE EXAM. The frozen exam is saturated at 47
-  or 48 of 48 for four of five islands and `REGISTER D.15` says it swings a
-  hundred points in a day. Islands held, then tenure, then sorties survived.
+  ⚠⚠ IT REPORTED ZERO FOR TWO DIFFERENT REASONS IN SUCCESSION, and neither was
+  about the world. First a captured genome entered at fitness 0 and nothing ever
+  re-scored it, so it could never be `roster:best/1` and never be champion:
+  `REGISTER I.25`. Then, once that was fixed, the count was taken inside a top
+  ten ranked on tenure — and a controller that has just crossed has by definition
+  just arrived, so it sorted last and fell off the limit.
+
+  ⚠⚠⚠ A RANKED TABLE OF CHAMPIONS WAS DELETED FROM HERE ON 2026-08-09. Measured
+  over all 207 controllers it had recorded, `islands` was 1 for every one and was
+  its primary sort key, `sorties` was 0 for 166, `generation` is not comparable
+  across islands, and its journey column printed one island name per row. Worse,
+  it ranked on tenure, and a champion is displaced the moment its island finds
+  something better — so it sorted the most STAGNANT island to the top and read as
+  a table of the best controllers.
   """
   attr :standings, :list, default: []
 
   def champions(assigns) do
-    ranked = Dronex.FollowTheChampions.ranked(10)
-
     assigns =
       assign(assigns,
-        ranked: ranked,
-        # ⚠ OVER EVERY REIGN, NOT OVER THE TEN SHOWN. Counting inside the ranked
-        # list made this permanently zero: the ranking is islands held, then
-        # tenure, and a controller that has just crossed holds one island and has
-        # held it for seconds, so it sorts last and falls off the limit. The
-        # headline said "0 of 10 crossed the mesh" while two crossings sat in the
-        # table it was counting over.
+        # ⚠ OVER EVERY REIGN, NOT OVER A RANKED TOP TEN. Counting inside the
+        # ranking made this permanently zero: a controller that has just crossed
+        # holds one island and has held it for seconds, so it sorted last and
+        # fell off the limit. The headline read "0 of 10 crossed the mesh" while
+        # crossings sat in the very table it was counting over.
         crossed: Dronex.FollowTheChampions.crossed(),
         seen: Dronex.FollowTheChampions.counted() || 0,
-        crossings: Dronex.FollowTheChampions.crossings(8)
+        crossings: Dronex.FollowTheChampions.crossings(12)
       )
 
     ~H"""
-    <section :if={@ranked != []} class="settle mt-8">
+    <section :if={@seen > 0} class="settle mt-8">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="instrument-lede text-base font-semibold">Which controllers have held an island</h2>
+        <h2 class="instrument-lede text-base font-semibold">Which controllers crossed the mesh</h2>
         <span class="font-mono text-xs opacity-40">
-          {@crossed} of {@seen} crossed the mesh
+          {@crossed} of {@seen} controllers seen
         </span>
       </div>
 
-      <%!-- ⚠⚠ THE CROSSINGS GET THEIR OWN LIST, BECAUSE THE RANKING BURIES THEM
-            AND ALWAYS WILL. This is the archipelago's one idea in its most
-            literal form — a controller bred on one machine, now holding another
-            — and until this section existed the page could only report it as a
-            count that was structurally zero. `Dronex.FollowTheChampions.crossings/1`
-            has returned exactly these rows the whole time and nothing called it. --%>
-      <div :if={@crossings != []} class="instrument mt-2 p-3">
-        <h3 class="text-sm font-semibold opacity-70">Controllers that crossed</h3>
-        <ul class="mt-2 grid gap-1">
-          <li :for={r <- @crossings} class="font-mono text-xs">
-            <span class="opacity-70">{String.slice(r.genome_id, 0, 8)}</span>
-            <span class="opacity-40">bred on</span>
-            {Dronex.TellIslandsApart.spoken_id(r.taken_from)}
-            <span class="opacity-40">· now holding</span>
-            {r.island}
-            <span class="opacity-40">· {held_for(r.last_seen - r.first_seen)}</span>
-          </li>
-        </ul>
-        <p class="mt-2 text-xs opacity-40">
-          Taken in a raid and then good enough, here, to become this island's
-          champion. A controller is the sha256 of its packed genome, so this is
-          the same controller and not a resemblance.
-        </p>
-      </div>
+      <%!-- ⚠⚠ A RANKED TABLE OF CHAMPIONS STOOD HERE AND WAS DELETED ON
+            2026-08-09, BECAUSE FOUR OF ITS FIVE COLUMNS CARRIED NOTHING.
+            Measured over all 207 controllers it had ever recorded: `islands` was
+            1 for every one of them and was the PRIMARY SORT KEY; `sorties` was
+            0 for 166; `generation` is lineage depth and is not comparable across
+            islands, which is why it had already been removed from the
+            leaderboard; and "where it has been" printed a single island name on
+            every row, so the journey it promised never appeared.
 
-      <div class="instrument mt-2 overflow-x-auto p-3">
-        <table class="table table-sm">
-          <thead>
-            <tr class="text-xs opacity-50">
-              <th>controller</th>
-              <th class="text-right">islands</th>
-              <th class="text-right">held</th>
-              <th class="text-right">sorties</th>
-              <th class="text-right">generation</th>
-              <th>where it has been</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={c <- @ranked}>
-              <td class="font-mono text-xs">
-                {String.slice(c.genome_id, 0, 8)}
-                <%!-- A controller that left the machine that made it is the whole
-                      point, so it is marked rather than left to be inferred from
-                      the island count. --%>
-                <span
-                  :if={c.crossed?}
-                  class="ml-1 rounded-sm px-1 text-[10px]"
-                  style="background: color-mix(in oklab, var(--side-attacker) 25%, transparent)"
-                  title="this controller has left the island that bred it"
-                >
-                  crossed
-                </span>
-              </td>
-              <td class="text-right font-mono tabular-nums">{c.islands}</td>
-              <td class="text-right font-mono tabular-nums">{held_for(c.held_ms)}</td>
-              <td class="text-right font-mono tabular-nums">{c.sorties}</td>
-              <td class="text-right font-mono tabular-nums">{c.generation}</td>
-              <td class="font-mono text-xs opacity-70">{journey(c.reigns)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            ⚠⚠⚠ AND IT RANKED THE OPPOSITE OF WHAT IT SEEMED TO. A champion is
+            displaced the moment its island breeds or captures something better,
+            so tenure is TIME SINCE THAT ISLAND LAST IMPROVED. Sorting champions
+            by it puts the most stagnant island at the top and reads as a table
+            of the best controllers.
+
+            What is left is the thing the panel was built for. --%>
+      <ul :if={@crossings != []} class="instrument mt-2 grid gap-1 p-3">
+        <li :for={r <- @crossings} class="font-mono text-xs">
+          <span class="opacity-70">{String.slice(r.genome_id, 0, 8)}</span>
+          <span class="opacity-40">bred on</span>
+          {Dronex.TellIslandsApart.spoken_id(r.taken_from)}
+          <span class="opacity-40">· now holding</span>
+          {r.island}
+          <span class="opacity-40">· {held_for(r.last_seen - r.first_seen)}</span>
+        </li>
+      </ul>
+
+      <p :if={@crossings == []} class="instrument mt-2 p-3 text-xs opacity-50">
+        No controller has yet been taken in a raid and then become good enough,
+        on the island that took it, to be its champion. That is the archipelago's
+        one idea in its most literal form, so this staying empty is a finding
+        rather than a gap.
+      </p>
 
       <p class="mt-2 max-w-3xl text-xs opacity-50">
-        A controller is identified by the <strong>sha256 of its packed genome</strong>, so the same id holding two islands is the
-        same controller, not a guess. <strong>Crossed</strong>
-        means it has left the island that bred it, either by holding another or by
-        having been taken in a raid.
-        <span class="mt-1 block">
-          Ranked on islands held, then on how long, then on sorties survived.
-          Deliberately not on the frozen exam: four of five islands sit at 47 or
-          48 of 48 on it and it can move a hundred points in a day, so a ranking
-          built on it would inherit every one of those faults.
-        </span>
+        A controller is identified by the <strong>sha256 of its packed genome</strong>, so this is the same controller and not a
+        resemblance. It was taken in a raid, entered the local roster as an
+        opponent, and then beat everything its captor could breed against it.
       </p>
     </section>
     """
@@ -641,15 +612,6 @@ defmodule BeamCampusWeb.DronexLive do
   defp held_for(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
   defp held_for(ms) when ms < 3_600_000, do: "#{div(ms, 60_000)}m"
   defp held_for(ms), do: "#{div(ms, 3_600_000)}h"
-
-  # The islands it has held, in the order it held them, which is the path.
-  defp journey(reigns) do
-    reigns
-    |> Enum.map(& &1.island)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
-    |> Enum.join(" → ")
-  end
 
   # ── History ─────────────────────────────────────────────────────
 
