@@ -26,10 +26,14 @@ defmodule Dronex do
 
   ## What arrives, and what it is not
 
-  ⚠ **A bout is a TRAINING bout, not a raid.** Nothing crosses the mesh yet: what
-  is published is an island's own best controller against one of its own scripted
-  drills. The fact says so in its `kind` field and this page repeats it, because
-  calling it a raid would be the first lie this track told.
+  ⚠ **A bout is a TRAINING bout, not a raid.** What is published is an island's
+  own best controller against one opponent drawn from its real opponent set:
+  usually another of its controllers, sometimes one it captured from a neighbour,
+  occasionally a scripted drill. The fact says which in its `opponent` field.
+
+  It was hardcoded to a drill until 2026-08-09, so this text said "one of its own
+  scripted drills" and was right; it kept saying it after the island changed, and
+  was then describing about one bout in ten as though it were all of them.
   """
 
   alias Dronex.TellIslandsApart
@@ -257,7 +261,9 @@ defmodule Dronex do
   What it rewards, said plainly so the list is not a black box:
 
     * a **raid** over a training bout, always. A bout is one evolved controller
-      against a scripted drill; a raid is twelve evolved controllers against
+      against one opponent drawn from the island's own opponent set — usually
+      another controller, sometimes one it captured, occasionally a scripted
+      drill; a raid is twelve evolved controllers against
       twelve others bred on a different machine under pressures neither side
       chose. That is the thing this archipelago exists to produce.
     * **both sides bleeding.** A fight where one side lost nothing is a rout, and
@@ -339,7 +345,17 @@ defmodule Dronex do
   def watchable(id), do: Enum.filter(watchable(), &(id in &1.islands))
 
   # {points, reason}. The reason is shown; the points only order the list.
-  defp reasons(:bout, _fact), do: [{0, "a training bout against a scripted drill"}]
+  # ⚠ A CAPTURED OPPONENT OUTRANKS A LOCAL ONE, AND BOTH OUTRANK A DRILL. The
+  # ordering is about how interesting a fight is likely to be, and a controller
+  # bred on another island fighting the island that took it is the one thing on
+  # this site that shows opponent diversity crossing the mesh.
+  defp reasons(:bout, %{"opponent" => "captured"} = f),
+    do: [{2, "a controller taken from #{TellIslandsApart.spoken_id(Map.get(f, "opponent_from"))}"}]
+
+  defp reasons(:bout, %{"opponent" => "bred"}),
+    do: [{1, "two of this island's own controllers"}]
+
+  defp reasons(:bout, _drill), do: [{0, "a training bout against a scripted drill"}]
 
   defp reasons(:raid, f) do
     sent = num(f, "raiders")
@@ -391,7 +407,27 @@ defmodule Dronex do
       TellIslandsApart.spoken_id(Map.get(f, "island_id"))
   end
 
-  defp title(:bout, f), do: "#{TellIslandsApart.spoken_id(Map.get(f, "island_id"))} against a drill"
+  # ⚠ IT SAID "against a drill" FOR EVERY BOUT, AND THAT STOPPED BEING TRUE THE
+  # DAY THE ISLAND STOPPED ALWAYS FLYING ONE. The opponent was hardcoded to a
+  # scripted rung for the whole life of the track; it is now drawn from the real
+  # opponent set, so roughly nine bouts in ten are a controller against another
+  # controller and this label was describing the minority case with certainty.
+  defp title(:bout, f) do
+    mine = TellIslandsApart.spoken_id(Map.get(f, "island_id"))
+    "#{mine} against #{opponent_of(f)}"
+  end
+
+  # ⚠⚠ A CAPTURED OPPONENT IS NAMED BY WHERE IT CAME FROM, because that is the
+  # archipelago's one idea happening in a fight somebody can watch: a controller
+  # bred on another machine, flying against the island that took it. An island on
+  # a build before fact version 6 publishes no `opponent` at all, and is
+  # described as what it certainly was rather than guessed at.
+  defp opponent_of(%{"opponent" => "captured"} = f),
+    do: "a controller taken from #{TellIslandsApart.spoken_id(Map.get(f, "opponent_from"))}"
+
+  defp opponent_of(%{"opponent" => "bred"}), do: "one of its own controllers"
+  defp opponent_of(%{"opponent" => "drill"}), do: "a drill"
+  defp opponent_of(_older), do: "a drill"
 
   @doc """
   Islands ranked, and ranked on the HELD-OUT exam.

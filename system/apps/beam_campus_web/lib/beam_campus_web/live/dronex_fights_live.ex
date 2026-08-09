@@ -349,7 +349,26 @@ defmodule BeamCampusWeb.DronexFightsLive do
                   even when the verdict does not, so they go first and in a size
                   you can scan down. --%>
             <div class="flex items-baseline justify-between gap-2">
-              <span class="font-mono text-xs">{f.title}</span>
+              <span class="font-mono text-xs">
+                {f.title}
+                <%!-- ⚠ A BADGE, NOT A HUE, AND DELIBERATELY SO. The only two
+                      colours on this page are `--side-attacker` and
+                      `--side-defender`, which are reserved for the two sides of
+                      a fight and are already carrying the seats in the canvas
+                      below. Recolouring an entry by the provenance of one
+                      entrant would put a third meaning on a two-colour
+                      encoding, and `mix charts.check` refuses those hues on
+                      anything that is not a side. This is the same idiom the
+                      exam ladder already uses to mark a captured sitter. --%>
+                <span
+                  :if={f.fact["opponent"] == "captured"}
+                  class="ml-1 rounded-sm px-1 text-[10px] opacity-70"
+                  style="background: color-mix(in oklab, currentColor 12%, transparent)"
+                  title="the opponent is a controller this island took in a raid, not one it bred"
+                >
+                  captured
+                </span>
+              </span>
               <span class="shrink-0 font-mono text-sm tabular-nums">
                 {survivors(f)}
               </span>

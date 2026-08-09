@@ -305,4 +305,68 @@ defmodule DronexTest do
     assert entry.kind == :raid
     assert {:ok, _frames} = Dronex.recording(entry.key)
   end
+
+  # ⚠ THE LABEL SAID "against a drill" FOR EVERY BOUT AND WENT ON SAYING IT AFTER
+  # THAT STOPPED BEING TRUE. The island's opponent was hardcoded to a scripted
+  # rung for the whole life of the track; once it was drawn from the real
+  # opponent set roughly nine bouts in ten became controller against controller,
+  # and this label described the minority case with certainty. Nothing caught it,
+  # because nothing asserted what a bout is called.
+  describe "what a bout is called" do
+    setup do
+      Board.init()
+      :ets.delete_all_objects(:dronex_board)
+      :ets.delete_all_objects(:dronex_recordings)
+      :ets.insert(:dronex_board, {:refused, 0})
+      :ok
+    end
+
+    defp bout_titled(extra) do
+      fact =
+        Map.merge(
+          %{
+            "island" => "beam00",
+            "island_id" => "aaa",
+            "kind" => "training",
+            "winner" => "attacker",
+            "ticks" => 100,
+            "arena" => [1000, 1000, 300],
+            "frames" => [%{"t" => 0, "d" => [0, 500, 500, 100, 0, 100, 0], "m" => []}]
+          },
+          extra
+        )
+
+      Board.put("aaa", :vitals, %{"island" => "beam00", "island_id" => "aaa", "roster" => 90})
+      Board.put("aaa", :bout, fact)
+
+      Dronex.watchable() |> Enum.find(&(elem(&1.key, 0) == :bout)) |> Map.get(:title)
+    end
+
+    test "a bout against a captured controller names where it came from" do
+      Board.put("bbb", :vitals, %{"island" => "beam01", "island_id" => "bbb", "roster" => 90})
+
+      title = bout_titled(%{"opponent" => "captured", "opponent_from" => "bbb"})
+
+      assert title =~ "taken from"
+      assert title =~ "beam01"
+      refute title =~ "drill"
+    end
+
+    test "a bout against one of the island's own says so" do
+      title = bout_titled(%{"opponent" => "bred"})
+      assert title =~ "its own controllers"
+      refute title =~ "drill"
+    end
+
+    test "a bout against a drill still says drill" do
+      assert bout_titled(%{"opponent" => "drill"}) =~ "a drill"
+    end
+
+    # ⚠ AN ISLAND ON A BUILD BEFORE FACT VERSION 6 PUBLISHES NO `opponent` AT ALL,
+    # and islands roll one at a time. Its bouts genuinely were against drills, so
+    # that is what it is called rather than guessed at or left blank.
+    test "an older island's bout is described as what it certainly was" do
+      assert bout_titled(%{}) =~ "a drill"
+    end
+  end
 end
