@@ -67,15 +67,8 @@ dev).
 
 ## House rules (this repo)
 
-- **GitHub is canonical** (since 2026-07-26) — push to the `github` remote
-  (github.com/beam-campus/beam-campus-net), branch `main`. Do NOT push to
-  Codeberg: that copy is soon to be deleted. `origin` still points at Codeberg
-  in most clones, so check the full `git remote -v` and name the remote
-  explicitly (`git push github main`) until origins are flipped.
-  *Why the reversal:* Codeberg added Terms of Use § 2 (1) 7 by member vote on
-  2026-07-22, banning projects that mostly consist of AI-generated code.
-  The old push-mirror hop (Codeberg → GitHub) is gone; CI now runs directly on
-  the canonical repo.
+- **GitHub is canonical** (since 2026-07-26) — `origin` is
+  github.com/beam-campus/beam-campus-net, branch `main`; CI runs directly on it.
 - **`mix format` cannot see a file you just created.** `apps/beam_campus_web/.formatter.exs`
   computes its `inputs` with `Path.wildcard` at load time so it can exclude one
   file, and Mix caches that list keyed on the config's mtime. A file added since
