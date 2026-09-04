@@ -9,8 +9,9 @@ defmodule BeamCampusWeb.Application do
   def start(_type, _args) do
     children = [
       BeamCampusWeb.Telemetry,
-      # Start a worker by calling: BeamCampusWeb.Worker.start_link(arg)
-      # {BeamCampusWeb.Worker, arg},
+      # JWKS-backed verifier for Hanko's email.send webhook — see
+      # BeamCampusWeb.HankoWebhookController.
+      {BeamCampusWeb.HankoJwt, Application.get_env(:beam_campus_web, BeamCampusWeb.HankoJwt, [])},
       # Start to serve requests, typically the last entry
       BeamCampusWeb.Endpoint
     ]

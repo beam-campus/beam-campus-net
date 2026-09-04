@@ -55,6 +55,7 @@ defmodule BeamCampusWeb.Router do
     pipe_through :api
 
     get "/health", HealthController, :show
+    post "/api/v1/internal/hanko/webhook", HankoWebhookController, :create
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

@@ -107,6 +107,19 @@ if admin_emails = System.get_env("BEAM_CAMPUS_ADMIN_EMAILS") do
   config :beam_campus, :admin_emails, emails
 end
 
+# ── Hanko webhook (email.send -> Mailgun relay) ────────────────────────────
+# See BeamCampusWeb.HankoWebhookController/HankoJwt/BeamCampus.PasscodeEmail.
+# This deployment's Hanko instance has email_delivery.enabled: false and
+# webhooks.enabled: true (docker/hanko/config.yaml) — Hanko calls this
+# service instead of sending SMTP itself.
+config :beam_campus, :mail_from, System.get_env("BEAM_CAMPUS_MAIL_FROM", "no-reply@beam-campus.net")
+config :beam_campus, :mail_from_name, System.get_env("BEAM_CAMPUS_MAIL_FROM_NAME", "BEAM Campus")
+
+config :beam_campus_web, BeamCampusWeb.HankoJwt,
+  jwks_url: System.get_env("HANKO_JWKS_URL", "https://auth.beam-campus.net/.well-known/jwks.json"),
+  audience: System.get_env("HANKO_AUDIENCE", "beam-campus-net"),
+  cache_ttl: :timer.hours(1)
+
 # ── Hanko (self-hosted auth) — env overrides for the public URLs ──────────
 if hanko_url = System.get_env("HANKO_API_URL") do
   config :beam_campus_web, :hanko_api_url, hanko_url

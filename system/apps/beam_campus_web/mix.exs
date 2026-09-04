@@ -74,6 +74,7 @@ defmodule BeamCampusWeb.MixProject do
       # island's code, only on the fact and its fact_version.
       {:dronex, in_umbrella: true},
       {:jason, "~> 1.2"},
+      {:joken, "~> 2.6"},
       {:bandit, "~> 1.5"},
       # Notebook: compile-time markdown posts (the open lab notebook / ELI5 blog).
       {:nimble_publisher, "~> 1.1"}
