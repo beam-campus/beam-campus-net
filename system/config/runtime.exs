@@ -112,11 +112,15 @@ end
 # This deployment's Hanko instance has email_delivery.enabled: false and
 # webhooks.enabled: true (docker/hanko/config.yaml) — Hanko calls this
 # service instead of sending SMTP itself.
-config :beam_campus, :mail_from, System.get_env("BEAM_CAMPUS_MAIL_FROM", "no-reply@beam-campus.net")
+config :beam_campus,
+       :mail_from,
+       System.get_env("BEAM_CAMPUS_MAIL_FROM", "no-reply@beam-campus.net")
+
 config :beam_campus, :mail_from_name, System.get_env("BEAM_CAMPUS_MAIL_FROM_NAME", "BEAM Campus")
 
 config :beam_campus_web, BeamCampusWeb.HankoJwt,
-  jwks_url: System.get_env("HANKO_JWKS_URL", "https://auth.beam-campus.net/.well-known/jwks.json"),
+  jwks_url:
+    System.get_env("HANKO_JWKS_URL", "https://auth.beam-campus.net/.well-known/jwks.json"),
   audience: System.get_env("HANKO_AUDIENCE", "beam-campus-net"),
   cache_ttl: :timer.hours(1)
 
