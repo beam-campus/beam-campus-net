@@ -1,11 +1,13 @@
 # Dockerfile.prod — BEAM Campus website (beam-campus-net)
 # Multi-stage build, hex.pm deps, minimal runtime image.
-# Pure Elixir/Phoenix — no Rust NIFs, no mesh (this is the public site).
+# Phoenix, plus macula's Rust NIFs: the biotope, ASociety and DroneX spectators
+# read the mesh (subscribe and render, never publish).
 #
 # Build: docker build -f Dockerfile.prod -t beamcampus/beam-campus-net:latest .
 
 ARG ELIXIR_VERSION=1.18.4
-ARG OTP_VERSION=27.2
+# OTP 28, the team standard and the release macula is built and tested on.
+ARG OTP_VERSION=28.4.2
 ARG DEBIAN_VERSION=bookworm-20260610-slim
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 # Runner: stable bookworm-slim (same glibc as the dated builder base).

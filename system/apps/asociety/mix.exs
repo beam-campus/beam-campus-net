@@ -30,7 +30,7 @@ defmodule ASociety.MixProject do
   # with the thing it reads is a reader that can quietly start computing.
   defp deps do
     [
-      {:macula, "~> 7.1"},
+      {:macula, "~> 10.25"},
       # The PubSub this app broadcasts board changes on. Declared rather than
       # relied on implicitly: an umbrella lets a sibling's modules resolve at
       # runtime without a dependency, which compiles happily and orders the

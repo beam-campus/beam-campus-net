@@ -36,7 +36,7 @@ defmodule Dronex.MixProject do
   # the umbrella happens to contain.
   def deps do
     [
-      {:macula, "~> 7.1"},
+      {:macula, "~> 10.25"},
       # The PubSub this app broadcasts board changes on. Declared rather than
       # relied on implicitly: an umbrella lets a sibling's modules resolve at
       # runtime without a dependency, which compiles happily and orders the
