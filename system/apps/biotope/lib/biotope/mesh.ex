@@ -64,6 +64,17 @@ defmodule Biotope.Mesh do
   @spec configured?() :: boolean()
   def configured?, do: realm() != nil and seeds() != []
 
+  @doc """
+  Opens this app's pool on `seeds`: the one `:macula.connect/2` call the holder
+  makes, public so a test can check the pool without a station.
+
+  The SDK generates the pool's identity, and a station refuses one whose public
+  key fails its S/Kademlia puzzle. The refusal is quiet: `connect/2` still
+  returns a pool, the pool never gets a healthy link, and the page stays empty.
+  """
+  @spec open_pool([String.t()]) :: {:ok, pid()} | {:error, term()}
+  def open_pool(seeds), do: :macula.connect(seeds, %{})
+
   # ── GenServer ───────────────────────────────────────────────────
 
   @impl true
@@ -99,7 +110,7 @@ defmodule Biotope.Mesh do
   # asynchronously, driving its own reconnect, replay and dedup. So a successful
   # connect is the whole job; this holder never polls it.
   defp try_connect(%{seeds: seeds} = s) do
-    case :macula.connect(seeds, %{}) do
+    case open_pool(seeds) do
       {:ok, pool} ->
         Logger.info("[Biotope.Mesh] pool connected (#{length(seeds)} seeds), waiting for a link")
         send(self(), :check_health)
