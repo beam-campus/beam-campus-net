@@ -22,8 +22,8 @@ defmodule BeamCampusWeb.HankoWebhookController do
   use BeamCampusWeb, :controller
   require Logger
 
-  alias BeamCampusWeb.HankoJwt
   alias BeamCampus.PasscodeEmail
+  alias BeamCampusWeb.HankoJwt
 
   def create(conn, %{"token" => token, "event" => event})
       when is_binary(token) and is_binary(event) do
