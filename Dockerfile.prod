@@ -82,7 +82,9 @@ RUN if [ -f package.json ]; then \
     fi
 
 WORKDIR /app
-RUN mix compile
+# Warnings are errors here as they are in CI, so the image never builds from
+# code that calls a function that does not exist.
+RUN mix compile --warnings-as-errors
 
 # Pre-fetch the tailwind + esbuild binaries with curl (OpenSSL trusts the
 # GitHub-release / npm certs that OTP's httpc rejects from some CDN POPs), and
