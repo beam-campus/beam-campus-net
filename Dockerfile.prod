@@ -5,7 +5,7 @@
 # Build: docker build -f Dockerfile.prod -t beamcampus/beam-campus-net:latest .
 
 ARG ELIXIR_VERSION=1.18.4
-ARG OTP_VERSION=27.2
+ARG OTP_VERSION=28.4.3
 ARG DEBIAN_VERSION=bookworm-20260610-slim
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 # Runner: stable bookworm-slim (same glibc as the dated builder base).

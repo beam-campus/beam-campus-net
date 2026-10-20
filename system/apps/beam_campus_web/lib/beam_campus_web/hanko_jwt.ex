@@ -101,8 +101,11 @@ defmodule BeamCampusWeb.HankoJwt do
     end
   end
 
+  # No retries: the refresh runs inside the caller's 5 s GenServer.call, and
+  # Req's default transient retries (1 s + 2 s + 4 s) cannot fit in it, so a
+  # down Hanko would exit the caller instead of answering :unknown_kid.
   defp fetch_jwks(url) do
-    case Req.get(url, receive_timeout: 5_000) do
+    case Req.get(url, receive_timeout: 4_000, retry: false) do
       {:ok, %{status: 200, body: %{"keys" => keys}}} when is_list(keys) -> {:ok, keys}
       {:ok, %{status: status}} -> {:error, {:http_status, status}}
       {:error, err} -> {:error, err}

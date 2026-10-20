@@ -15,4 +15,15 @@ defmodule BeamCampusWeb.HankoWebhookControllerTest do
 
     assert %{"ok" => false} = json_response(conn, 400)
   end
+
+  test "POST with a token whose key the JWKS does not hold is a 400 naming the reason, not a crash",
+       %{conn: conn} do
+    header = Base.url_encode64(~s({"alg":"RS256","kid":"no-such-kid"}), padding: false)
+    token = header <> ".e30.c2ln"
+
+    conn =
+      post(conn, ~p"/api/v1/internal/hanko/webhook", %{"token" => token, "event" => "email.send"})
+
+    assert %{"ok" => false, "error" => "unknown_kid"} = json_response(conn, 400)
+  end
 end

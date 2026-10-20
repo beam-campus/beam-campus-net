@@ -22,8 +22,8 @@ defmodule BeamCampusWeb.HankoWebhookController do
   use BeamCampusWeb, :controller
   require Logger
 
-  alias BeamCampusWeb.HankoJwt
   alias BeamCampus.PasscodeEmail
+  alias BeamCampusWeb.HankoJwt
 
   def create(conn, %{"token" => token, "event" => event})
       when is_binary(token) and is_binary(event) do
@@ -38,7 +38,7 @@ defmodule BeamCampusWeb.HankoWebhookController do
 
         conn
         |> put_status(:bad_request)
-        |> json(%{ok: false, error: to_string(reason)})
+        |> json(%{ok: false, error: error_code(reason)})
     end
   end
 
@@ -47,6 +47,15 @@ defmodule BeamCampusWeb.HankoWebhookController do
     |> put_status(:bad_request)
     |> json(%{ok: false, error: "missing token or event"})
   end
+
+  # A rejection reason is any term ({:unknown_kid, kid}, a Joken error list,
+  # {:email_delivery_failed, _}); the response names its kind only.
+  defp error_code(reason) when is_atom(reason), do: Atom.to_string(reason)
+
+  defp error_code(reason) when is_tuple(reason) and is_atom(elem(reason, 0)),
+    do: reason |> elem(0) |> Atom.to_string()
+
+  defp error_code(_reason), do: "rejected"
 
   ## --- Event dispatch ---------------------------------------------------
 
