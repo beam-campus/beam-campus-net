@@ -39,13 +39,15 @@ defmodule BeamCampus.PasscodeEmail do
       |> text_body(body_plain || "")
       |> html_body(body_html || "")
 
+    # The subject carries the live passcode, a credential, so it is never logged; the
+    # address is personal data, so the log names it only by hash and domain.
     case Mailer.deliver(email) do
       {:ok, resp} ->
-        Logger.info("[PasscodeEmail] sent to=#{to_address} subject=#{inspect(subject)}")
+        Logger.info("[PasscodeEmail] sent #{recipient(to_address)} id=#{inspect(resp[:id])}")
         {:ok, resp}
 
       {:error, reason} = err ->
-        Logger.error("[PasscodeEmail] failed to=#{to_address}: #{inspect(reason)}")
+        Logger.error("[PasscodeEmail] failed #{recipient(to_address)}: #{inspect(reason)}")
         err
     end
   end
@@ -53,5 +55,17 @@ defmodule BeamCampus.PasscodeEmail do
   def deliver(other) do
     Logger.error("[PasscodeEmail] invalid payload: #{inspect(Map.keys(other))}")
     {:error, :invalid_payload}
+  end
+
+  # to_hash=<12 hex of sha256(lowercased address)> to_domain=<domain>: one person's mails
+  # correlate across lines and the domain shows the route, without the address itself.
+  defp recipient(address) do
+    hash =
+      :crypto.hash(:sha256, String.downcase(address))
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 12)
+
+    domain = address |> String.split("@") |> List.last()
+    "to_hash=#{hash} to_domain=#{domain}"
   end
 end
