@@ -22,7 +22,7 @@
       pulls anonymously, and watchtower auto-pulls. The push-mirror question is
       moot: GitHub became canonical on 2026-07-26, so CI runs on the canonical
       repo and there is no mirror hop.
-- [ ] **Mailgun.** EU region assumed (`api.eu.mailgun.net`). Create the sending
+- [ ] **Mailgun.** US region (`https://api.mailgun.net/v3`; mg.beam-campus.net MX is mxa.mailgun.org). Create the sending
       domain + API key, put them in the deploy secrets.
 
 ## Next — build

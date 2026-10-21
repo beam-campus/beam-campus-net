@@ -27,7 +27,7 @@ services:
       # Mailgun (optional until the contact slice ships)
       BEAM_CAMPUS_MAILGUN_API_KEY: "${BEAM_CAMPUS_MAILGUN_API_KEY:-}"
       BEAM_CAMPUS_MAILGUN_DOMAIN: "${BEAM_CAMPUS_MAILGUN_DOMAIN:-mg.beam-campus.net}"
-      BEAM_CAMPUS_MAILGUN_BASE_URL: "${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.eu.mailgun.net}"
+      BEAM_CAMPUS_MAILGUN_BASE_URL: "${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.mailgun.net/v3}"
       BEAM_CAMPUS_CONTACT_EMAIL: "${BEAM_CAMPUS_CONTACT_EMAIL:-raf.lefever@erlef.org}"
 
       # ── The mesh readers ──────────────────────────────────────────────

@@ -31,7 +31,7 @@ services:
       # Mailgun (loaded from host env / .env if present)
       BEAM_CAMPUS_MAILGUN_API_KEY: ${BEAM_CAMPUS_MAILGUN_API_KEY:-}
       BEAM_CAMPUS_MAILGUN_DOMAIN: ${BEAM_CAMPUS_MAILGUN_DOMAIN:-}
-      BEAM_CAMPUS_MAILGUN_BASE_URL: ${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.eu.mailgun.net}
+      BEAM_CAMPUS_MAILGUN_BASE_URL: ${BEAM_CAMPUS_MAILGUN_BASE_URL:-https://api.mailgun.net/v3}
       BEAM_CAMPUS_CONTACT_EMAIL: ${BEAM_CAMPUS_CONTACT_EMAIL:-raf.lefever@erlef.org}
       # Hanko (self-hosted auth) — public URLs
       HANKO_API_URL: "http://localhost:8000"

@@ -91,7 +91,7 @@ if System.get_env("BEAM_CAMPUS_MAILGUN_API_KEY") do
     adapter: Swoosh.Adapters.Mailgun,
     api_key: System.get_env("BEAM_CAMPUS_MAILGUN_API_KEY"),
     domain: System.get_env("BEAM_CAMPUS_MAILGUN_DOMAIN"),
-    base_url: System.get_env("BEAM_CAMPUS_MAILGUN_BASE_URL", "https://api.eu.mailgun.net")
+    base_url: System.get_env("BEAM_CAMPUS_MAILGUN_BASE_URL", "https://api.mailgun.net/v3")
 
   config :swoosh, :api_client, Swoosh.ApiClient.Req
 end
