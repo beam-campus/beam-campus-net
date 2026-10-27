@@ -2,14 +2,24 @@ name: CI
 
 # The tests gate the image. A push to main or a v* tag builds and pushes the
 # image only after the test job has passed, so a commit whose tests fail never
-# reaches ghcr and watchtower on the box never rolls it. Pull requests run the
-# tests only.
+# reaches ghcr. Pull requests run the tests only.
 #
 # Push to main -> :main + :<sha> + :latest
 # Push to tag  -> :vX.Y.Z + :vX.Y
 # amd64 only: the box is x86_64. The image goes to ghcr.io/beam-campus/beam-campus-net
-# with the Actions-provided GITHUB_TOKEN (packages: write). Watchtower on the box
-# polls ghcr and restarts, so a push to main is the whole deploy.
+# with the Actions-provided GITHUB_TOKEN (packages: write).
+#
+# THE IMAGE IS SIGNED AFTER IT IS PUSHED (macula-fleet#55). The `attest` job calls
+# macula-ci-images' attest-image.yml at a pinned commit sha, which signs the pushed DIGEST
+# keyless and attests its SBOM and provenance, exactly as every other image the fleet runs
+# is signed. Without it the box on beam-campus.net could not verify what it runs and could
+# not leave SIGNATURES=audit. A push to main is therefore NOT the deploy: the box runs the
+# digest pinned in macula-io/macula-fleet (vps/beam-campus-net/docker-compose.yml), and a
+# reviewed commit there is what moves it. Watchtower is gone from that box (2026-10-14).
+#
+# A v* tag is signed only if the tag names the version this repository publishes: the
+# guard in attest-image.yml reads package.json, which carries no version yet, so a tag
+# release is refused until the site takes a version. Main pushes are signed regardless.
 on:
   push:
     branches: [main]
@@ -96,6 +106,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # The digest the build pushed, so the attest job signs exactly those bytes.
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
     env:
       REGISTRY: ghcr.io
       IMAGE_NAME: ghcr.io/beam-campus/beam-campus-net
@@ -125,6 +138,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push
+        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -138,3 +152,20 @@ jobs:
           provenance: false
           build-args: |
             CACHE_BUST=${{ github.sha }}
+
+  # Sign the digest the build pushed, and attest its SBOM and provenance (macula-fleet#55).
+  # The identity a box checks is macula-ci-images' attest-image.yml at a guarded commit,
+  # called from THIS repository, for THIS digest: a build from anywhere else does not pass,
+  # and the digest a box runs is the one our CI signed. Pinned by full commit sha, never
+  # @main: the signing identity is that file at the ref named here.
+  attest:
+    name: Sign, SBOM & provenance
+    needs: image
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: macula-io/macula-ci-images/.github/workflows/attest-image.yml@fa59fba58d1b65dce35f8613dcb257273a0f29ed
+    with:
+      image: ghcr.io/beam-campus/beam-campus-net
+      digest: ${{ needs.image.outputs.digest }}

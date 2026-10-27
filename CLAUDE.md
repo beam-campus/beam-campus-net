@@ -50,7 +50,9 @@ building a read model against an engine the site does not use.
 
 `docker/dev/docker-compose.yml` — site + Hanko + `hanko-postgres` + Caddy. The
 ONLY Postgres in that stack is Hanko's own, which Hanko requires and the site
-never touches. Production runs no Postgres at all: site, Caddy, watchtower.
+never touches. Production (the stack in `macula-io/macula-fleet`, `vps/beam-campus-net/`)
+runs the site, Caddy, Hanko, Hanko's Postgres and the net.beam-campus realm; that box
+has no watchtower since 2026-10-14 and its reconciler pulls the pinned digests.
 
 TLS is Caddy's job (automatic Let's Encrypt in prod, internal CA on localhost in
 dev).
@@ -63,7 +65,7 @@ dev).
 | Email | **Mailgun** HTTPS API via Swoosh. `BEAM_CAMPUS_MAILGUN_*` env, wired in `runtime.exs`. |
 | TLS / proxy | **Caddy** + automatic Let's Encrypt. `docker/caddy/Caddyfile`. |
 | Deploy | Release overlay `bin/start` (migrate → server). `Dockerfile.prod`. |
-| CI | GitHub Actions on push to `main` → `ghcr.io/beam-campus/beam-campus-net` → watchtower on the box auto-pulls. |
+| CI | GitHub Actions on a test-green push to `main` builds the image, then signs its digest and attests its SBOM and provenance (`macula-ci-images`' `attest-image.yml`, macula-fleet#55) → `ghcr.io/beam-campus/beam-campus-net`. The box runs the digest pinned in `macula-io/macula-fleet`, moved by a reviewed commit there, not by a tag. |
 
 ## House rules (this repo)
 
