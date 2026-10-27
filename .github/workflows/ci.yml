@@ -17,12 +17,12 @@ name: CI
 # digest pinned in macula-io/macula-fleet (vps/beam-campus-net/docker-compose.yml), and a
 # reviewed commit there is what moves it. Watchtower is gone from that box (2026-10-14).
 #
-# A v* tag is signed only if the tag names the version this repository publishes, and it
-# publishes none: attest-image.yml's guard reads the version sources at the REPOSITORY ROOT,
-# finds this root package.json (asset tooling only, no "version" key) and refuses with
-# "package.json names no literal package version". The mix projects live under system/, which
-# the guard does not read. A tag release is therefore refused until the site takes a version;
-# main pushes are signed regardless, which is what the fleet pins.
+# A v* tag is signed only if the tag names the version this repository publishes, and the
+# COMMITTED tree publishes none: attest-image.yml's guard reads version sources at the
+# REPOSITORY ROOT, and the commit holds none there -- package.json is gitignored (it is the
+# asset tooling's, kept out of the tree) and the mix projects live under system/, which the
+# guard does not read. So a tag run is refused with "REFUSED, v1.0.0 names a release but .
+# holds no version". Main pushes are signed regardless, which is what the fleet pins.
 on:
   push:
     branches: [main]
